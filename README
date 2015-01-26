@@ -5,7 +5,15 @@ that is an object that can be interacted with
 will be a process. Everything will broadcast messages
 to everything else. Processes will ignore anything they're
 not interested in. Every process that is interested in receiving
-the result of a message can add itself to the messag.
+the result of a message can add itself to the message.
+
+I'm setting up erlmud_object to handle all the message chain stuff
+and then specific modules (erlmud_player, erlmud_room, etc.) that
+will create and manipulate object-specific state.
+
+I'm not sure what I'll do for objects with custom logic:
+- custom logic rules that can plugin to objects?
+- custom modules for specific rooms? (e.g. erlmud_room23)
 
 Example:
 
