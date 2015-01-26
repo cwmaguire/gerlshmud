@@ -1,0 +1,40 @@
+Erlang MUD where everything is a process
+
+Doors, swords, goblins, rings, rooms, everything
+that is an object that can be interacted with
+will be a process. Everything will broadcast messages
+to everything else. Processes will ignore anything they're
+not interested in. Every process that is interested in receiving
+the result of a message can add itself to the messag.
+
+Example:
+
+Players A and B are in Room {2,2} with Enemies E1 and E2.
+Player A has a ring R and sword S. Player B has a staff St
+and a cape C. The room has a door D that exits to Room {2,3},
+which is to the South.
+
+Player A enters "s" (go south).
+Player A's process sends creates a list of all surrounding objects
+(Player B, Room {2,2}, Room {2,3}, E1, E2, R, S, St, C and D and
+sends a message to the first process in the list along with the tail
+of the list:
+PlayerB ! {player, A, move, Room22, Room23, Processes, Subscribers = [A]}
+
+Player B doesn't care if Player A moves to the next room but it wants to be
+notified if the Player moves. Player B adds itself to the list of interested
+processes and passes the message to the next process in the list.
+
+Room {2,2} ! {..., tl(Processes), [PlayerB | Subscribers]}
+
+Room23 won't stop A from moving but also subscribes to the result to
+remove A from its list of contents.
+
+And so it goes until we get to door D. Door D is locked so door D
+blocks the move so D doesn't pass the message on (since it's no longer
+valid) and tells all the subscribers that the move was blocked.
+
+Each subscriber receives a message to the effect that Player A tried to
+go through door D and couldn't because it was locked.
+
+This will be a perfect storm of messages, but I'd like to try it out.
