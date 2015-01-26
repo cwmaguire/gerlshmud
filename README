@@ -12,7 +12,7 @@ and then specific modules (erlmud_player, erlmud_room, etc.) that
 will create and manipulate object-specific state.
 
 I'm not sure what I'll do for objects with custom logic:
-- custom logic rules that can plugin to objects?
+- pluggable event handlers?
 - custom modules for specific rooms? (e.g. erlmud_room23)
 
 Example:
