@@ -3,6 +3,7 @@
 
 %% API.
 -export([start_link/1]).
+-export([populate/2]).
 
 %% gen_server.
 -export([init/1]).
@@ -13,7 +14,7 @@
 -export([code_change/3]).
 
 -record(state, {type :: atom(),
-                state :: tuple()}).
+                obj_state :: tuple()}).
 
 %% API.
 
@@ -21,21 +22,19 @@
 start_link({Type, State}) ->
 	gen_server:start_link(?MODULE, {Type, State}, []).
 
-%% internal
-
-union_first_rest(Old, New) ->
-    All = sets:union(Old, New),
-    First = hd(sets:to_list(All)),
-    {First, sets:del_element(First, All)}.
+populate(Pid, ProcIds) ->
+    gen_server:cast(Pid, {populate, ProcIds}).
 
 %% gen_server.
 
-init({Type, State}) ->
-	{ok, #state{type = Type, state = State}}.
+init({Type, Props}) ->
+	{ok, #state{type = Type, obj_state = Type:create(Props)}}.
 
 handle_call(_Request, _From, State) ->
 	{reply, ignored, State}.
 
+handle_cast({populate, ProcIds}, State) ->
+    {noreply, State#state{obj_state = populate_(State, ProcIds)}};
 handle_cast({add, AddType, Pid}, State = #state{type = Type}) ->
     {noreply, Type:add(State, AddType, Pid)};
 handle_cast({msg, Msg, Receivers, Subscribers}, State) ->
@@ -53,3 +52,19 @@ terminate(_Reason, _State) ->
 
 code_change(_OldVsn, State, _Extra) ->
 	{ok, State}.
+
+%% internal
+
+populate_(ObjState, IdPids) ->
+    [Type | Fields] = tuple_to_list(ObjState),
+    list_to_tuple([Type | [proc(Field, IdPids) || Field <- Fields]]).
+
+proc(FieldObjs, IdPids) when is_list(FieldObjs) ->
+    [Obj || FieldObj <- FieldObjs, Obj <- [proc(FieldObj, IdPids)], Obj /= undefined];
+proc(FieldObj, IdPids) ->
+    proplists:get_value(FieldObj, IdPids).
+
+union_first_rest(Old, New) ->
+    All = sets:union(Old, New),
+    First = hd(sets:to_list(All)),
+    {First, sets:del_element(First, All)}.
