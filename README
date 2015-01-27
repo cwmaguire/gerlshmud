@@ -5,7 +5,9 @@ that is an object that can be interacted with
 will be a process. Everything will broadcast messages
 to everything else. Processes will ignore anything they're
 not interested in. Every process that is interested in receiving
-the result of a message can add itself to the message.
+the result of a message can add itself to the message. Even a
+description can be a process, especially if it generates parts
+of the description on the fly: time, weather, light level, etc.
 
 I'm setting up erlmud_object to handle all the message chain stuff
 and then specific modules (erlmud_player, erlmud_room, etc.) that
