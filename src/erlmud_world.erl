@@ -4,6 +4,7 @@
 
 -define(WORLD,
         [{erlmud_room, room1, [{players, [player1]}]},
+         {erlmud_room, room2, [{players, [player1]}]},
          {erlmud_player, player1, [{room, room1}]}]).
 
 init() ->

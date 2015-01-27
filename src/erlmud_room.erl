@@ -4,19 +4,17 @@
 -export([create/1]).
 -export([add/3]).
 
--record(state, {exits :: [pid()],
-                players :: [pid()],
-                items :: [pid()],
-                mobs :: [pid()]}).
+-define(PV(K, PL), proplists:get_value(K, PL, [])).
 
-procs(#state{exits = Exits,
-             players = Players,
-             items = Items,
-             mobs = Mobs}) ->
-    [Exits | [Players | [Items | Mobs]]].
+procs(Props) ->
+    Fields = [exits, players, items, mobs],
+    lists:flatten([?PV(Field, Props) || Field <- Fields]).
 
 create(Props) ->
-    Props.
+    [{exits, proplists:get_value(exits, Props, [])},
+     {players, proplists:get_value(players, Props)},
+     {items, proplists:get_value(items, Props)},
+     {mobs, proplists:get_value(mobs, Props)}].
 
 add(State = #state{exits = Exits}, exit, Pid) ->
     State#state{exits = [Pid | Exits]};

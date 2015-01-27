@@ -2,28 +2,20 @@
 
 -export([procs/1]).
 -export([create/1]).
--export([populate/2]).
--export([add/3]).
+%-export([add/3]).
 
--record(state, {items :: [pid()],
-                room :: pid()}).
+-define(PV(K, PL, Dflt), proplists:get_value(K, PL, Dflt)).
+-define(PV(K, PL), ?PV(K, PL, undefined)).
 
-procs(#state{items = Items,
-             room = Room}) ->
-    [Room | Items].
+procs(Props) ->
+    Fields = [room, items],
+    lists:flatten([?PV(Field, Props) || Field <- Fields]).
 
 create(Props) ->
-    #state{items = proplists:get_value(items, Props, []),
-           room = proplists:get_value(room, Props)}.
+    [{items, ?PV(room, Props)},
+     {room, ?PV(items, Props)},
+     {messages, ?PV(messages, Props)}].
 
-populate(#state{items = Items, room = Room}, Objs) ->
-    #state{items = populate(item, Items, Objs),
-           room = populate(room, Room, Objs)}.
+%add(Props, item, Pid) ->
 
-populate(item, Items, Objs) ->
-    [Obj || Item <- Items,
-            Obj <- [proplists:get_value(Item, Objs, undefined)],
-            Obj /= undefined].
-
-add(State = #state{items = Items}, item, Pid) ->
-    State#state{items = [Pid | Items]}.
+    %lists:keyreplace(item, 1, Props, 

@@ -60,9 +60,9 @@ populate_(ObjState, IdPids) ->
     list_to_tuple([Type | [proc(Field, IdPids) || Field <- Fields]]).
 
 proc(FieldObjs, IdPids) when is_list(FieldObjs) ->
-    [Obj || FieldObj <- FieldObjs, Obj <- [proc(FieldObj, IdPids)], Obj /= undefined];
+    [proc(FieldObj, IdPids) || FieldObj <- FieldObjs];
 proc(FieldObj, IdPids) ->
-    proplists:get_value(FieldObj, IdPids).
+    proplists:get_value(FieldObj, IdPids, FieldObj).
 
 union_first_rest(Old, New) ->
     All = sets:union(Old, New),
