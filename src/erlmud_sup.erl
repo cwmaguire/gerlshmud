@@ -8,5 +8,10 @@ start_link() ->
 	supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 init([]) ->
-	Procs = [],
-	{ok, {{one_for_one, 1, 5}, Procs}}.
+	Procs = [{object,
+              {erlmud_object, start_link, []},
+              transient,
+              brutal_kill,
+              worker,
+              [erlmud_object]}],
+	{ok, {{simple_one_for_one, 1, 5}, Procs}}.
