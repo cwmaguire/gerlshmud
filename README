@@ -17,6 +17,9 @@ I'm not sure what I'll do for objects with custom logic:
 - pluggable event handlers?
 - custom modules for specific rooms? (e.g. erlmud_room23)
 
+Updates:
+Jan 27, 2015 - propagated first succeed message back to a subscribers
+
 Example:
 
 Players A and B are in Room {2,2} with Enemies E1 and E2.
