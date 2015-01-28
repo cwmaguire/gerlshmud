@@ -15,14 +15,14 @@ procs(Props) ->
 create(Props) ->
     [{Field, ?PV(Field, Props, [])} || Field <- ?FIELDS].
 
-handle(Msg = {attempt, _}, State) ->
-    log(Msg, State),
-    {true, true, State};
-handle(Msg, State) ->
-    log(Msg, State),
-    State.
+handle(Props, Msg = {attempt, _}) ->
+    log(Msg, Props),
+    {succeed, true, Props};
+handle(Msg, Props) ->
+    log(Msg, Props),
+    Props.
 
-log(Msg, State) ->
+log(Msg, Props) ->
     io:format("Player received: ~p~n"
-              "with state: ~p~n",
-              [Msg, State]).
+              "with props: ~p~n",
+              [Msg, Props]).

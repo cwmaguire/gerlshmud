@@ -24,27 +24,31 @@ create(Props) ->
     %io:format("Process ~p wants to leave room ~p for ~p~n", [Obj, Source, Target]),
     %false.
 
-handle({attempt, {move, Obj, Self, Target}}, State) when Self == self() ->
+handle({attempt, {move, Obj, Self, Target}}, Props) when Self == self() ->
     io:format("Process ~p wants to leave room ~p for ~p~n",
               [Obj, self(), Target]),
-    {true, true, State};
-handle({attempt, {move, Obj, Self, Target}}, State) when Self == self() ->
+    {succeed, true, Props};
+handle({attempt, {move, Obj, Self, Target}}, Props) when Self == self() ->
     io:format("Process ~p wants to enter room ~p from ~p~n",
               [Obj, self(), Target]),
-    {true, true, State};
-handle({succeed, {move, Obj, Self, Target}}, State) when Self == self() ->
-    io:format("Process ~p has left room ~p for ~p~n",
+    {succeed, true, Props};
+handle(Props, {succeed, {move, Obj, Self, Target}}) when Self == self() ->
+    io:format("Process ~p has left this room ~p for ~p~n",
               [Obj, self(), Target]),
-    State;
-handle({succeed, {move, Obj, Source, Self}}, State) when Self == self() ->
-    io:format("Process ~p has entered room ~p from ~p~n",
+    Props;
+handle(Props, {succeed, {move, Obj, Source, Self}}) when Self == self() ->
+    io:format("Process ~p has entered this room ~p from ~p~n",
               [Obj, self(), Source]),
-    State;
-handle({fail, {move, Obj, Self, Target}}, State) when Self == self() ->
+    Props;
+handle(Props, {succeed, {move, Obj, Source, Target}}) ->
+    io:format("Process ~p has entered room ~p from ~p (This process is ~p)~n",
+              [Obj, Target, Source, self()]),
+    Props;
+handle(Props, {fail, {move, Obj, Self, Target}}) when Self == self() ->
     io:format("Process ~p failed to leave this room (~p) for ~p~n",
               [Obj, Self, Target]),
-    State;
-handle({fail, {move, Obj, Source, Self}}, State) when Self == self() ->
+    Props;
+handle(Props, {fail, {move, Obj, Source, Self}}) when Self == self() ->
     io:format("Process ~p failed to enter this room (~p) from ~p~n",
               [Obj, Source, Self]),
-    State.
+    Props.
