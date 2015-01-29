@@ -4,10 +4,10 @@
 -export([move/1]).
 
 -define(WORLD,
-        [{erlmud_room, room1, [{players, [player1]}]},
-         {erlmud_room, room2, [{players, [player1]}]},
+        [{erlmud_room, room1, [{players, [player1]}, {exits, [exit1]}]},
+         {erlmud_room, room2, [{players, [player1]}, {exits, [exit1]}]},
          {erlmud_player, player1, [{room, room1}]},
-         {erlmud_exit, exit1, [{s, room2}, {n, room1}]}]).
+         {erlmud_exit, exit1, [{rooms, [{s, room2}, {n, room1}]}]}]).
 
 init() ->
     IdPids = [{Id, start(Id, Type, Props)} || {Type, Id, Props} <- ?WORLD],
@@ -24,4 +24,5 @@ move(IdPids) ->
     Room2 = proplists:get_value(room2, IdPids),
     Player1 = proplists:get_value(player1, IdPids),
     %Exit1 = proplists:get_value(exit1, IdPids),
-    gen_server:cast(Room1, {attempt, {move, Player1, Room1, Room2}, [], []}).
+    Procs = {[], [], []},
+    gen_server:cast(Room1, {attempt, {move, Player1, Room1, Room2}, Procs}).

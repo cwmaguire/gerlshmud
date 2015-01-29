@@ -4,25 +4,21 @@
 -export([create/1]).
 -export([handle/2]).
 
--define(FIELDS, [n, e, s, w, ne, se, nw, sw]).
+-define(FIELDS, [rooms]).
 -define(PV(K, PL, Dflt), proplists:get_value(K, PL, Dflt)).
 -define(PV(K, PL), ?PV(K, PL, undefined)).
 
 procs(Props) ->
-    Fields = [room, items],
+    Fields = [room],
     lists:flatten([?PV(Field, Props, Dflt) || {Field, Dflt} <- Fields]).
 
 create(Props) ->
     Props.
 
-handle(Props, Msg = {attempt, _}) ->
-    log(Msg, Props),
+handle(Props, {attempt, {move, Obj, Self, Target}}) when Self == self() ->
+    io:format("Process ~p wants to leave room ~p for ~p~n",
+              [Obj, self(), Target]),
     {succeed, true, Props};
-handle(Msg, Props) ->
-    log(Msg, Props),
+handle(Props, {Result, Msg}) ->
+    io:format("~p message: ~p~n", [Result, Msg]),
     Props.
-
-log(Msg, Props) ->
-    io:format("Player received: ~p~n"
-              "with props: ~p~n",
-              [Msg, Props]).

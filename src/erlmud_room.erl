@@ -12,7 +12,10 @@
 
 procs(Props) ->
     Fields = [exits, players, items, mobs],
-    lists:flatten([?PV(Field, Props) || Field <- Fields]).
+    io:format("~p getting procs~n", [self()]),
+    Procs = lists:flatten([?PV(Field, Props) || Field <- Fields]),
+    io:format("~p returning procs: ~p~n", [self(), Procs]),
+    Procs.
 
 create(Props) ->
     [{Field, ?PV(Field, Props, [])} || Field <- ?FIELDS].
@@ -24,31 +27,31 @@ create(Props) ->
     %io:format("Process ~p wants to leave room ~p for ~p~n", [Obj, Source, Target]),
     %false.
 
-handle({attempt, {move, Obj, Self, Target}}, Props) when Self == self() ->
-    io:format("Process ~p wants to leave room ~p for ~p~n",
-              [Obj, self(), Target]),
+handle(Props, {attempt, {move, Obj, Self, Target}}) when Self == self() ->
+    io:format("Room ~p: ~p wants to go to ~p~n",
+              [self(), Obj, Target]),
     {succeed, true, Props};
-handle({attempt, {move, Obj, Self, Target}}, Props) when Self == self() ->
-    io:format("Process ~p wants to enter room ~p from ~p~n",
-              [Obj, self(), Target]),
+handle(Props, {attempt, {move, Obj, Source, Self}}) when Self == self() ->
+    io:format("Room ~p: ~p wants to come from ~p~n",
+              [self(), Obj, Source]),
     {succeed, true, Props};
 handle(Props, {succeed, {move, Obj, Self, Target}}) when Self == self() ->
-    io:format("Process ~p has left this room ~p for ~p~n",
-              [Obj, self(), Target]),
+    io:format("Room ~p: ~p left for ~p~n",
+              [self(), Obj, Target]),
     Props;
 handle(Props, {succeed, {move, Obj, Source, Self}}) when Self == self() ->
-    io:format("Process ~p has entered this room ~p from ~p~n",
-              [Obj, self(), Source]),
+    io:format("Room ~p: ~p came from ~p~n",
+              [self(), Obj, Source]),
     Props;
 handle(Props, {succeed, {move, Obj, Source, Target}}) ->
-    io:format("Process ~p has entered room ~p from ~p (This process is ~p)~n",
-              [Obj, Target, Source, self()]),
+    io:format("Room ~p: Process ~p went from ~p to ~p~n",
+              [self(), Obj, Source, Target]),
     Props;
 handle(Props, {fail, {move, Obj, Self, Target}}) when Self == self() ->
-    io:format("Process ~p failed to leave this room (~p) for ~p~n",
-              [Obj, Self, Target]),
+    io:format("Room ~p: ~p couldn't go from here to ~p~n",
+              [self(), Obj, Target]),
     Props;
 handle(Props, {fail, {move, Obj, Source, Self}}) when Self == self() ->
-    io:format("Process ~p failed to enter this room (~p) from ~p~n",
-              [Obj, Source, Self]),
+    io:format("Room ~p: ~p couldn't come here from ~p~n",
+              [self(), Obj, Source]),
     Props.
