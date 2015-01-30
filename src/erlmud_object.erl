@@ -42,7 +42,7 @@ handle_cast({add, AddType, Pid}, State = #state{type = Type}) ->
 handle_cast({attempt, Msg, Procs},
             State = #state{type = Type, props = Props}) ->
     {Result, Interested, Props2} = Type:handle(Props, {attempt, Msg}),
-    Procs2 = merge(sub(Procs, Interested), call(procs, State)),
+    Procs2 = merge(self(), sub(Procs, Interested), call(procs, State)),
     State2 = State#state{props = Props2},
     handle(Result, Msg, Procs2, State2),
 	{noreply, State};
@@ -68,11 +68,11 @@ code_change(_OldVsn, State, _Extra) ->
 handle({fail, Reason}, Msg, {_, _, Subs}, _) ->
     [gen_server:cast(Sub, {fail, Reason, Msg}) || Sub <- Subs];
 handle(succeed, Msg, {_, [], Subs}, #state{type = Type}) ->
-    io:format("~p ~p: handling succeed, ~p, [], ~p, ~p~n",
+    io:format("~p ~p: handling succeed, ~p, [], ~p~n\t~p~n",
               [Type, self(), Msg, Subs, no_state]),
     [gen_server:cast(Sub, {succeed, Msg}) || Sub <- Subs];
 handle(succeed, Msg, Procs = {_, _, Subs}, State = #state{type = Type}) ->
-    io:format("~p ~p handling succeed, ~p, ~p, ~p~n",
+    io:format("~p ~p handling succeed, ~p, ~p~n\t~p~n",
               [Type, self(), Msg, Procs, State]),
     case next(Procs) of
         {Next, Procs2} ->
@@ -89,7 +89,7 @@ proc(K, Vs, IdPids) when is_list(Vs) ->
 proc(K, Value, IdPids) ->
     {K, proc(Value, IdPids)}.
 
-proc({K, Value}, IdPids) when is_list(Value) ->
+proc({K, Value}, IdPids) ->
     {K, proplists:get_value(Value, IdPids, Value)};
 proc(Value, IdPids) when is_atom(Value) ->
     proplists:get_value(Value, IdPids, Value);
@@ -97,13 +97,21 @@ proc(Value, _) ->
     Value.
 
 sub({Old, New, Subs}, true) ->
-    {Old, New, [self() | Subs]};
+    %{Old, New, [self() | Subs]};
+    {Old, New, ordsets:union(Subs, [self()])};
 sub(Procs, _) ->
     Procs.
 
-merge({Old, New, Subs}, Procs) ->
-    New2 = ordsets:union(New, ordsets:subtract(ordsets:from_list(Procs), Old)),
-    {Old, New2, Subs}.
+merge(Self, {Done, Next, Subs}, Procs) ->
+    Done2 = ordsets:union(Done, [Self]),
+    New = ordsets:subtract(ordsets:from_list(Procs), Done2),
+    Next2 = ordsets:union(Next, New),
+    %io:format("~p Merged ~p\nwith ~p\n"
+              %"to get ~p~n"
+              %"added ~p to done1: ~p to get done2: ~p~n"
+              %"(with subs ~p)~n",
+              %[self(), Next, New, Next2, Self, Done, Done2, Subs]),
+    {Done2, Next2, Subs}.
 
 next({Old, New, Subs}) ->
     Next = hd(ordsets:to_list(New)),

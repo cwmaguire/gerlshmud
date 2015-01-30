@@ -9,16 +9,16 @@
 -define(PV(K, PL), ?PV(K, PL, undefined)).
 
 procs(Props) ->
-    Fields = [room],
-    lists:flatten([?PV(Field, Props, Dflt) || {Field, Dflt} <- Fields]).
+    Rooms = ?PV(rooms, Props, []),
+    lists:flatten([Room || {_, Room} <- Rooms]).
 
 create(Props) ->
     Props.
 
-handle(Props, {attempt, {move, Obj, Self, Target}}) when Self == self() ->
+handle(Props, {attempt, {move, Obj, Source, Target}}) ->
     io:format("Process ~p wants to leave room ~p for ~p~n",
-              [Obj, self(), Target]),
+              [Obj, Source, Target]),
     {succeed, true, Props};
 handle(Props, {Result, Msg}) ->
     io:format("~p message: ~p~n", [Result, Msg]),
-    Props.
+    {fail, false, Props}.
