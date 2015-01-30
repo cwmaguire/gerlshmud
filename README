@@ -19,6 +19,7 @@ I'm not sure what I'll do for objects with custom logic:
 
 Updates:
 Jan 27, 2015 - propagated first succeed message back to a subscribers
+Jan 29, 2015 - move player between two rooms via an exit
 
 Example:
 
