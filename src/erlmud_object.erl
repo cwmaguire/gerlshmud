@@ -31,14 +31,24 @@ populate(Pid, ProcIds) ->
 init({Type, Props}) ->
 	{ok, #state{type = Type, props = Type:create(Props)}}.
 
+handle_call(props, _From, State) ->
+    {reply, State#state.props, State};
 handle_call(_Request, _From, State) ->
 	{reply, ignored, State}.
 
+handle_cast({type, Pid}, State = #state{type = Type}) ->
+    gen_server:cast(Pid, {type, Type}),
+    {noreply, State};
 handle_cast({populate, ProcIds}, State = #state{props = Props}) ->
     {noreply, State#state{props = populate_(Props, ProcIds)}};
 handle_cast({add, AddType, Pid}, State = #state{type = Type}) ->
-    Props2 = Type:add(State#state.props, AddType, Pid),
+    Props2 = Type:add(AddType, State#state.props, Pid),
     {noreply, State#state{props = Props2}};
+handle_cast({remove, RemType, Pid}, State = #state{type = Type}) ->
+    Props2 = Type:remove(RemType, Pid, State#state.props),
+    {noreply, State#state{props = Props2}};
+%handle_cast({add, AddType, Pid}, State = #state{type = Type, props = Props}) ->
+    %{noreply, State#state{props = Type:add(AddType, Pid, Props)}};
 handle_cast({attempt, Msg, Procs},
             State = #state{type = Type, props = Props}) ->
     {Result, Interested, Props2} = Type:handle(Props, {attempt, Msg}),
@@ -51,8 +61,8 @@ handle_cast(Fail = {fail, _, _}, State) ->
     {noreply, State2};
 handle_cast(Success = {succeed, _}, State) ->
     io:format("~p ~p handling ~p~n", [State#state.type, self(), Success]),
-    State2 = call(handle, Success, State),
-    {noreply, State2}.
+    Props2 = call(handle, Success, State),
+    {noreply, State#state{props = Props2}}.
 
 handle_info(_Info, State) ->
 	{noreply, State}.
@@ -106,11 +116,6 @@ merge(Self, {Done, Next, Subs}, Procs) ->
     Done2 = ordsets:union(Done, [Self]),
     New = ordsets:subtract(ordsets:from_list(Procs), Done2),
     Next2 = ordsets:union(Next, New),
-    %io:format("~p Merged ~p\nwith ~p\n"
-              %"to get ~p~n"
-              %"added ~p to done1: ~p to get done2: ~p~n"
-              %"(with subs ~p)~n",
-              %[self(), Next, New, Next2, Self, Done, Done2, Subs]),
     {Done2, Next2, Subs}.
 
 next({Old, New, Subs}) ->

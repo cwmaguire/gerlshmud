@@ -4,10 +4,10 @@
 -export([move/1]).
 
 -define(WORLD,
-        [{erlmud_room, room1, [{players, [player1]}, {exits, [exit1]}]},
-         {erlmud_room, room2, [{players, [player1]}, {exits, [exit1]}]},
+        [{erlmud_room, room1, [{player, [player1]}, {exit, [exit1]}]},
+         {erlmud_room, room2, [{player, []}, {exit, [exit1]}]},
          {erlmud_player, player1, [{room, room1}]},
-         {erlmud_exit, exit1, [{rooms, [{s, room2}, {n, room1}]}]}]).
+         {erlmud_exit, exit1, [{room, [{s, room2}, {n, room1}]}]}]).
 
 init() ->
     IdPids = [{Id, start(Id, Type, Props)} || {Type, Id, Props} <- ?WORLD],

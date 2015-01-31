@@ -3,22 +3,41 @@
 -export([procs/1]).
 -export([create/1]).
 -export([handle/2]).
+-export([add/3]).
+-export([remove/3]).
 
--define(FIELDS, [{room, undefined}, {items, []}, {messages, []}]).
+-define(FIELDS, [{room, undefined}, {item, []}, {message, []}]).
 -define(PV(K, PL, Dflt), proplists:get_value(K, PL, Dflt)).
 -define(PV(K, PL), ?PV(K, PL, undefined)).
 
 procs(Props) ->
-    Fields = [room, items],
+    Fields = [room, item],
     lists:flatten([?PV(Field, Props, Dflt) || {Field, Dflt} <- Fields]).
 
 create(Props) ->
-    [{Field, ?PV(Field, Props, [])} || Field <- ?FIELDS].
+    [{Field, ?PV(Field, Props, Default)} || {Field, Default} <- ?FIELDS].
+
+set(Type, Obj, Props) ->
+    lists:keystore(Type, 1, Props, {room, Obj}).
+
+add(Type, Obj, Props) ->
+    OldProp = proplists:get_value(Type, Props, []),
+    NewProp = {Type, [Obj | OldProp]},
+    lists:keystore(Type, 1, Props, NewProp).
+
+remove(Type, Obj, Props) ->
+    Objs = proplists:get_value(Type, Props, []),
+    lists:keystore(Type, 1, lists:delete(Obj, Objs)).
 
 handle(Props, Msg = {attempt, _}) ->
     log(Msg, Props),
     {succeed, true, Props};
-handle(Msg, Props) ->
+handle(Props, {succeed, {move, Self, Source, Target}}) when Self == self() ->
+    io:format("Player ~p: moved from ~p to ~p~n", [self(), Source, Target]),
+    gen_server:cast(Source, {remove, player, self()}),
+    gen_server:cast(Target, {add, player, self()}),
+    set(room, Target, Props);
+handle(Props, Msg) ->
     log(Msg, Props),
     Props.
 
