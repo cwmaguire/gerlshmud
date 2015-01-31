@@ -29,16 +29,13 @@ populate(Pid, ProcIds) ->
 %% gen_server.
 
 init({Type, Props}) ->
-	{ok, #state{type = Type, props = Type:create(Props)}}.
+	{ok, #state{type = Type, props = Props}}.
 
 handle_call(props, _From, State) ->
     {reply, State#state.props, State};
 handle_call(_Request, _From, State) ->
 	{reply, ignored, State}.
 
-handle_cast({type, Pid}, State = #state{type = Type}) ->
-    gen_server:cast(Pid, {type, Type}),
-    {noreply, State};
 handle_cast({populate, ProcIds}, State = #state{props = Props}) ->
     {noreply, State#state{props = populate_(Props, ProcIds)}};
 handle_cast({add, AddType, Pid}, State = #state{type = Type}) ->
@@ -47,22 +44,12 @@ handle_cast({add, AddType, Pid}, State = #state{type = Type}) ->
 handle_cast({remove, RemType, Pid}, State = #state{type = Type}) ->
     Props2 = Type:remove(RemType, Pid, State#state.props),
     {noreply, State#state{props = Props2}};
-%handle_cast({add, AddType, Pid}, State = #state{type = Type, props = Props}) ->
-    %{noreply, State#state{props = Type:add(AddType, Pid, Props)}};
-handle_cast({attempt, Msg, Procs},
-            State = #state{type = Type, props = Props}) ->
-    {Result, Interested, Props2} = Type:handle(Props, {attempt, Msg}),
-    Procs2 = merge(self(), sub(Procs, Interested), call(procs, State)),
-    State2 = State#state{props = Props2},
-    handle(Result, Msg, Procs2, State2),
-	{noreply, State};
+handle_cast({attempt, Msg, Procs}, State) ->
+	{noreply, attempt(Msg, Procs, State)};
 handle_cast(Fail = {fail, _, _}, State) ->
-    State2 = call(handle, Fail, State),
-    {noreply, State2};
+    {noreply, call(handle, Fail, State)};
 handle_cast(Success = {succeed, _}, State) ->
-    io:format("~p ~p handling ~p~n", [State#state.type, self(), Success]),
-    Props2 = call(handle, Success, State),
-    {noreply, State#state{props = Props2}}.
+    {noreply, State#state{props = call(handle, Success, State)}}.
 
 handle_info(_Info, State) ->
 	{noreply, State}.
@@ -74,6 +61,13 @@ code_change(_OldVsn, State, _Extra) ->
 	{ok, State}.
 
 %% internal
+
+attempt(Msg, Procs, State = #state{type = Type, props = Props}) ->
+    {Result, Interested, Props2} = Type:handle(Props, {attempt, Msg}),
+    Procs2 = merge(self(), sub(Procs, Interested), procs(Props)),
+    State2 = State#state{props = Props2},
+    handle(Result, Msg, Procs2, State2),
+    State2.
 
 handle({fail, Reason}, Msg, {_, _, Subs}, _) ->
     [gen_server:cast(Sub, {fail, Reason, Msg}) || Sub <- Subs];
@@ -91,23 +85,18 @@ handle(succeed, Msg, Procs = {_, _, Subs}, State = #state{type = Type}) ->
             [gen_server:cast(Sub, {succeed, Msg}) || Sub <- Subs]
     end.
 
+procs(Props) ->
+    [Pid || {_, Pid} <- Props, is_pid(Pid)].
+
 populate_(Props, IdPids) ->
-    [proc(K, V, IdPids) || {K, V} <- Props].
+    [{K, proc(V, IdPids)} || {K, V} <- Props].
 
-proc(K, Vs, IdPids) when is_list(Vs) ->
-    {K, [proc(V, IdPids) || V <- Vs]};
-proc(K, Value, IdPids) ->
-    {K, proc(Value, IdPids)}.
-
-proc({K, Value}, IdPids) ->
-    {K, proplists:get_value(Value, IdPids, Value)};
 proc(Value, IdPids) when is_atom(Value) ->
     proplists:get_value(Value, IdPids, Value);
 proc(Value, _) ->
     Value.
 
 sub({Old, New, Subs}, true) ->
-    %{Old, New, [self() | Subs]};
     {Old, New, ordsets:union(Subs, [self()])};
 sub(Procs, _) ->
     Procs.
@@ -121,9 +110,6 @@ merge(Self, {Done, Next, Subs}, Procs) ->
 next({Old, New, Subs}) ->
     Next = hd(ordsets:to_list(New)),
     {Next, {Old, ordsets:del_element(Next, New), Subs}}.
-
-call(Fun, #state{type = Type, props = Props}) ->
-    Type:Fun(Props).
 
 call(Fun, Arg, #state{type = Type, props = Props}) ->
     Type:Fun(Props, Arg).

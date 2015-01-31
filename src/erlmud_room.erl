@@ -1,34 +1,16 @@
 -module(erlmud_room).
 
--export([procs/1]).
--export([create/1]).
 -export([add/3]).
 -export([remove/3]).
 -export([handle/2]).
-
--define(FIELDS, [exit, player, item, mob]).
-
--define(PV(K, PL, Dflt), proplists:get_value(K, PL, Dflt)).
--define(PV(K, PL), proplists:get_value(K, PL, undefined)).
-
-procs(Props) ->
-    Fields = [exit, player, item, mob],
-    io:format("~p getting procs~n", [self()]),
-    Procs = lists:flatten([?PV(Field, Props) || Field <- Fields]),
-    io:format("~p returning procs: ~p~n", [self(), Procs]),
-    Procs.
-
-create(Props) ->
-    [{Field, ?PV(Field, Props, [])} || Field <- ?FIELDS].
 
 add(Type, Props, Obj) ->
     OldProp = proplists:get_value(Type, Props, []),
     NewProp = {Type, [Obj | OldProp]},
     lists:keystore(Type, 1, Props, NewProp).
 
-remove(Type, Obj, Props) ->
-    Objs = proplists:get_value(Type, Props, []),
-    lists:keystore(Type, 1, Props, {Type, lists:delete(Obj, Objs)}).
+remove(RemType, Obj, Props) ->
+    [Prop || Prop = {Type, Pid} <- Props, Type /= RemType, Pid /= Obj].
 
 handle(Props, {attempt, {move, Obj, Self, Target}}) when Self == self() ->
     io:format("Room ~p: ~p wants to go to ~p~n",

@@ -1,20 +1,9 @@
--module(erlmud_player).
+-module(erlmud_item).
 
 -export([handle/2]).
--export([add/3]).
--export([remove/3]).
 
 set(Type, Obj, Props) ->
     lists:keystore(Type, 1, Props, {room, Obj}).
-
-add(Type, Obj, Props) ->
-    OldProp = proplists:get_value(Type, Props, []),
-    NewProp = {Type, [Obj | OldProp]},
-    lists:keystore(Type, 1, Props, NewProp).
-
-remove(Type, Obj, Props) ->
-    Objs = proplists:get_value(Type, Props, []),
-    lists:keystore(Type, 1, lists:delete(Obj, Objs)).
 
 handle(Props, Msg = {attempt, _}) ->
     log(Msg, Props),
@@ -29,6 +18,7 @@ handle(Props, Msg) ->
     Props.
 
 log(Msg, Props) ->
-    io:format("Player received: ~p~n"
+    io:format("Item ~p received: ~p~n"
               "with props: ~p~n",
-              [Msg, Props]).
+              [self(), Msg, Props]).
+
