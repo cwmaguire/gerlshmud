@@ -28,5 +28,5 @@ Jan 31, 2015 - move player between two rooms with a direction
 How to run it:
 make && make rel && _rel/erlmud_release/bin/erlmud_release console
 > erlmud_world:init(). %% Loads the world
-> erlmud_world:m(s). %% Move player1 south
-> erlmud_world:s(). Get the state of all the objects
+> erlmud_world:m(s).   %% Move player1 south
+> erlmud_world:s().    %% Get the state of all the objects
