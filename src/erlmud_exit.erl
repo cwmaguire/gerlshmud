@@ -24,9 +24,12 @@ handle(Props, {attempt, {move, Obj, Source, Exit}}) when is_atom(Exit) ->
 handle(Props, {attempt, {move, Obj, Source, Target}}) ->
     io:format("Process ~p wants to leave room ~p for ~p~n", [Obj, Source, Target]),
     {succeed, true, Props};
+handle(Props, {attempt, _}) ->
+    {succeed, false, Props};
+
 handle(Props, {Result, Msg}) ->
     io:format("~p message: ~p~n", [Result, Msg]),
-    {fail, false, Props}.
+    Props.
 
 move(Props, Obj, [{{room, FromDir}, FromRoom}], FromExit) ->
     case [Room || Room = {{room, ToDir}, ToRoom} <- Props,
@@ -34,7 +37,11 @@ move(Props, Obj, [{{room, FromDir}, FromRoom}], FromExit) ->
                   ToRoom /= FromRoom,
                   ToDir == FromExit] of
         [{_, ToRoom}] ->
-            {move, Obj, FromRoom, ToRoom};
+            NewMsg = {move, Obj, FromRoom, ToRoom},
+            Result = {resend, Obj, NewMsg},
+            {Result, false, Props};
         [] ->
             {succeed, false, Props}
-    end.
+    end;
+move(Props, _, _, _) ->
+    {succeed, false, Props}.

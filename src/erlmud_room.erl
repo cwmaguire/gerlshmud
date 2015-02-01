@@ -5,9 +5,12 @@
 -export([handle/2]).
 
 add(Type, Props, Obj) ->
-    OldProp = proplists:get_value(Type, Props, []),
-    NewProp = {Type, [Obj | OldProp]},
-    lists:keystore(Type, 1, Props, NewProp).
+    case lists:member({Type, Obj}, Props) of
+        false ->
+            [{Type, Obj} | Props];
+        true ->
+            Props
+    end.
 
 remove(RemType, Obj, Props) ->
     [Prop || Prop = {Type, Pid} <- Props, Type /= RemType, Pid /= Obj].
@@ -18,9 +21,10 @@ handle(Props, {attempt, {move, Obj, Self, Target}}) when Self == self() ->
 handle(Props, {attempt, {move, Obj, Source, Self}}) when Self == self() ->
     io:format("Room ~p: ~p wants to come from ~p~n", [self(), Obj, Source]),
     {succeed, true, Props};
-handle(Props, {attempt, {move, Obj, Dir}}) when Self == self() ->
-    io:format("Room ~p: ~p wants to go ~p~n",
-              [self(), Obj, Dir]), {succeed, true, Props};
+
+handle(Props, {attempt, Msg}) ->
+    io:format("Room ~p: ignoring attempt ~p~n", [self(), Msg]),
+    {succeed, false, Props};
 
 handle(Props, {succeed, {move, Obj, Self, Target}}) when Self == self() ->
     io:format("Room ~p: ~p left for ~p~n", [self(), Obj, Target]),

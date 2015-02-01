@@ -2,12 +2,12 @@
 
 -export([init/0]).
 -export([move/1]).
--export([m/0]).
+-export([m/1]).
 -export([s/0]).
 
 -define(WORLD,
         [{erlmud_room, room1, [{player, player1}, {exit, exit1}]},
-         {erlmud_room, room2, [{exit, exit1}]},
+         {erlmud_room, room2, [{exit, exit1}, {exit, exit2}]},
          {erlmud_room, room3, [{exit, exit2}]},
          {erlmud_player, player1, [{room, room1}, {item, item1}]},
          {erlmud_exit, exit1, [{{room, s}, room2}, {{room, n}, room1}]},
@@ -33,14 +33,11 @@ move(IdPids) ->
     gen_server:cast(Room1, {attempt, {move, Player1, Room1, Room2}, Procs}).
 
 m(Dir) ->
-    Pids = init(),
-    Player1 = proplists:get_value(player1, Pids),
-    Room1 = proplists:get_value(room1, Pids),
-    Room2 = proplists:get_value(room2, Pids),
-    gen_server:cast(Room1, {attempt, {move, Player1, Room1, Room2}, {[], [], []}}).
+    Player1 = whereis(player1),
+    gen_server:cast(Player1, {attempt, {move, Player1, Dir}, {[], [], []}}).
 
 s() ->
-    [io:format("~p~n", [st(X)]) || X <- [player1, room1, room2, exit1, item1]].
+    [io:format("~p: ~p~n", [X, st(X)]) || X <- [player1, room1, room2, room3, exit1, exit2, item1, item2]].
 
 st(Regname) ->
-    sys:get_status(Regname).
+    sys:get_state(Regname).

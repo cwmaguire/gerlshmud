@@ -12,25 +12,30 @@ add(Type, Obj, Props) ->
     NewProp = {Type, [Obj | OldProp]},
     lists:keystore(Type, 1, Props, NewProp).
 
-%room(Exit, Props) when is_atom(Exit) ->
-    %room(proplists:get_value(room, Props), Exit).
-
-%room(undefined, _) ->
-    %undefined;
-%room(Room, Exit) ->
-
 remove(Type, Obj, Props) ->
     Objs = proplists:get_value(Type, Props, []),
     lists:keystore(Type, 1, lists:delete(Obj, Objs)).
 
-handle(Props, Msg = {attempt, _}) ->
-    log(Msg, Props),
-    {succeed, true, Props};
-handle(Props, {succeed, {move, Self, Source, Target}}) when Self == self() ->
+handle(Props, {attempt, {move, Self, Direction}}) when Self == self() ->
+    case proplists:get_value(room, Props) of
+        undefined ->
+            {{fail, "Player doesn't have room"}, false, Props};
+        Room ->
+            {{resend, Self, {move, Self, Room, Direction}}, false, Props}
+    end;
+handle(Props, {succeed, {move, Self, Source, Target}})
+    when Self == self(), is_pid(Target) ->
     io:format("Player ~p: moved from ~p to ~p~n", [self(), Source, Target]),
     gen_server:cast(Source, {remove, player, self()}),
     gen_server:cast(Target, {add, player, self()}),
     set(room, Target, Props);
+handle(Props, {succeed, {move, Self, Source, Direction}})
+    when Self == self(), is_atom(Direction) ->
+    io:format("Player ~p failed to move ~p from ~p~n", [self(), Direction, Source]),
+    Props;
+handle(Props, Msg = {attempt, _}) ->
+    log(Msg, Props),
+    {succeed, true, Props};
 handle(Props, Msg) ->
     log(Msg, Props),
     Props.

@@ -47,7 +47,7 @@ handle_cast({remove, RemType, Pid}, State = #state{type = Type}) ->
 handle_cast({attempt, Msg, Procs}, State) ->
 	{noreply, attempt(Msg, Procs, State)};
 handle_cast(Fail = {fail, _, _}, State) ->
-    {noreply, call(handle, Fail, State)};
+    {noreply, State#state{props = call(handle, Fail, State)}};
 handle_cast(Success = {succeed, _}, State) ->
     {noreply, State#state{props = call(handle, Success, State)}}.
 
@@ -63,21 +63,17 @@ code_change(_OldVsn, State, _Extra) ->
 %% internal
 
 attempt(Msg, Procs, State = #state{type = Type, props = Props}) ->
-    {Result, Interested, Props2} = Type:handle(Props, {attempt, Msg}),
-    Procs2 = merge(self(), sub(Procs, Interested), procs(Props)),
-    State2 = State#state{props = Props2},
-    handle(Result, Msg, Procs2, State2),
-    State2.
+    Results = {Result, _, Props2} = Type:handle(Props, {attempt, Msg}),
+    handle(Result, Msg, merge(self(), Results, Procs)),
+    State#state{props = Props2}.
 
-handle({fail, Reason}, Msg, {_, _, Subs}, _) ->
+handle({resend, Target, Msg}, _, _) ->
+    gen_server:cast(Target, {attempt, Msg, {[], [], []}});
+handle({fail, Reason}, Msg, {_, _, Subs}) ->
     [gen_server:cast(Sub, {fail, Reason, Msg}) || Sub <- Subs];
-handle(succeed, Msg, {_, [], Subs}, #state{type = Type}) ->
-    io:format("~p ~p: handling succeed, ~p, [], ~p~n\t~p~n",
-              [Type, self(), Msg, Subs, no_state]),
+handle(succeed, Msg, {_, [], Subs}) ->
     [gen_server:cast(Sub, {succeed, Msg}) || Sub <- Subs];
-handle(succeed, Msg, Procs = {_, _, Subs}, State = #state{type = Type}) ->
-    io:format("~p ~p handling succeed, ~p, ~p~n\t~p~n",
-              [Type, self(), Msg, Procs, State]),
+handle(succeed, Msg, Procs = {_, _, Subs}) ->
     case next(Procs) of
         {Next, Procs2} ->
             gen_server:cast(Next, {attempt, Msg, Procs2});
@@ -101,7 +97,12 @@ sub({Old, New, Subs}, true) ->
 sub(Procs, _) ->
     Procs.
 
-merge(Self, {Done, Next, Subs}, Procs) ->
+merge(_, {{resend, _, _}, _, _}, _) ->
+    undefined;
+merge(Self, {_, Interested, Props}, Procs) ->
+    merge_(Self, sub(Procs, Interested), procs(Props)).
+
+merge_(Self, {Done, Next, Subs}, Procs) ->
     Done2 = ordsets:union(Done, [Self]),
     New = ordsets:subtract(ordsets:from_list(Procs), Done2),
     Next2 = ordsets:union(Next, New),
