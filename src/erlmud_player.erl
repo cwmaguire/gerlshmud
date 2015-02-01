@@ -12,6 +12,13 @@ add(Type, Obj, Props) ->
     NewProp = {Type, [Obj | OldProp]},
     lists:keystore(Type, 1, Props, NewProp).
 
+%room(Exit, Props) when is_atom(Exit) ->
+    %room(proplists:get_value(room, Props), Exit).
+
+%room(undefined, _) ->
+    %undefined;
+%room(Room, Exit) ->
+
 remove(Type, Obj, Props) ->
     Objs = proplists:get_value(Type, Props, []),
     lists:keystore(Type, 1, lists:delete(Obj, Objs)).

@@ -8,9 +8,12 @@
 -define(WORLD,
         [{erlmud_room, room1, [{player, player1}, {exit, exit1}]},
          {erlmud_room, room2, [{exit, exit1}]},
-         {erlmud_player, player1, [{room, room1}]},
+         {erlmud_room, room3, [{exit, exit2}]},
+         {erlmud_player, player1, [{room, room1}, {item, item1}]},
          {erlmud_exit, exit1, [{{room, s}, room2}, {{room, n}, room1}]},
-         {erlmud_item, item1, [{desc, "sword"}]}]).
+         {erlmud_exit, exit2, [{{room, s}, room3}, {{room, n}, room2}, {item, item2}]},
+         {erlmud_item, item1, [{desc, "sword"}]},
+         {erlmud_item, item2, [{desc, "shield"}]}]).
 
 init() ->
     IdPids = [{Id, start(Id, Type, Props)} || {Type, Id, Props} <- ?WORLD],
@@ -29,7 +32,7 @@ move(IdPids) ->
     Procs = {[], [], []},
     gen_server:cast(Room1, {attempt, {move, Player1, Room1, Room2}, Procs}).
 
-m() ->
+m(Dir) ->
     Pids = init(),
     Player1 = proplists:get_value(player1, Pids),
     Room1 = proplists:get_value(room1, Pids),

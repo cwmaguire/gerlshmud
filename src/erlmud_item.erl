@@ -9,10 +9,10 @@ handle(Props, Msg = {attempt, _}) ->
     log(Msg, Props),
     {succeed, true, Props};
 handle(Props, {succeed, {move, Self, Source, Target}}) when Self == self() ->
-    io:format("Player ~p: moved from ~p to ~p~n", [self(), Source, Target]),
-    gen_server:cast(Source, {remove, player, self()}),
-    gen_server:cast(Target, {add, player, self()}),
-    set(room, Target, Props);
+    io:format("Item ~p: moving from ~p to ~p~n", [self(), Source, Target]),
+    gen_server:cast(Source, {remove, item, self()}),
+    gen_server:cast(Target, {add, item, self()}),
+    set(holder, Target, Props);
 handle(Props, Msg) ->
     log(Msg, Props),
     Props.
