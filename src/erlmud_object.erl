@@ -73,7 +73,7 @@ maybe_attempt(Msg,
     when Room /= undefined->
     case erlmud_exit:is_attached_to_room(Props, Room) of
         true ->
-            attempt(Msg, Procs, State);
+            attempt(Msg, done(self, Procs), State);
         false ->
             handle(succeed, Msg, Procs)
     end;
@@ -120,10 +120,15 @@ merge(Self, Type, {_, Interested, Props}, Procs = #procs{}) ->
            procs(Props, Procs#procs.room, Type)).
 
 merge_(Self, Procs = #procs{subs = Subs}, NewProcs) ->
-    Done = ordsets:union(Procs#procs.done, [Self]),
+    Done = done(Self, Procs#procs.done),
     New = ordsets:subtract(ordsets:from_list(NewProcs), Done),
     Next = ordsets:union(Procs#procs.next, New),
     {Done, Next, Subs}.
+
+done(Proc, Procs = #procs{done = Done}) ->
+    Procs#procs{done = done(Proc, Done)};
+done(Proc, Done) ->
+    ordsets:union(Done, [Proc]).
 
 sub(Procs = #procs{subs = Subs}, true) ->
     Procs#procs{subs = ordsets:union(Subs, [self()])};
