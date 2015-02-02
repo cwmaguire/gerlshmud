@@ -73,9 +73,9 @@ maybe_attempt(Msg,
     when Room /= undefined->
     case erlmud_exit:is_attached_to_room(Props, Room) of
         true ->
-            attempt(Msg, done(self, Procs), State);
+            attempt(Msg, Procs, State);
         false ->
-            handle(succeed, Msg, Procs)
+            handle(succeed, Msg, done(self, Procs))
     end;
 maybe_attempt(Msg, Procs, State) ->
     attempt(Msg, Procs, State).
