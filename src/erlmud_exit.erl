@@ -2,6 +2,7 @@
 
 -export([procs/1]).
 -export([create/1]).
+-export([is_attached_to_room/2]).
 -export([handle/2]).
 
 -define(FIELDS, [rooms]).
@@ -14,6 +15,14 @@ procs(Props) ->
 
 create(Props) ->
     Props.
+
+is_attached_to_room(Props, Room) ->
+    HasRoom = fun({{room, _}, R}) ->
+                  R == Room;
+                 (_) ->
+                  false
+              end,
+    not(lists:any(HasRoom, Props)).
 
 handle(Props, {attempt, {move, Obj, Source, Exit}}) when is_atom(Exit) ->
     %% If I have an exit to the Source room and a _different_ exit with name Exit

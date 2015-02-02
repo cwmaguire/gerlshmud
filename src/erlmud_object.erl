@@ -16,6 +16,11 @@
 -record(state, {type :: atom(),
                 props :: tuple()}).
 
+-record(procs, {room = undefined :: pid(),
+                done = [] :: [pid()],
+                next = [] :: [pid()],
+                subs = [] :: [pid()]}).
+
 %% API.
 
 -spec start_link(atom(), atom(), [{atom(), term()}]) -> {ok, pid()}.
@@ -45,7 +50,7 @@ handle_cast({remove, RemType, Pid}, State = #state{type = Type}) ->
     Props2 = Type:remove(RemType, Pid, State#state.props),
     {noreply, State#state{props = Props2}};
 handle_cast({attempt, Msg, Procs}, State) ->
-	{noreply, attempt(Msg, Procs, State)};
+	{noreply, maybe_attempt(Msg, Procs, State)};
 handle_cast(Fail = {fail, _, _}, State) ->
     {noreply, State#state{props = call(handle, Fail, State)}};
 handle_cast(Success = {succeed, _}, State) ->
@@ -62,18 +67,31 @@ code_change(_OldVsn, State, _Extra) ->
 
 %% internal
 
+maybe_attempt(Msg,
+              Procs = #procs{room = Room},
+              State = #state{type = erlmud_exit, props = Props})
+    when Room /= undefined->
+    case erlmud_exit:is_attached_to_room(Props, Room) of
+        true ->
+            attempt(Msg, Procs, State);
+        false ->
+            handle(succeed, Msg, Procs)
+    end;
+maybe_attempt(Msg, Procs, State) ->
+    attempt(Msg, Procs, State).
+
 attempt(Msg, Procs, State = #state{type = Type, props = Props}) ->
     Results = {Result, _, Props2} = Type:handle(Props, {attempt, Msg}),
-    handle(Result, Msg, merge(self(), Results, Procs)),
+    handle(Result, Msg, merge(self(), Type, Results, Procs)),
     State#state{props = Props2}.
 
-handle({resend, Target, Msg}, _, _) ->
-    gen_server:cast(Target, {attempt, Msg, {[], [], []}});
-handle({fail, Reason}, Msg, {_, _, Subs}) ->
+handle({resend, Target, Msg}, _OrigMsg, _NoProps) ->
+    gen_server:cast(Target, {attempt, Msg, #procs{}});
+handle({fail, Reason}, Msg, #procs{subs = Subs}) ->
     [gen_server:cast(Sub, {fail, Reason, Msg}) || Sub <- Subs];
-handle(succeed, Msg, {_, [], Subs}) ->
+handle(succeed, Msg, #procs{next = [], subs = Subs}) ->
     [gen_server:cast(Sub, {succeed, Msg}) || Sub <- Subs];
-handle(succeed, Msg, Procs = {_, _, Subs}) ->
+handle(succeed, Msg, Procs = #procs{subs = Subs}) ->
     case next(Procs) of
         {Next, Procs2} ->
             gen_server:cast(Next, {attempt, Msg, Procs2});
@@ -81,7 +99,7 @@ handle(succeed, Msg, Procs = {_, _, Subs}) ->
             [gen_server:cast(Sub, {succeed, Msg}) || Sub <- Subs]
     end.
 
-procs(Props) ->
+procs(Props, undefined, _) ->
     [Pid || {_, Pid} <- Props, is_pid(Pid)].
 
 populate_(Props, IdPids) ->
@@ -92,25 +110,29 @@ proc(Value, IdPids) when is_atom(Value) ->
 proc(Value, _) ->
     Value.
 
-sub({Old, New, Subs}, true) ->
-    {Old, New, ordsets:union(Subs, [self()])};
+merge(_, _, {{resend, _, _}, _, _}, _) ->
+    undefined;
+merge(Self, erlmud_room, Results, Procs = #procs{room = undefined}) ->
+    merge(Self, erlmud_room, Results, Procs#procs{room = Self});
+merge(Self, Type, {_, Interested, Props}, Procs = #procs{}) ->
+    merge_(Self,
+           sub(Procs, Interested),
+           procs(Props, Procs#procs.room, Type)).
+
+merge_(Self, Procs = #procs{subs = Subs}, NewProcs) ->
+    Done = ordsets:union(Procs#procs.done, [Self]),
+    New = ordsets:subtract(ordsets:from_list(NewProcs), Done),
+    Next = ordsets:union(Procs#procs.next, New),
+    {Done, Next, Subs}.
+
+sub(Procs = #procs{subs = Subs}, true) ->
+    Procs#procs{subs = ordsets:union(Subs, [self()])};
 sub(Procs, _) ->
     Procs.
 
-merge(_, {{resend, _, _}, _, _}, _) ->
-    undefined;
-merge(Self, {_, Interested, Props}, Procs) ->
-    merge_(Self, sub(Procs, Interested), procs(Props)).
-
-merge_(Self, {Done, Next, Subs}, Procs) ->
-    Done2 = ordsets:union(Done, [Self]),
-    New = ordsets:subtract(ordsets:from_list(Procs), Done2),
-    Next2 = ordsets:union(Next, New),
-    {Done2, Next2, Subs}.
-
-next({Old, New, Subs}) ->
-    Next = hd(ordsets:to_list(New)),
-    {Next, {Old, ordsets:del_element(Next, New), Subs}}.
+next(#procs{done = Done, next = Next, subs = Subs}) ->
+    NextProc = hd(ordsets:to_list(Next)),
+    {NextProc, {Done, ordsets:del_element(NextProc, Next), Subs}}.
 
 call(Fun, Arg, #state{type = Type, props = Props}) ->
     Type:Fun(Props, Arg).
