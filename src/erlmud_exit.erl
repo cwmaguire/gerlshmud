@@ -1,20 +1,19 @@
 -module(erlmud_exit).
 
--export([procs/1]).
--export([create/1]).
+-behaviour(erlmud_object).
+
+%% object behaviour
+-export([added/2]).
+-export([removed/2]).
+-export([attempt/2]).
+-export([succeed/2]).
+-export([fail/3]).
+
+%% internal
 -export([is_attached_to_room/2]).
--export([handle/2]).
 
--define(FIELDS, [rooms]).
--define(PV(K, PL, Dflt), proplists:get_value(K, PL, Dflt)).
--define(PV(K, PL), ?PV(K, PL, undefined)).
-
-procs(Props) ->
-    Rooms = ?PV(rooms, Props, []),
-    lists:flatten([Room || {_, Room} <- Rooms]).
-
-create(Props) ->
-    Props.
+added(_, _) -> ok.
+removed(_, _) -> ok.
 
 is_attached_to_room(Props, Room) ->
     HasRoom = fun({{room, _}, R}) ->
@@ -22,21 +21,26 @@ is_attached_to_room(Props, Room) ->
                  (_) ->
                   false
               end,
-    not(lists:any(HasRoom, Props)).
+    lists:any(HasRoom, Props).
 
-handle(Props, {attempt, {move, Obj, Source, Exit}}) when is_atom(Exit) ->
+attempt(Props, {move, Obj, Source, Exit}) when is_atom(Exit) ->
     %% If I have an exit to the Source room and a _different_ exit with name Exit
     %% then I should translate the message to a {move, Obj, Source, Target} message.
     io:format("Process ~p wants to leave room ~p in direction ~p~n", [Obj, Source, Exit]),
     Room = [Room || Room = {_, ExitRoom} <- Props, ExitRoom == Source],
     move(Props, Obj, Room, Exit);
-handle(Props, {attempt, {move, Obj, Source, Target}}) ->
+attempt(Props, {move, Obj, Source, Target}) ->
     io:format("Process ~p wants to leave room ~p for ~p~n", [Obj, Source, Target]),
     {succeed, true, Props};
-handle(Props, {attempt, _}) ->
-    {succeed, false, Props};
+attempt(Props, Msg) ->
+    io:format("~p ~p: ignoring attempt ~p~n", [?MODULE, self(), Msg]),
+    {succeed, false, Props}.
 
-handle(Props, {Result, Msg}) ->
+succeed(Props, Message) ->
+    io:format("Message ~p succeeded~n", [Message]),
+    Props.
+
+fail(Props, Result, Msg) ->
     io:format("~p message: ~p~n", [Result, Msg]),
     Props.
 

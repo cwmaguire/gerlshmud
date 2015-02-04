@@ -6,7 +6,8 @@
 	{registered, []},
 	{applications, [
 		kernel,
-		stdlib
+		stdlib,
+    runtime_tools
 	]},
 	{mod, {erlmud_app, []}},
 	{env, []}
