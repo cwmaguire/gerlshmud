@@ -1,16 +1,16 @@
 Erlang MUD where everything is a process
 
-Doors, swords, goblins, rings, rooms, everything
-that is an object that can be interacted with
-will be a process. Everything will broadcast messages
-to everything else. Processes will ignore anything they're
-not interested in. Every process that is interested in receiving
-the result of a message can add itself to the message. Even a
-description can be a process, especially if it generates parts
-of the description on the fly: time, weather, light level, etc.
+Doors, swords, goblins, rings, rooms, everything that is an
+object that can be interacted with is a process. Everything
+broadcasts messages to surrounding objects. Processes ignore
+anything they're not interested in. Every process that is
+interested in receiving the result of a message adds itself to
+the message as a subscriber. Even a description can be a process,
+especially if it generates parts of the description on the fly:
+time, weather, light level, etc.
 
-erlmud_object handles all the "networking": chaining all the
-processes together and passing the message allong the chain
+The erlmud_object behaviour handles all the "networking": chaining
+all the processes together and passing the message allong the chain
 until:
 - A fail message is returned
 - The chain ends
@@ -29,4 +29,5 @@ How to run it:
 make && make rel && _rel/erlmud_release/bin/erlmud_release console
 > erlmud_world:init(). %% Loads the world
 > erlmud_world:m(s).   %% Move player1 south
-> erlmud_world:s().    %% Get the state of all the objects
+> erlmud_world:s().    %% Get the pid and state of all the objects
+> erlmud_world:t().    %% Trace erlmud_object and erlmud_exit
