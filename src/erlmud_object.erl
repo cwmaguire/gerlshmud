@@ -151,7 +151,6 @@ sub(Procs, _) ->
 
 next(Procs = #procs{next = Next}) ->
     NextProc = hd(ordsets:to_list(Next)),
-    %{NextProc, {Done, ordsets:del_element(NextProc, Next), Subs}}.
     {NextProc, Procs#procs{next = ordsets:del_element(NextProc, Next)}}.
 
 succeed(Message, #state{type = Type, props = Props}) ->

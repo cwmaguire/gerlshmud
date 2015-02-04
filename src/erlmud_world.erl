@@ -16,9 +16,6 @@
          {erlmud_item, item1, [{desc, "sword"}]},
          {erlmud_item, item2, [{desc, "shield"}]}]).
 
-%%    dbg:start(). dbg:tracer(). dbg:p
-%%    [Pid || {_, Pid} <- Props, is_pid(Pid)].
-
 init() ->
     IdPids = [{Id, start(Id, Type, Props)} || {Type, Id, Props} <- ?WORLD],
     io:format("Pids: ~p~n", [IdPids]),
