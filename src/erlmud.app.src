@@ -7,7 +7,9 @@
 	{applications, [
 		kernel,
 		stdlib,
-    runtime_tools
+    runtime_tools,
+    cowboy,
+    jsx
 	]},
 	{mod, {erlmud_app, []}},
 	{env, []}

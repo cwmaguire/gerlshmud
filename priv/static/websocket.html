@@ -1,3 +1,4 @@
+<!--
 %% Copyright (c) 2015, Chris Maguire <cwmaguire@gmail.com>
 %%
 %% Permission to use, copy, modify, and/or distribute this software for any
@@ -11,20 +12,30 @@
 %% WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 %% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
--module(erlmud_sup).
--behaviour(supervisor).
+-->
 
--export([start_link/0]).
--export([init/1]).
+<html>
+<body>
+a
+<div id=results></div>
+<script language="javascript">
+  var exampleSocket = new WebSocket("ws://localhost:8080/websocket");
 
-start_link() ->
-	supervisor:start_link({local, ?MODULE}, ?MODULE, []).
+  exampleSocket.onopen = function (event) {
+    var div = document.getElementById("results");
+    innerHtml = div.innerHTML;
+    div.innerHTML = innerHtml + "<br>OPEN! event.data: " + event.data;
+    console.dir("Dumping event");
+    console.dir(event);
+    exampleSocket.send("From webpage");
+  };
 
-init([]) ->
-	Procs = [{object,
-              {erlmud_object, start_link, []},
-              transient,
-              brutal_kill,
-              worker,
-              [erlmud_object]}],
-	{ok, {{simple_one_for_one, 1, 5}, Procs}}.
+  exampleSocket.onmessage = function (event) {
+    var div = document.getElementById("results");
+    innerHtml = div.innerHTML;
+    div.innerHTML = innerHtml + "<br>From Websocket: " + event.data;
+  };
+  //alert("javascript!");
+</script>
+</body>
+</html>
