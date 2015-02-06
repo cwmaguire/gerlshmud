@@ -46,7 +46,7 @@
 
 -spec start_link(atom(), atom(), proplist()) -> {ok, pid()}.
 start_link(Id, Type, Props) ->
-	gen_server:start_link({local, Id}, ?MODULE, {Type, Props}, []).
+    gen_server:start_link({local, Id}, ?MODULE, {Type, Props}, []).
 
 populate(Pid, ProcIds) ->
     io:format("populate on ~p ...~n", [Pid]),
@@ -55,12 +55,12 @@ populate(Pid, ProcIds) ->
 %% gen_server.
 
 init({Type, Props}) ->
-	{ok, #state{type = Type, props = Props}}.
+    {ok, #state{type = Type, props = Props}}.
 
 handle_call(props, _From, State) ->
     {reply, State#state.props, State};
 handle_call(_Request, _From, State) ->
-	{reply, ignored, State}.
+    {reply, ignored, State}.
 
 handle_cast({populate, ProcIds}, State = #state{props = Props}) ->
     {noreply, State#state{props = populate_(Props, ProcIds)}};
@@ -73,20 +73,20 @@ handle_cast({remove, RemType, Pid}, State) ->
     (State#state.type):removed(RemType, Pid),
     {noreply, State#state{props = Props2}};
 handle_cast({attempt, Msg, Procs}, State) ->
-	{noreply, maybe_attempt(Msg, Procs, State)};
+    {noreply, maybe_attempt(Msg, Procs, State)};
 handle_cast({fail, Reason, Msg}, State) ->
     {noreply, State#state{props = fail(Reason, Msg, State)}};
 handle_cast({succeed, Msg}, State) ->
     {noreply, State#state{props = succeed(Msg, State)}}.
 
 handle_info(_Info, State) ->
-	{noreply, State}.
+    {noreply, State}.
 
 terminate(_Reason, _State) ->
-	ok.
+    ok.
 
 code_change(_OldVsn, State, _Extra) ->
-	{ok, State}.
+    {ok, State}.
 
 %% internal
 

@@ -18,13 +18,13 @@
 -export([init/1]).
 
 start_link() ->
-	supervisor:start_link({local, ?MODULE}, ?MODULE, []).
+    supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 init([]) ->
-	Procs = [{object,
+    Procs = [{object,
               {erlmud_object, start_link, []},
               transient,
               brutal_kill,
               worker,
               [erlmud_object]}],
-	{ok, {{simple_one_for_one, 1, 5}, Procs}}.
+    {ok, {{simple_one_for_one, 1, 5}, Procs}}.
