@@ -27,9 +27,11 @@
 -record(state, {}).
 
 init(_, _Req, _Opts) ->
+    io:format("Websocket handler init (~p)~n", [self()]),
     {upgrade, protocol, cowboy_websocket}.
 
 websocket_init(_Type, Req, _Opts) ->
+    io:format("Websocket handler websocket_init (~p) start~n", [self()]),
     Req3 = case cowboy_req:parse_header(<<"sec-websocket-protocol">>, Req) of
         {ok, undefined, Req2} ->
             Req2;
@@ -37,16 +39,15 @@ websocket_init(_Type, Req, _Opts) ->
             io:format("Subprotocols found: ~p~n", [Subprotocols]),
             Req2
     end,
-    io:format("Websocket handler init (~p)~n", [self()]),
+    io:format("Websocket handler websocket_init end (~p)~n", [self()]),
     {ok, Req3, #state{}}.
 
-websocket_handle({text, <<${, _/binary>> = JSON}, Req, #state{}) ->
-    Proplist = jsx:decode(JSON),
-    io:format("websocket_handle with JSON: ~p~n", [Proplist]),
-    {reply, {text, ["Erlang received update."]}, Req, #state{}};
 websocket_handle({FrameType, FrameContent}, Req, State) ->
     io:format("From Websocket: {~p, ~p}~n", [FrameType, FrameContent]),
-    {reply, {text, ["Erlang received: ", FrameContent, " of type ", atom_to_list(FrameType)]}, Req, State}.
+    {ok, Req, State};
+websocket_handle(X, Req, State) ->
+    io:format("Received ~p~n", X),
+    {ok, Req, State}.
 
 websocket_info(ErlangMessage, Req, State) ->
     io:format("websocket_info(~p, ~p, ~p)~n", [ErlangMessage, Req, State]),

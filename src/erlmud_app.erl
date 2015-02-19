@@ -22,7 +22,8 @@
 
 start(_Type, _Args) ->
 
-    Paths = [{"/", erlmud_websocket, ?NO_OPTIONS}],
+    Paths = [{"/", erlmud_websocket, ?NO_OPTIONS},
+             {"/[...]", cowboy_static, {priv_dir, erlmud, "static"}}],
     Routes = [{?ANY_HOST, Paths}],
     Dispatch = cowboy_router:compile(Routes),
     _ = cowboy:start_http(erlmud_http_listener, 100, [{port, 8080}], [{env, [{dispatch, Dispatch}]}]),
