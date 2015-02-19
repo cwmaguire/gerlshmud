@@ -36,7 +36,7 @@ init() ->
     IdPids.
 
 start(Id, Type, Props) ->
-    {ok, Pid} = supervisor:start_child(erlmud_sup, [Id, Type, Props]),
+    {ok, Pid} = supervisor:start_child(erlmud_object_sup, [Id, Type, Props]),
     Pid.
 
 move(IdPids) ->

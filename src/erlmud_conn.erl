@@ -11,26 +11,30 @@
 %% WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 %% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
--module(erlmud_sup).
--behaviour(supervisor).
+-module(erlmud_conn).
+-behaviour(gen_fsm).
 
--export([start_link/0]).
 -export([init/1]).
+-export([handle_event/3]).
+-export([handle_sync_event/4]).
+-export([handle_info/3]).
+-export([terminate/3]).
+-export([code_change/4]).
 
-start_link() ->
-    supervisor:start_link({local, ?MODULE}, ?MODULE, []).
+-record(state, {}).
 
-init([]) ->
-    Procs = [{object_sup,
-              {erlmud_object_sup, start_link, []},
-              permanent,
-              brutal_kill,
-              supervisor,
-              [erlmud_object_sup]},
-             {conn_sup,
-              {erlmud_conn_sup, start_link, []},
-              permanent,
-              brutal_kill,
-              supervisor,
-              [erlmud_conn_sup]}],
-    {ok, {{one_for_one, 1, 5}, Procs}}.
+init(_Args) ->
+    {ok, a, #state{}}.
+
+handle_sync_event(_Event, _From, StateName, StateData) ->
+    {reply, ok, StateName, StateData}.
+
+handle_event(_Info, StateName, StateData) ->
+    {next_state, StateName, StateData}.
+
+handle_info(_Info, StateName, StateData) ->
+    {next_state, StateName, StateData}.
+
+terminate(_Reason, _StateName, _StateData) -> ok.
+code_change(_OldVsn, StateName, StateData, _Extra) ->
+    {ok, StateName, StateData}.

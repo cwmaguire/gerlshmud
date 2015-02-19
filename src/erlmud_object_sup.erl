@@ -11,7 +11,7 @@
 %% WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 %% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
--module(erlmud_sup).
+-module(erlmud_object_sup).
 -behaviour(supervisor).
 
 -export([start_link/0]).
@@ -21,16 +21,10 @@ start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 init([]) ->
-    Procs = [{object_sup,
-              {erlmud_object_sup, start_link, []},
-              permanent,
+    Procs = [{object,
+              {erlmud_object, start_link, []},
+              transient,
               brutal_kill,
-              supervisor,
-              [erlmud_object_sup]},
-             {conn_sup,
-              {erlmud_conn_sup, start_link, []},
-              permanent,
-              brutal_kill,
-              supervisor,
-              [erlmud_conn_sup]}],
-    {ok, {{one_for_one, 1, 5}, Procs}}.
+              worker,
+              [erlmud_object]}],
+    {ok, {{simple_one_for_one, 1, 5}, Procs}}.

@@ -13,7 +13,10 @@
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 -module(erlmud_parse).
 
--export([command/1]).
+-export([parse/1]).
 
-command("s") ->
-    south.
+%-record(state, {}).
+
+parse(<<"get ", Item/binary>>) ->
+    io:format("Getting ~p~n", [Item]).
+
