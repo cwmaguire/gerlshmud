@@ -21,10 +21,33 @@
 -export([terminate/3]).
 -export([code_change/4]).
 
--record(state, {}).
+-record(state, {room :: pid(),
+                attempts = 0 :: integer()}).
+
+%% api
+
+handle(Pid, Msg) ->
+    gen_fsm:send_event(Pid, Msg).
+
+%% states
+
+login(Event, StateData) ->
+    {next_state, password, StateData#state{login = Event}}.
+
+password(Event, StateData = #state{login = Login, attempts = Attempts}) ->
+    case is_valid_creds(Login, Event) of
+        true ->
+            {next_state, live, StateData#state{login = undefined, password = undefined}};
+        false ->
+            {next_state, login, StateData#state{login = undefined,
+                                                password = undefined,
+                                                attempts = Attempts + 1}}
+    end.
+
+%% gen_fsm
 
 init(_Args) ->
-    {ok, a, #state{}}.
+    {ok, login, #state{}}.
 
 handle_sync_event(_Event, _From, StateName, StateData) ->
     {reply, ok, StateName, StateData}.
