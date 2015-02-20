@@ -50,7 +50,7 @@
       div.innerHTML = innerHtml + "<br>OPEN! event.data: " + event.data;
       console.dir("Dumping event");
       console.dir(event);
-      socket.send("From webpage");
+      //socket.send("From webpage");
     };
 
     socket.onmessage = function (event) {

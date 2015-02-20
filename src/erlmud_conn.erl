@@ -14,6 +14,13 @@
 -module(erlmud_conn).
 -behaviour(gen_fsm).
 
+-export([start_link/1]).
+-export([handle/2]).
+
+-export([login/2]).
+-export([password/2]).
+-export([live/2]).
+
 -export([init/1]).
 -export([handle_event/3]).
 -export([handle_sync_event/4]).
@@ -21,10 +28,15 @@
 -export([terminate/3]).
 -export([code_change/4]).
 
--record(state, {room :: pid(),
+-record(state, {socket :: pid(),
+                login :: string(),
+                room :: pid(),
                 attempts = 0 :: integer()}).
 
 %% api
+
+start_link(Socket) ->
+    gen_fsm:start_link(?MODULE, Socket, []).
 
 handle(Pid, Msg) ->
     gen_fsm:send_event(Pid, Msg).
@@ -34,20 +46,26 @@ handle(Pid, Msg) ->
 login(Event, StateData) ->
     {next_state, password, StateData#state{login = Event}}.
 
-password(Event, StateData = #state{login = Login, attempts = Attempts}) ->
+password(Event, StateData = #state{login = Login,
+                                   attempts = Attempts,
+                                   socket = Socket}) ->
     case is_valid_creds(Login, Event) of
         true ->
-            {next_state, live, StateData#state{login = undefined, password = undefined}};
+            Socket ! {send, "login succeeded"},
+            {next_state, live, StateData#state{login = undefined}};
         false ->
             {next_state, login, StateData#state{login = undefined,
-                                                password = undefined,
                                                 attempts = Attempts + 1}}
     end.
 
+live(Event, StateData) ->
+    io:format("erlmud_conn got event ~p in state 'live' with state data ~p~n", [Event, StateData]),
+    {next_state, live, StateData}.
+
 %% gen_fsm
 
-init(_Args) ->
-    {ok, login, #state{}}.
+init(Socket) ->
+    {ok, login, #state{socket = Socket}}.
 
 handle_sync_event(_Event, _From, StateName, StateData) ->
     {reply, ok, StateName, StateData}.
@@ -61,3 +79,8 @@ handle_info(_Info, StateName, StateData) ->
 terminate(_Reason, _StateName, _StateData) -> ok.
 code_change(_OldVsn, StateName, StateData, _Extra) ->
     {ok, StateName, StateData}.
+
+%% private
+
+is_valid_creds(_Login, _Password) ->
+    true.

@@ -24,7 +24,7 @@
 -export([handle/2]).
 -export([terminate/3]).
 
--record(state, {}).
+-record(state, {conn :: pid()}).
 
 init(_, _Req, _Opts) ->
     io:format("Websocket handler init (~p)~n", [self()]),
@@ -39,9 +39,16 @@ websocket_init(_Type, Req, _Opts) ->
             io:format("Subprotocols found: ~p~n", [Subprotocols]),
             Req2
     end,
-    io:format("Websocket handler websocket_init end (~p)~n", [self()]),
-    {ok, Req3, #state{}}.
 
+    {ok, Conn} = supervisor:start_child(erlmud_conn_sup, [self()]),
+
+    io:format("Websocket handler websocket_init end (~p)~n", [self()]),
+    {ok, Req3, #state{conn = Conn}}.
+
+websocket_handle({text, Text}, Req, State = #state{conn = Conn}) ->
+    io:format("From Websocket: {~p, ~p}~n", [text, Text]),
+    erlmud_conn:handle(Conn, Text),
+    {ok, Req, State};
 websocket_handle({FrameType, FrameContent}, Req, State) ->
     io:format("From Websocket: {~p, ~p}~n", [FrameType, FrameContent]),
     {ok, Req, State};
@@ -49,6 +56,9 @@ websocket_handle(X, Req, State) ->
     io:format("Received ~p~n", X),
     {ok, Req, State}.
 
+websocket_info({send, Msg}, Req, State) ->
+    io:format("Sending message: ~p~n", [Msg]),
+    {reply, {text, [Msg]}, Req, State};
 websocket_info(ErlangMessage, Req, State) ->
     io:format("websocket_info(~p, ~p, ~p)~n", [ErlangMessage, Req, State]),
     {reply, {text, [ErlangMessage]}, Req, State}.
