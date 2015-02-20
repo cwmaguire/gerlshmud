@@ -11,15 +11,12 @@
 %% WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 %% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
--module(erlmud_parse).
 
--export([parse/1]).
+-module(erlmud_data).
 
-%-record(state, {}).
+-export([fetch/1]).
 
-parse(<<"get ", Item/binary>>) ->
-    io:format("Getting ~p~n", [Item]),
-    {get, binary_to_list(Item)};
-parse(_) ->
-    {error, "Huh?"}.
-
+fetch(player1) ->
+    {erlmud_player, player1, [{room, room1}, {item, item1}]};
+fetch(_) ->
+    undefined.

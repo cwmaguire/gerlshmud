@@ -29,6 +29,7 @@
 -export([code_change/4]).
 
 -record(state, {socket :: pid(),
+                player :: pid(),
                 login :: string(),
                 room :: pid(),
                 attempts = 0 :: integer()}).
@@ -60,6 +61,12 @@ password(Event, StateData = #state{login = Login,
 
 live(Event, StateData) ->
     io:format("erlmud_conn got event ~p in state 'live' with state data ~p~n", [Event, StateData]),
+    case erlmud_parse:parse(Event) of
+        {error, Error} ->
+            StateData#state.socket ! {send, Error};
+        Message ->
+            StateData#state.player ! Message
+    end,
     {next_state, live, StateData}.
 
 %% gen_fsm
