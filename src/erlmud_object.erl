@@ -17,6 +17,9 @@
 %% API.
 -export([start_link/3]).
 -export([populate/2]).
+-export([attempt/2]).
+-export([add/3]).
+-export([remove/3]).
 
 %% gen_server.
 -export([init/1]).
@@ -46,11 +49,23 @@
 
 -spec start_link(atom(), atom(), proplist()) -> {ok, pid()}.
 start_link(Id, Type, Props) ->
-    gen_server:start_link({local, Id}, ?MODULE, {Type, Props}, []).
+    {ok, Pid} = gen_server:start_link({local, Id}, ?MODULE, {Type, Props}, []),
+    erlmud_index:put({Id, Pid}),
+    {ok, Pid}.
 
 populate(Pid, ProcIds) ->
     io:format("populate on ~p ...~n", [Pid]),
     gen_server:cast(Pid, {populate, ProcIds}).
+
+attempt(Pid, Msg) ->
+    Caller = self(),
+    gen_server:cast(Pid, {attempt, Msg, #procs{subs = [Caller]}}).
+
+add(Pid, Type, AddPid) ->
+    gen_server:cast(Pid, {add, Type, AddPid}).
+
+remove(Pid, Type, RemovePid) ->
+    gen_server:cast(Pid, {remove, Type, RemovePid}).
 
 %% gen_server.
 
@@ -65,11 +80,11 @@ handle_call(_Request, _From, State) ->
 handle_cast({populate, ProcIds}, State = #state{props = Props}) ->
     {noreply, State#state{props = populate_(Props, ProcIds)}};
 handle_cast({add, AddType, Pid}, State) ->
-    Props2 = add(AddType, State#state.props, Pid),
+    Props2 = add_(AddType, State#state.props, Pid),
     (State#state.type):added(AddType, Pid),
     {noreply, State#state{props = Props2}};
 handle_cast({remove, RemType, Pid}, State) ->
-    Props2 = remove(RemType, Pid, State#state.props),
+    Props2 = remove_(RemType, Pid, State#state.props),
     (State#state.type):removed(RemType, Pid),
     {noreply, State#state{props = Props2}};
 handle_cast({attempt, Msg, Procs}, State) ->
@@ -96,15 +111,15 @@ maybe_attempt(Msg,
     when Room /= undefined->
     case erlmud_exit:is_attached_to_room(Props, Room) of
         true ->
-            attempt(Msg, Procs, State);
+            attempt_(Msg, Procs, State);
         false ->
             handle(succeed, Msg, done(self, Procs)),
             State
     end;
 maybe_attempt(Msg, Procs, State) ->
-    attempt(Msg, Procs, State).
+    attempt_(Msg, Procs, State).
 
-attempt(Msg, Procs, State = #state{type = Type, props = Props}) ->
+attempt_(Msg, Procs, State = #state{type = Type, props = Props}) ->
     Results = {Result, _, Props2} = Type:attempt(Props, Msg),
     handle(Result, Msg, merge(self(), Type, Results, Procs)),
     State#state{props = Props2}.
@@ -172,7 +187,7 @@ succeed(Message, #state{type = Type, props = Props}) ->
 fail(Reason, Message, #state{type = Type, props = Props}) ->
     Type:fail(Props, Reason, Message).
 
-add(Type, Props, Obj) ->
+add_(Type, Props, Obj) ->
     case lists:member({Type, Obj}, Props) of
         false ->
             [{Type, Obj} | Props];
@@ -180,5 +195,5 @@ add(Type, Props, Obj) ->
             Props
     end.
 
-remove(RemType, Obj, Props) ->
+remove_(RemType, Obj, Props) ->
     [Prop || Prop = {Type, Pid} <- Props, Type /= RemType, Pid /= Obj].

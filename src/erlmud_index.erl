@@ -16,6 +16,7 @@
 
 -behaviour(gen_server).
 
+-export([start_link/0]).
 -export([put/1]).
 -export([get/1]).
 
@@ -28,18 +29,23 @@
 -export([terminate/2]).
 -export([code_change/3]).
 
--record(state, {index :: []}).
+-record(state, {index = [] :: []}).
 
 %% api
 
+start_link() ->
+    io:format("Starting erlmud_index~n"),
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+
 put(Obj) ->
-    gen_server:cast(erlmud_index, Obj).
+    gen_server:cast(erlmud_index, {put, Obj}).
 
 get(Id) ->
     gen_server:call(erlmud_index, {get, Id}).
 
 
 init([]) ->
+    io:format("Initializing erlmud_index~n"),
     {ok, #state{}}.
 
 handle_call({get, Id}, _From, State) ->

@@ -20,7 +20,7 @@
 -export([t/0]).
 
 -define(WORLD,
-        [{erlmud_room, room1, [{player, player1}, {exit, exit1}]},
+        [{erlmud_room, room1, [{exit, exit1}]},
          {erlmud_room, room2, [{exit, exit1}, {exit, exit2}]},
          {erlmud_room, room3, [{exit, exit2}]},
          {erlmud_player, player1, [{room, room1}, {item, item1}]},
