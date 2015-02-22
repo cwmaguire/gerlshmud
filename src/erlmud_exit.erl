@@ -16,11 +16,11 @@
 -behaviour(erlmud_object).
 
 %% object behaviour
--export([added/2]).
--export([removed/2]).
 -export([attempt/2]).
 -export([succeed/2]).
 -export([fail/3]).
+-export([added/2]).
+-export([removed/2]).
 
 %% internal
 -export([is_attached_to_room/2]).

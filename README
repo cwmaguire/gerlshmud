@@ -35,4 +35,4 @@ make && make rel && _rel/erlmud_release/bin/erlmud_release console
 Running Tests:
 make ct
 -or-
-ct_run -dir test -logdir log
+ct_run -dir test -logdir logs
