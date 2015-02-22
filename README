@@ -31,3 +31,8 @@ make && make rel && _rel/erlmud_release/bin/erlmud_release console
 > open http://localhost:8080/websocket.html in a browser
 > in the browser enter any text for the login
 > in the browser enter any text for the password
+
+Running Tests:
+make ct
+-or-
+ct_run -dir test -logdir log
