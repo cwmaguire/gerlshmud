@@ -1,0 +1,8 @@
+*.beam
+.erlang.mk.packages.v2
+_rel
+deps
+ebin
+logs
+rel
+relx*
