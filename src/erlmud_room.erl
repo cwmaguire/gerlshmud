@@ -32,6 +32,15 @@ attempt(Props, {move, Obj, Self, Target}) when Self == self() ->
 attempt(Props, {move, Obj, Source, Self}) when Self == self() ->
     io:format("Room ~p: ~p wants to come from ~p~n", [self(), Obj, Source]),
     {succeed, true, Props};
+attempt(Props, {get, Obj, Item}) when is_pid(Item) ->
+    io:format("Room ~p: ~p wants to get ~p~n", [self(), Obj, Item]),
+    case item(Props, Item) of
+        [Item] ->
+            {{resend, Obj, {get, Obj, Item, self()}}, true, Props};
+        _ ->
+            {succeed, false, Props}
+    end,
+    {succeed, true, Props};
 attempt(Props, Msg) ->
     io:format("Room ~p: ignoring attempt ~p~n", [self(), Msg]),
     {succeed, false, Props}.
@@ -44,6 +53,9 @@ succeed(Props, {move, Obj, Source, Self}) when Self == self() ->
     Props;
 succeed(Props, {move, Obj, Source, Target}) ->
     io:format("Room ~p: Process ~p went from ~p to ~p~n", [self(), Obj, Source, Target]),
+    Props;
+succeed(Props, {get, Obj, Item, Self}) when Self == self() ->
+    io:format("Room ~p: Process ~p got ~p from me~n", [self(), Obj, Item]),
     Props;
 succeed(Props, Msg) ->
     io:format("~p saw ~p succeed with props ~p~n", [?MODULE, Msg, Props]),

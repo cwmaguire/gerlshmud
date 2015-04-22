@@ -54,13 +54,17 @@ succeed(Props, {move, Self, Source, Target})
     set(room, Target, Props);
 succeed(Props, {move, Self, Source, Direction})
     when Self == self(), is_atom(Direction) ->
-    io:format("Player ~p succeeded in moving to ~p from ~p~n", [self(), Direction, Source]),
+    io:format("Player ~p succeeded in moving ~p from ~p~n", [self(), Direction, Source]),
     Props;
 succeed(Props, {enter_world, Self})
     when Self == self() ->
     Room = proplists:get_value(room, Props),
     io:format("Player ~p: entering ~p~n", [self(), Room]),
     erlmud_object:add(Room, player, self());
+succeed(Props, {get, Self, Source, Item})
+    when Self == self() ->
+    io:format("Player ~p: getting ~p from ~p~n\tProps: ~p~n", [self(), Item, Source, Props]),
+    Props;
 succeed(Props, Msg) ->
     io:format("~p saw ~p succeed with props ~p~n", [?MODULE, Msg, Props]),
     Props.

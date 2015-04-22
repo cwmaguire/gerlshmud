@@ -26,8 +26,15 @@ added(_, _) -> ok.
 removed(_, _) -> ok.
 
 set(Type, Obj, Props) ->
-    lists:keystore(Type, 1, Props, {room, Obj}).
+    lists:keystore(Type, 1, Props, {Type, Obj}).
 
+attempt(Props, {get, Obj, Item}) ->
+    case is_item(Props, Item) of
+        true ->
+            {{resend, Obj, {get, Obj, self()}}, true, Props};
+        false ->
+            {succeed, false, Props}
+    end;
 attempt(Props, Msg) ->
     log(Msg, Props),
     {succeed, true, Props}.
@@ -49,3 +56,18 @@ log(Msg, Props) ->
     io:format("Item ~p received: ~p with props: ~p~n",
               [self(), Msg, Props]).
 
+is_item(Props, Item) ->
+    Name = proplists:get_value(name, Props),
+    has_name(Name, Item).
+
+has_name(undefined, _) ->
+    false;
+has_name(TooSmall, Name) when length(Name) > length(TooSmall) ->
+    false;
+has_name(Name, ItemName) ->
+    case string:substr(Name, 1, length(ItemName)) of
+        ItemName ->
+            true;
+        _ ->
+             has_name(tl(Name), ItemName)
+    end.
