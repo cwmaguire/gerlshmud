@@ -30,16 +30,18 @@
 -export([code_change/3]).
 
 -record(state, {type :: atom(),
-                props :: tuple()}).
+                props :: list(tuple())}).
 
--record(procs, {room = undefined :: pid(),
-                done = [] :: [pid()],
-                next = [] :: [pid()],
-                subs = [] :: [pid()]}).
+-record(procs, {room = undefined :: undefined | pid(),
+                done = [] :: ordsets:ordset(pid()),
+                next = [] :: ordsets:ordset(pid()),
+                subs = [] :: ordsets:ordset(pid())}).
 
 -type proplist() :: [{atom(), any()}].
+-type attempt() :: {atom(), Pid, Pid, Pid}.
 
--callback attempt(proplist(), tuple()) -> {boolean(), boolean(), proplist()}.
+-callback attempt(proplist(), tuple()) ->
+    {succeed | {fail, string()} | {resend, attempt()}, boolean(), proplist()}.
 -callback succeed(proplist(), tuple()) -> proplist().
 -callback fail(proplist(), string(), tuple()) -> proplist().
 -callback added(atom(), pid()) -> ok.
@@ -110,11 +112,11 @@ maybe_attempt(Msg,
               Procs = #procs{room = Room},
               State = #state{type = erlmud_exit, props = Props})
     when Room /= undefined->
-    case erlmud_exit:is_attached_to_room(Props, Room) of
+    _ = case erlmud_exit:is_attached_to_room(Props, Room) of
         true ->
             attempt_(Msg, Procs, State);
         false ->
-            handle(succeed, Msg, done(self, Procs)),
+            _ = handle(succeed, Msg, done(self, Procs)),
             State
     end;
 maybe_attempt(Msg, Procs, State) ->
@@ -122,20 +124,20 @@ maybe_attempt(Msg, Procs, State) ->
 
 attempt_(Msg, Procs, State = #state{type = Type, props = Props}) ->
     Results = {Result, _, Props2} = Type:attempt(Props, Msg),
-    handle(Result, Msg, merge(self(), Type, Results, Procs)),
+    _ = handle(Result, Msg, merge(self(), Type, Results, Procs)),
     State#state{props = Props2}.
 
 handle({resend, Target, Msg}, _OrigMsg, _NoProps) ->
     gen_server:cast(Target, {attempt, Msg, #procs{}});
 handle({fail, Reason}, Msg, #procs{subs = Subs}) ->
     [gen_server:cast(Sub, {fail, Reason, Msg}) || Sub <- Subs];
-handle(succeed, Msg, #procs{next = [], subs = Subs}) ->
-    [gen_server:cast(Sub, {succeed, Msg}) || Sub <- Subs];
+%handle(succeed, Msg, #procs{next = [], subs = Subs}) ->
+    %[gen_server:cast(Sub, {succeed, Msg}) || Sub <- Subs];
 handle(succeed, Msg, Procs = #procs{subs = Subs}) ->
-    case next(Procs) of
+    _ = case next(Procs) of
         {Next, Procs2} ->
             gen_server:cast(Next, {attempt, Msg, Procs2});
-        [] ->
+        none ->
             [gen_server:cast(Sub, {succeed, Msg}) || Sub <- Subs]
     end.
 
@@ -178,9 +180,15 @@ sub(Procs = #procs{subs = Subs}, true) ->
 sub(Procs, _) ->
     Procs.
 
-next(Procs = #procs{next = Next}) ->
-    NextProc = hd(ordsets:to_list(Next)),
-    {NextProc, Procs#procs{next = ordsets:del_element(NextProc, Next)}}.
+next(Procs = #procs{next = NextSet}) ->
+    Next = ordsets:to_list(NextSet),
+    case(Next) of
+        [] ->
+            none;
+        _ ->
+            NextProc = hd(ordsets:to_list(Next)),
+            {NextProc, Procs#procs{next = ordsets:del_element(NextProc, Next)}}
+    end.
 
 succeed(Message, #state{type = Type, props = Props}) ->
     Type:succeed(Props, Message).

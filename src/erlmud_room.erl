@@ -22,6 +22,9 @@
 -export([succeed/2]).
 -export([fail/3]).
 
+has_item(Props, Item) ->
+    lists:member({item, Item}, Props).
+
 added(_, _) -> ok.
 removed(_, _) -> ok.
 
@@ -34,13 +37,13 @@ attempt(Props, {move, Obj, Source, Self}) when Self == self() ->
     {succeed, true, Props};
 attempt(Props, {get, Obj, Item}) when is_pid(Item) ->
     io:format("Room ~p: ~p wants to get ~p~n", [self(), Obj, Item]),
-    case item(Props, Item) of
-        [Item] ->
+    case has_item(Props, Item) of
+        true ->
+            io:format("~p resending {get, ~p, ~p} as {get, ~p, ~p, ~p}~n", [?MODULE, Obj, Item, Obj, Item, self()]),
             {{resend, Obj, {get, Obj, Item, self()}}, true, Props};
         _ ->
-            {succeed, false, Props}
-    end,
-    {succeed, true, Props};
+            {succeed, _Interested = false, Props}
+    end;
 attempt(Props, Msg) ->
     io:format("Room ~p: ignoring attempt ~p~n", [self(), Msg]),
     {succeed, false, Props}.

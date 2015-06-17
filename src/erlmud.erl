@@ -16,4 +16,4 @@
 -export([create/2]).
 
 create(Type, Props) ->
-    erlmud_object:start_link(Type, Type:create(Props)).
+    erlmud_object:start_link('TODO_add_object_id', Type, Type:create(Props)).

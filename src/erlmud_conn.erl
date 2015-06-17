@@ -53,7 +53,6 @@ password(Event, StateData = #state{login = Login,
                                    socket = _Socket}) ->
     case is_valid_creds(Login, Event) of
         {true, Player} ->
-            %Socket ! {send, "login succeeded"},
             erlmud_object:attempt(Player, {enter_world, Player}),
             {next_state, live, StateData#state{login = undefined, player = Player}};
         false ->
@@ -72,7 +71,7 @@ dead(_, StateData = #state{socket = Socket}) ->
 live(Event, StateData) ->
     io:format("erlmud_conn got event ~p in state 'live' with state data ~p~n",
               [Event, StateData]),
-    case erlmud_parse:parse(Event) of
+    _ = case erlmud_parse:parse(Event) of
         {error, Error} ->
             StateData#state.socket ! {send, Error};
         Message ->
@@ -122,5 +121,7 @@ code_change(_OldVsn, StateName, StateData, _Extra) ->
 
 %% private
 
+is_valid_creds(_String, never_fails) ->
+    false;
 is_valid_creds(_Login, _Password) ->
     {true, erlmud_index:get(player1)}.

@@ -29,7 +29,7 @@
 -export([terminate/2]).
 -export([code_change/3]).
 
--record(state, {index = [] :: []}).
+-record(state, {index = [] :: list()}).
 
 %% api
 

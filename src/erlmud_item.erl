@@ -31,6 +31,7 @@ set(Type, Obj, Props) ->
 attempt(Props, {get, Obj, Item}) ->
     case is_item(Props, Item) of
         true ->
+            io:format("~p resending {get, ~p, ~p} as {get, ~p, ~p}~n", [?MODULE, Obj, Item, Obj, self()]),
             {{resend, Obj, {get, Obj, self()}}, true, Props};
         false ->
             {succeed, false, Props}
@@ -39,11 +40,11 @@ attempt(Props, Msg) ->
     log(Msg, Props),
     {succeed, true, Props}.
 
-succeed(Props, {move, Self, Source, Target}) when Self == self() ->
-    io:format("Item ~p: moving from ~p to ~p~n", [self(), Source, Target]),
-    gen_server:cast(Source, {remove, item, self()}),
-    gen_server:cast(Target, {add, item, self()}),
-    set(holder, Target, Props);
+succeed(Props, {get, Getter, Self, Owner}) when Self == self() ->
+    io:format("Item ~p: moving from ~p to ~p~n", [self(), Getter, Owner]),
+    gen_server:cast(Owner, {remove, item, self()}),
+    gen_server:cast(Getter, {add, item, self()}),
+    set(owner, Owner, Props);
 succeed(Props, Msg) ->
     io:format("~p saw ~p succeed with props ~p~n", [?MODULE, Msg, Props]),
     Props.
