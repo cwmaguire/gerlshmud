@@ -22,8 +22,8 @@
 -export([succeed/2]).
 -export([fail/3]).
 
-has_item(Props, Item) ->
-    lists:member({item, Item}, Props).
+has_pid(Props, Pid) ->
+    lists:any(fun({_, Pid_}) when Pid == Pid_ -> true; (_) -> false end, Props).
 
 added(_, _) -> ok.
 removed(_, _) -> ok.
@@ -35,12 +35,13 @@ attempt(Props, {move, Obj, Self, Target}) when Self == self() ->
 attempt(Props, {move, Obj, Source, Self}) when Self == self() ->
     io:format("Room ~p: ~p wants to come from ~p~n", [self(), Obj, Source]),
     {succeed, true, Props};
-attempt(Props, {get, Obj, Item}) when is_pid(Item) ->
-    io:format("Room ~p: ~p wants to get ~p~n", [self(), Obj, Item]),
-    case has_item(Props, Item) of
+attempt(Props, {get, Obj, Pid}) when is_pid(Pid) ->
+    io:format("Room ~p: ~p wants to get ~p~n", [self(), Obj, Pid]),
+    case has_pid(Props, Pid) of
         true ->
-            io:format("~p resending {get, ~p, ~p} as {get, ~p, ~p, ~p}~n", [?MODULE, Obj, Item, Obj, Item, self()]),
-            {{resend, Obj, {get, Obj, Item, self()}}, true, Props};
+            io:format("~p resending {get, ~p, ~p} as {get, ~p, ~p, ~p}~n",
+                      [?MODULE, Obj, Pid, Obj, Pid, self()]),
+            {{resend, Obj, {get, Obj, Pid, self()}}, true, Props};
         _ ->
             {succeed, _Interested = false, Props}
     end;

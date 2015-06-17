@@ -20,6 +20,9 @@
 parse(<<"get ", Item/binary>>) ->
     io:format("Getting ~p~n", [Item]),
     {get, binary_to_list(Item)};
+parse(<<"drop ", Item/binary>>) ->
+    io:format("Dropping ~p~n", [Item]),
+    {drop, binary_to_list(Item)};
 parse(_) ->
     {error, "Huh?"}.
 

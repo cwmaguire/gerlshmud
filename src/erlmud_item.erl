@@ -28,11 +28,12 @@ removed(_, _) -> ok.
 set(Type, Obj, Props) ->
     lists:keystore(Type, 1, Props, {Type, Obj}).
 
-attempt(Props, {get, Obj, Item}) ->
-    case is_item(Props, Item) of
+attempt(Props, {Action, Obj, [_ | _] = PartialItemName}) when Action == get; Action == drop ->
+    case is_item(Props, PartialItemName) of
         true ->
-            io:format("~p resending {get, ~p, ~p} as {get, ~p, ~p}~n", [?MODULE, Obj, Item, Obj, self()]),
-            {{resend, Obj, {get, Obj, self()}}, true, Props};
+            io:format("~p resending {~p, ~p, ~p} as {~p, ~p, ~p}~n",
+                      [?MODULE, Action, Obj, PartialItemName, Action, Obj, self()]),
+            {{resend, Obj, {Action, Obj, self()}}, true, Props};
         false ->
             {succeed, false, Props}
     end;
@@ -40,11 +41,10 @@ attempt(Props, Msg) ->
     log(Msg, Props),
     {succeed, true, Props}.
 
-succeed(Props, {get, Getter, Self, Owner}) when Self == self() ->
-    io:format("Item ~p: moving from ~p to ~p~n", [self(), Getter, Owner]),
-    gen_server:cast(Owner, {remove, item, self()}),
-    gen_server:cast(Getter, {add, item, self()}),
-    set(owner, Owner, Props);
+succeed(Props, {get, Receiver, Self, Owner}) when Self == self() ->
+    move(Props, Owner, Receiver);
+succeed(Props, {drop, Owner, Self, Receiver}) when Self == self() ->
+    move(Props, Owner, Receiver);
 succeed(Props, Msg) ->
     io:format("~p saw ~p succeed with props ~p~n", [?MODULE, Msg, Props]),
     Props.
@@ -53,22 +53,28 @@ fail(Props, Result, Msg) ->
     io:format("~p message: ~p~n", [Result, Msg]),
     Props.
 
+move(Props, Owner, Receiver) ->
+    io:format("Item ~p: moving from ~p to ~p~n", [self(), Owner, Receiver]),
+    gen_server:cast(Owner, {remove, item, self()}),
+    gen_server:cast(Receiver, {add, item, self()}),
+    set(owner, Receiver, Props).
+
 log(Msg, Props) ->
     io:format("Item ~p received: ~p with props: ~p~n",
               [self(), Msg, Props]).
 
-is_item(Props, Item) ->
+is_item(Props, PartialItemName) ->
     Name = proplists:get_value(name, Props),
-    has_name(Name, Item).
+    has_name(Name, PartialItemName).
 
 has_name(undefined, _) ->
     false;
-has_name(TooSmall, Name) when length(Name) > length(TooSmall) ->
+has_name(TooSmall, PartialName) when length(PartialName) > length(TooSmall) ->
     false;
-has_name(Name, ItemName) ->
-    case string:substr(Name, 1, length(ItemName)) of
-        ItemName ->
+has_name(Name, PartialName) ->
+    case string:substr(Name, 1, length(PartialName)) of
+        PartialName ->
             true;
         _ ->
-             has_name(tl(Name), ItemName)
+             has_name(tl(Name), PartialName)
     end.

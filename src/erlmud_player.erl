@@ -25,8 +25,14 @@
 added(_, _) -> ok.
 removed(_, _) -> ok.
 
+has_pid(Props, Pid) ->
+    lists:any(fun({_, Pid_}) when Pid == Pid_ -> true; (_) -> false end, Props).
+
 set(Type, Obj, Props) ->
-    lists:keystore(Type, 1, Props, {room, Obj}).
+    lists:keystore(Type, 1, Props, {Type, Obj}).
+
+get_(Type, Props) ->
+    lists:keyfind(Type, 1, Props).
 
 attempt(Props, {move, Self, Direction}) when Self == self() ->
     case proplists:get_value(room, Props) of
@@ -41,6 +47,17 @@ attempt(Props, {enter_world, Self}) when Self == self() ->
             {{fail, "Player doesn't have room"}, false, Props};
         Room when is_pid(Room) ->
             {succeed, true, Props}
+    end;
+attempt(Props, {drop, Self, Pid}) when Self == self(), is_pid(Pid) ->
+    io:format("Player ~p: ~p attempting to drop ~p~n", [self(), Self, Pid]),
+    case has_pid(Props, Pid) of
+        true ->
+            {room, Room} = get_(room, Props),
+            io:format("~p resending {drop, ~p, ~p} as {drop, ~p, ~p, ~p}~n",
+                      [?MODULE, Self, Pid, Self, Pid, Room]),
+            {{resend, Self, {drop, Self, Pid, Room}}, true, Props};
+        _ ->
+            {succeed, _Interested = false, Props}
     end;
 attempt(Props, Msg) ->
     log(Msg, Props),
