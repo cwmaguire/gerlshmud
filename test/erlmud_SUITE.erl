@@ -24,20 +24,27 @@ end_per_testcase(_, _) ->
     application:stop(erlmud).
 
 player_move(_Config) ->
-    IdPids = [{Id, start(Id, Type, Props)} || {Type, Id, Props} <- ?OBJECTS],
-    _Objs = [erlmud_object:populate(Pid, IdPids) || {_, Pid} <- IdPids],
-    Player = whereis(player),
-    Room2 = whereis(room2),
+    start(),
+    Player = erlmud_index:get(player),
+    Room2 =  erlmud_index:get(room2),
     gen_server:cast(Player, {attempt, {move, Player, s}, {procs, undefined, [], [], []}}),
     receive after 100 -> ok end,
     {_, _, PlayerProps} = sys:get_state(player),
     Room2 = proplists:get_value(room, PlayerProps).
 
+player_move_fail(_config) ->
+    start(),
+    Player = erlmud_index:get(player),
+    Room1 =  erlmud_index:get(room1),
+    gen_server:cast(Player, {attempt, {move, Player, non_existent_exit}, {procs, undefined, [], [], []}}),
+    receive after 100 -> ok end,
+    {_, _, PlayerProps} = sys:get_state(player),
+    Room1 = proplists:get_value(room, PlayerProps).
+
 player_get_item(_Config) ->
-    IdPids = [{Id, start(Id, Type, Props)} || {Type, Id, Props} <- ?OBJECTS],
-    _Objs = [erlmud_object:populate(Pid, IdPids) || {_, Pid} <- IdPids],
-    Player = whereis(player),
-    Item = whereis(item1),
+    start(),
+    Player = erlmud_index:get(player),
+    Item = erlmud_index:get(item1),
     gen_server:cast(Player, {attempt, {get, Player, "sword"}, {procs, undefined, [], [], []}}),
     receive after 100 -> ok end,
     {_, _, PlayerProps} = sys:get_state(player),
@@ -46,16 +53,27 @@ player_get_item(_Config) ->
     true = lists:member(Item, proplists:get_all_values(item, PlayerProps)).
 
 player_drop_item(_Config) ->
-    IdPids = [{Id, start(Id, Type, Props)} || {Type, Id, Props} <- ?OBJECTS],
-    _Objs = [erlmud_object:populate(Pid, IdPids) || {_, Pid} <- IdPids],
-    Player = whereis(player),
+    start(),
+    Player = erlmud_index:get(player),
     gen_server:cast(Player, {attempt, {drop, Player, "helmet"}, {procs, undefined, [], [], []}}),
     receive after 100 -> ok end,
     {_, _, PlayerProps} = sys:get_state(player),
     ct:pal("Player props: ~p~n", [PlayerProps]),
     [] = proplists:get_all_values(item, PlayerProps).
 
+player_attack(_Config) ->
+    start(),
+    Player = erlmud_index:get(player),
+    gen_server:cast(Player, {attempt, {attack, Player, "zombie"}, {procs, undefined, [], [], []}}),
+    receive after 100 -> ok end,
+    {_, _, PlayerProps} = sys:get_state(player),
+    ct:pal("Player props: ~p~n", [PlayerProps]),
+    [] = proplists:get_all_values(item, PlayerProps).
 
-start(Id, Type, Props) ->
+start() ->
+    IdPids = [{Id, start_obj(Id, Type, Props)} || {Type, Id, Props} <- ?OBJECTS],
+    _Objs = [erlmud_object:populate(Pid, IdPids) || {_, Pid} <- IdPids].
+
+start_obj(Id, Type, Props) ->
     {ok, Pid} = supervisor:start_child(erlmud_object_sup, [Id, Type, Props]),
     Pid.

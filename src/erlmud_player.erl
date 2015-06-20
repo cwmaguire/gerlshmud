@@ -63,14 +63,12 @@ attempt(Props, Msg) ->
     log(Msg, Props),
     {succeed, true, Props}.
 
-succeed(Props, {move, Self, Source, Target})
-    when Self == self(), is_pid(Target) ->
+succeed(Props, {move, Self, Source, Target}) when Self == self(), is_pid(Target) ->
     io:format("Player ~p: moved from ~p to ~p~n", [self(), Source, Target]),
     erlmud_object:remove(Source, player, self()),
     erlmud_object:add(Source, player, self()),
     set(room, Target, Props);
-succeed(Props, {move, Self, Source, Direction})
-    when Self == self(), is_atom(Direction) ->
+succeed(Props, {move, Self, Source, Direction}) when Self == self(), is_atom(Direction) ->
     io:format("Player ~p succeeded in moving ~p from ~p~n", [self(), Direction, Source]),
     Props;
 succeed(Props, {enter_world, Self})
@@ -78,16 +76,32 @@ succeed(Props, {enter_world, Self})
     Room = proplists:get_value(room, Props),
     io:format("Player ~p: entering ~p~n", [self(), Room]),
     erlmud_object:add(Room, player, self());
-succeed(Props, {get, Self, Source, Item})
-    when Self == self() ->
+succeed(Props, {get, Self, Source, Item}) when Self == self() ->
     io:format("Player ~p: getting ~p from ~p~n\tProps: ~p~n", [self(), Item, Source, Props]),
     Props;
+succeed(Props, {attack, Self, Target}) when Self == self() ->
+    io:format("Player ~p: attacking ~p~n\tProps: ~p~n", [self(), Target, Props]),
+    attack(Target, stop_attack(Props));
 succeed(Props, Msg) ->
     io:format("~p saw ~p succeed with props ~p~n", [?MODULE, Msg, Props]),
     Props.
 
 fail(Props, _Message, _Reason) ->
     Props.
+
+stop_attack(Props) ->
+    case lists:keytake(attack, 1, Props) of
+        {Pid, _, Props2} ->
+            exit(Pid),
+            Props2;
+        _ ->
+            Props
+    end.
+
+attack(Target, Props) ->
+    {ok, Attack} = supervisor:start_child(erlmud_object_sup, [undefined, attack, []]),
+    erlmud_object:attempt(Attack, {hit, Attack, self(), Target}),
+    [{attack, Attack} | Props].
 
 log(Msg, Props) ->
     io:format("Player received: ~p props: ~p~n",

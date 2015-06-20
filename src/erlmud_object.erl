@@ -49,9 +49,10 @@
 
 %% API.
 
--spec start_link(atom(), atom(), proplist()) -> {ok, pid()}.
+-spec start_link(any(), atom(), proplist()) -> {ok, pid()}.
 start_link(Id, Type, Props) ->
-    {ok, Pid} = gen_server:start_link({local, Id}, ?MODULE, {Type, Props}, []),
+    {ok, Pid} = gen_server:start_link(?MODULE, {Type, Props}, []),
+    register_(Id, Pid),
     erlmud_index:put({Id, Pid}),
     {ok, Pid}.
 
@@ -131,8 +132,6 @@ handle({resend, Target, Msg}, _OrigMsg, _NoProps) ->
     gen_server:cast(Target, {attempt, Msg, #procs{}});
 handle({fail, Reason}, Msg, #procs{subs = Subs}) ->
     [gen_server:cast(Sub, {fail, Reason, Msg}) || Sub <- Subs];
-%handle(succeed, Msg, #procs{next = [], subs = Subs}) ->
-    %[gen_server:cast(Sub, {succeed, Msg}) || Sub <- Subs];
 handle(succeed, Msg, Procs = #procs{subs = Subs}) ->
     _ = case next(Procs) of
         {Next, Procs2} ->
@@ -206,3 +205,8 @@ add_(Type, Props, Obj) ->
 
 remove_(RemType, Obj, Props) ->
     [Prop || Prop = {Type, Pid} <- Props, Type /= RemType, Pid /= Obj].
+
+register_(undefined, _Pid) ->
+    ok;
+register_(Id, Pid) ->
+    erlmud_index:put({Id, Pid}).

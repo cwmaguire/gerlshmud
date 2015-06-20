@@ -43,7 +43,6 @@ put(Obj) ->
 get(Id) ->
     gen_server:call(erlmud_index, {get, Id}).
 
-
 init([]) ->
     io:format("Initializing erlmud_index~n"),
     {ok, #state{}}.

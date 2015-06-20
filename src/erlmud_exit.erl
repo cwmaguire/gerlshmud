@@ -36,12 +36,12 @@ is_attached_to_room(Props, Room) ->
               end,
     lists:any(HasRoom, Props).
 
-attempt(Props, {move, Obj, Source, Exit}) when is_atom(Exit) ->
+attempt(Props, {move, Obj, FromRoom, Exit}) when is_atom(Exit) ->
     %% If I have an exit to the Source room and a _different_ exit with name Exit
     %% then I should translate the message to a {move, Obj, Source, Target} message.
-    io:format("Process ~p wants to leave room ~p in direction ~p~n", [Obj, Source, Exit]),
-    Room = [Room || Room = {_, ExitRoom} <- Props, ExitRoom == Source],
-    move(Props, Obj, Room, Exit);
+    io:format("Process ~p wants to leave room ~p via exit ~p~n", [Obj, FromRoom, Exit]),
+    Rooms = [Room || Room = {_, FromRoom_} <- Props, FromRoom_ == FromRoom],
+    move(Props, Obj, Rooms, Exit);
 attempt(Props, {move, Obj, Source, Target}) ->
     io:format("Process ~p wants to leave room ~p for ~p~n", [Obj, Source, Target]),
     {succeed, true, Props};
@@ -57,15 +57,13 @@ fail(Props, Result, Msg) ->
     io:format("~p message: ~p~n", [Result, Msg]),
     Props.
 
-move(Props, Obj, [{{room, FromDir}, FromRoom}], FromExit) ->
-    case [Room || Room = {{room, ToDir}, ToRoom} <- Props,
-                  ToDir /= FromDir,
+move(Props, Obj, [{{room, FromExit}, FromRoom}], ToExit) when FromExit /= ToExit ->
+    case [Room || Room = {{room, ToExit_}, ToRoom} <- Props,
                   ToRoom /= FromRoom,
-                  ToDir == FromExit] of
+                  ToExit_ == ToExit] of
         [{_, ToRoom}] ->
             NewMsg = {move, Obj, FromRoom, ToRoom},
-            Result = {resend, Obj, NewMsg},
-            {Result, false, Props};
+            {{resend, Obj, NewMsg}, false, Props};
         [] ->
             {succeed, false, Props}
     end;
