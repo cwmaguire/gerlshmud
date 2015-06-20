@@ -11,7 +11,7 @@
 %% WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 %% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
--module(erlmud_attack).
+-module(erlmud_ai).
 
 -behaviour(erlmud_object).
 
@@ -38,6 +38,14 @@ attempt(Props, Msg) ->
     log(Msg, Props),
     {succeed, true, Props}.
 
+succeed(Props, {damage, _Attack, _Source, Self, Damage}) when Self == self() ->
+    take_damage(Damage, Props);
+succeed(Props, {die, Self}) when Self == self() ->
+    CorpseCleanupMilis = application:get_env(erlmud, corpse_cleanup_milis, 10 * 60 * 1000),
+    erlmud_object:attempt_after(CorpseCleanupMilis, self(), {cleanup, Self}),
+    Props;
+succeed(_Props, {cleanup, Self}) when Self == self() ->
+    exit(cleanup);
 succeed(Props, Msg) ->
     io:format("~p saw ~p succeed with props ~p~n", [?MODULE, Msg, Props]),
     Props.
@@ -47,3 +55,14 @@ fail(Props, _Message, _Reason) ->
 
 log(Msg, Props) ->
     io:format("~p received: ~p props: ~p~n", [?MODULE, Msg, Props]).
+
+take_damage(Damage, Props) ->
+    io:format("~p ~p took ~p damage~nProps: ~p~n", [?MODULE, self(), Damage, Props]),
+    Hp = proplists:get_value(hp, Props, 0) - Damage,
+    case Hp of
+        X when X < 1 ->
+            erlmud_object:attempt(self(), {die, self()});
+        _ ->
+            ok
+    end,
+    lists:keystore(hp, 1, Props, {hp, Hp}).

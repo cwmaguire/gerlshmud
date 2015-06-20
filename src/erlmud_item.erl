@@ -37,6 +37,15 @@ attempt(Props, {Action, Obj, [_ | _] = PartialItemName}) when Action == get; Act
         _ ->
             {succeed, false, Props}
     end;
+attempt(Props, {calc_damage, Attack, Source, Target, Damage}) ->
+    case proplists:get_value(owner, Props) of
+        Source ->
+            UpdatedDmg = Damage + proplists:get_value(dmg, Props, 0),
+            UpdatedMsg = {calc_damage, Attack, Source, Target, UpdatedDmg},
+            {succeed, UpdatedMsg, false, Props};
+        _ ->
+            {succeed, false, Props}
+    end;
 attempt(Props, Msg) ->
     log(Msg, Props),
     {succeed, true, Props}.

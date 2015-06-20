@@ -66,7 +66,9 @@ succeed(Props, {damage, Self, _Source, _Target, _Damage})
     %% and died if necessary.
     Props;
 succeed(Props, {calc_next_attack_wait, Self, Source, Target, Sent, Wait}) ->
-    erlang:send_after(milis_remaining(Sent, now(), Wait), Self, {calc_hit, Self, Source, Target}),
+    erlmud_object:attempt_after(milis_remaining(Sent, now(), Wait),
+                                self(),
+                                {calc_hit, Self, Source, Target}),
     Props;
 succeed(Props, Msg) ->
     io:format("~p saw ~p succeed with props ~p~n", [?MODULE, Msg, Props]),

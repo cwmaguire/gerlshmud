@@ -12,5 +12,6 @@
     jsx
   ]},
   {mod, {erlmud_app, []}},
-  {env, []}
+  {env, [{coprse_cleanup_milis, 120000} %% 2 minutes
+        ]}
 ]}.

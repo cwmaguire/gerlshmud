@@ -18,6 +18,7 @@
 -export([start_link/3]).
 -export([populate/2]).
 -export([attempt/2]).
+-export([attempt_after/3]).
 -export([add/3]).
 -export([remove/3]).
 
@@ -64,6 +65,9 @@ attempt(Pid, Msg) ->
     Caller = self(),
     gen_server:cast(Pid, {attempt, Msg, #procs{subs = [Caller]}}).
 
+attempt_after(Millis, Pid, Msg) ->
+    erlang:send_after(Millis, {Pid, Msg}).
+
 add(Pid, Type, AddPid) ->
     gen_server:cast(Pid, {add, Type, AddPid}).
 
@@ -97,7 +101,8 @@ handle_cast({fail, Reason, Msg}, State) ->
 handle_cast({succeed, Msg}, State) ->
     {noreply, State#state{props = succeed(Msg, State)}}.
 
-handle_info(_Info, State) ->
+handle_info({Pid, Msg}, State) ->
+    attempt(Pid, Msg),
     {noreply, State}.
 
 terminate(_Reason, _State) ->
@@ -124,9 +129,14 @@ maybe_attempt(Msg, Procs, State) ->
     attempt_(Msg, Procs, State).
 
 attempt_(Msg, Procs, State = #state{type = Type, props = Props}) ->
-    Results = {Result, _, Props2} = Type:attempt(Props, Msg),
-    _ = handle(Result, Msg, merge(self(), Type, Results, Procs)),
+    Results = {Result, Msg2, _, Props2} = ensure_message(Msg, Type:attempt(Props, Msg)),
+    _ = handle(Result, Msg2, merge(self(), Type, Results, Procs)),
     State#state{props = Props2}.
+
+ensure_message(Msg, {A, B, C}) ->
+    {A, Msg, B, C};
+ensure_message(_, T) ->
+    T.
 
 handle({resend, Target, Msg}, _OrigMsg, _NoProps) ->
     gen_server:cast(Target, {attempt, Msg, #procs{}});
@@ -154,11 +164,11 @@ proc(Value, IdPids) when is_atom(Value) ->
 proc(Value, _) ->
     Value.
 
-merge(_, _, {{resend, _, _}, _, _}, _) ->
+merge(_, _, {{resend, _, _, _}, _, _}, _) ->
     undefined;
 merge(Self, erlmud_room, Results, Procs = #procs{room = undefined}) ->
     merge(Self, erlmud_room, Results, Procs#procs{room = Self});
-merge(Self, _, {_, Interested, Props}, Procs = #procs{}) ->
+merge(Self, _, {_, _, Interested, Props}, Procs = #procs{}) ->
     merge_(Self,
            sub(Procs, Interested),
            procs(Props)).
