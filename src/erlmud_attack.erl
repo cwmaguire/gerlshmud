@@ -62,6 +62,11 @@ succeed(Props, {calc_hit, Self, Source, Target, HitScore})
        HitScore > 0 ->
     erlmud_object:attempt(self(), {calc_damage, self(), Source, Target, 1}),
     Props;
+succeed(Props, {calc_hit, Self, Source, Target, _Miss})
+  when is_pid(Target),
+       Self == self() ->
+    attack_again(Source, Target),
+    Props;
 succeed(Props, {calc_damage, Self, Source, Target, Damage})
   when Self == self(),
        Damage > 0 ->
