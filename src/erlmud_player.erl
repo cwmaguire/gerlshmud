@@ -49,41 +49,56 @@ attempt(Props, {enter_world, Self}) when Self == self() ->
             {succeed, true, Props}
     end;
 attempt(Props, {drop, Self, Pid}) when Self == self(), is_pid(Pid) ->
-    io:format("Player ~p: ~p attempting to drop ~p~n", [self(), Self, Pid]),
+    log("~p attempting to drop ~p~n", [Self, Pid]),
     case has_pid(Props, Pid) of
         true ->
             {room, Room} = get_(room, Props),
-            io:format("~p resending {drop, ~p, ~p} as {drop, ~p, ~p, ~p}~n",
-                      [?MODULE, Self, Pid, Self, Pid, Room]),
+            log("resending {drop, ~p, ~p} as {drop, ~p, ~p, ~p}~n",
+                [Self, Pid, Self, Pid, Room]),
             {{resend, Self, {drop, Self, Pid, Room}}, true, Props};
         _ ->
             {succeed, _Interested = false, Props}
     end;
+attempt(Props, {calc_next_attack_wait, Attack, Self, Target, Sent, Wait})
+    when Self == self() ->
+    PlayerWait = proplists:get_value(attack_wait, Props, 0),
+    log("Player attack wait is ~p~n", [PlayerWait]),
+    {succeed,
+     {calc_next_attack_wait, Attack, Self, Target, Sent, Wait + PlayerWait},
+     false,
+     Props};
+attempt(Props, {move, Self, _, _}) when Self == self() ->
+    {succeed, true, Props};
+attempt(Props, {attack, Self, _}) when Self == self() ->
+    {succeed, true, Props};
 attempt(Props, Msg) ->
-    log(Msg, Props),
-    {succeed, true, Props}.
+    log("attempt: ~p, Props: ~p~n", [Msg, Props]),
+    {succeed, false, Props}.
 
 succeed(Props, {move, Self, Source, Target}) when Self == self(), is_pid(Target) ->
-    io:format("Player ~p: moved from ~p to ~p~n", [self(), Source, Target]),
+    log("moved from ~p to ~p~n", [Source, Target]),
     erlmud_object:remove(Source, player, self()),
     erlmud_object:add(Source, player, self()),
     set(room, Target, Props);
 succeed(Props, {move, Self, Source, Direction}) when Self == self(), is_atom(Direction) ->
-    io:format("Player ~p succeeded in moving ~p from ~p~n", [self(), Direction, Source]),
+    log("succeeded in moving ~p from ~p~n", [Direction, Source]),
     Props;
 succeed(Props, {enter_world, Self})
     when Self == self() ->
     Room = proplists:get_value(room, Props),
-    io:format("Player ~p: entering ~p~n", [self(), Room]),
+    log("entering ~p~n", [Room]),
     erlmud_object:add(Room, player, self());
 succeed(Props, {get, Self, Source, Item}) when Self == self() ->
-    io:format("Player ~p: getting ~p from ~p~n\tProps: ~p~n", [self(), Item, Source, Props]),
+    log("getting ~p from ~p~n\tProps: ~p~n", [Item, Source, Props]),
     Props;
 succeed(Props, {attack, Self, Target}) when Self == self() ->
-    io:format("Player ~p: attacking ~p~n\tProps: ~p~n", [self(), Target, Props]),
+    log("{attack, self(), ~p} succeeded~n"
+        "Starting attack process~n"
+        "\tProps: ~p~n",
+        [Target, Props]),
     attack(Target, stop_attack(Props));
 succeed(Props, Msg) ->
-    io:format("~p saw ~p succeed with props ~p~n", [?MODULE, Msg, Props]),
+    log("saw ~p succeed with props ~p~n", [Msg, Props]),
     Props.
 
 fail(Props, _Message, _Reason) ->
@@ -99,10 +114,11 @@ stop_attack(Props) ->
     end.
 
 attack(Target, Props) ->
-    {ok, Attack} = supervisor:start_child(erlmud_object_sup, [undefined, attack, []]),
-    erlmud_object:attempt(Attack, {hit, Attack, self(), Target}),
+    {ok, Attack} = supervisor:start_child(erlmud_object_sup,
+                                          [undefined, erlmud_attack, [{player, self()}]]),
+    log("Attack ~p started, sending attempt~n", [Attack]),
+    erlmud_object:attempt(Attack, {attack, Attack, self(), Target}),
     [{attack, Attack} | Props].
 
-log(Msg, Props) ->
-    io:format("Player received: ~p props: ~p~n",
-              [Msg, Props]).
+log(Msg, Format) ->
+    erlmud_event_log:log("~p:~n" ++ Msg, [?MODULE | Format]).

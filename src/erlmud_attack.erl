@@ -29,9 +29,22 @@ removed(_, _) -> ok.
 
 %attempt(Props, {attack, Self, Source, Target}) when is_pid(Target) ->
     %{{resend, Self, {drop, Self, Source, Target, ?PROPS}}, true, Props};
+attempt(Props, {calc_hit, Self, _, _}) when Self == self() ->
+    case proplists:get_value(done, Props) of
+        true ->
+            %{{resend, Self, {move, Self, Room, Direction}}, false, Props}
+            {fail, "It's dead Jim"};
+        _ ->
+            {succeed, true, Props}
+    end;
+attempt(Props, {Action, Self, _, Target})
+  when Self == self(),
+       is_pid(Target) ->
+    ShouldSubscribe = lists:member(Action, [attack, calc_hit, calc_damage, damage, killed]),
+    {succeed, ShouldSubscribe, Props};
 attempt(Props, Msg) ->
-    log(Msg, Props),
-    {succeed, true, Props}.
+    log("Attempt: ~p~n\tProps: ~p~n", [Msg, Props]),
+    {succeed, false, Props}.
 
 succeed(Props, {attack, Self, _Source, UnknownTargetName})
   when is_list(UnknownTargetName),
@@ -40,9 +53,13 @@ succeed(Props, {attack, Self, _Source, UnknownTargetName})
     %% TODO: output something to the client like "You swing at imaginary adversaries"
     %%       _if_ this is a player
     Props;
-succeed(Props, {calc_hit, Self, Source, Target})
+succeed(Props, {attack, Self, Source, Target}) when is_pid(Target), Self == self() ->
+    erlmud_object:attempt(self(), {calc_hit, self(), Source, Target, 1}),
+    [{target, Target} | Props];
+succeed(Props, {calc_hit, Self, Source, Target, HitScore})
   when is_pid(Target),
-       Self == self() ->
+       Self == self(),
+       HitScore > 0 ->
     erlmud_object:attempt(self(), {calc_damage, self(), Source, Target, 1}),
     Props;
 succeed(Props, {calc_damage, Self, Source, Target, Damage})
@@ -58,27 +75,37 @@ succeed(Props, {calc_damage, Self, Source, Target, _NoDamage})
     %%       _if_ this is a player
     attack_again(Source, Target),
     Props;
-succeed(Props, {damage, Self, _Source, _Target, _Damage})
+succeed(Props, {damage, Self, Source, Target, _Damage})
   when Self == self() ->
     %% Attack succeeded
     %% TODO: tell the user
     %% The target will have seen this and subtracted damage from itself
     %% and died if necessary.
+    attack_again(Source, Target),
     Props;
 succeed(Props, {calc_next_attack_wait, Self, Source, Target, Sent, Wait}) ->
     erlmud_object:attempt_after(milis_remaining(Sent, now(), Wait),
                                 self(),
-                                {calc_hit, Self, Source, Target}),
+                                {calc_hit, Self, Source, Target, 1}),
     Props;
+succeed(Props, Msg = {killed, Self, _Source, _Target}) when Self == self() ->
+    log("Killed it! Huzzah!~nMessage: ~p~nProps: ~p~n", [Msg, Props]),
+    [{done, true} | Props];
 succeed(Props, Msg) ->
-    io:format("~p saw ~p succeed with props ~p~n", [?MODULE, Msg, Props]),
+    log("saw ~p succeed with props ~p~n", [Msg, Props]),
     Props.
 
 fail(Props, _Message, _Reason) ->
     Props.
 
 attack_again(Source, Target) ->
-    erlmud_object:attempt(self(), {calc_next_attack_time, self(), Source, Target, now, 0}),
+    erlmud_object:attempt(self(),
+                          {calc_next_attack_wait,
+                           self(),
+                           Source,
+                           Target,
+                           os:timestamp(),
+                           0}),
     ok.
 
 milis_remaining(Time1, Time2, WaitMilis) ->
@@ -96,5 +123,5 @@ subtract(T1, from, T2) ->
 milis({M,S,U}) ->
     M * 1000 * 1000 * 1000 + S * 1000 + round(U / 1000).
 
-log(Msg, Props) ->
-    io:format("~p received: ~p props: ~p~n", [?MODULE, Msg, Props]).
+log(Msg, Format) ->
+    erlmud_event_log:log("~p:~n" ++ Msg, [?MODULE | Format]).

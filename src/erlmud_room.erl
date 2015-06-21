@@ -29,45 +29,47 @@ added(_, _) -> ok.
 removed(_, _) -> ok.
 
 attempt(Props, {move, Obj, Self, Target}) when Self == self() ->
-    io:format("Room ~p: ~p wants to go to ~p~n",
-              [self(), Obj, Target]),
+    log("~p wants to go to ~p from here~n", [Obj, Target]),
     {succeed, true, Props};
 attempt(Props, {move, Obj, Source, Self}) when Self == self() ->
-    io:format("Room ~p: ~p wants to come from ~p~n", [self(), Obj, Source]),
+    log("~p wants to come here from ~p~n", [Obj, Source]),
     {succeed, true, Props};
 attempt(Props, {get, Obj, Pid}) when is_pid(Pid) ->
-    io:format("Room ~p: ~p wants to get ~p~n", [self(), Obj, Pid]),
+    log("~p wants to get ~p~n", [Obj, Pid]),
     case has_pid(Props, Pid) of
         true ->
-            io:format("~p resending {get, ~p, ~p} as {get, ~p, ~p, ~p}~n",
+            log("~p resending {get, ~p, ~p} as {get, ~p, ~p, ~p}~n",
                       [?MODULE, Obj, Pid, Obj, Pid, self()]),
             {{resend, Obj, {get, Obj, Pid, self()}}, true, Props};
         _ ->
             {succeed, _Interested = false, Props}
     end;
 attempt(Props, Msg) ->
-    io:format("Room ~p: ignoring attempt ~p~n", [self(), Msg]),
+    log("ignoring attempt ~p~n", [Msg]),
     {succeed, false, Props}.
 
 succeed(Props, {move, Obj, Self, Target}) when Self == self() ->
-    io:format("Room ~p: ~p left for ~p~n", [self(), Obj, Target]),
+    log("~p left for ~p~n", [Obj, Target]),
     Props;
 succeed(Props, {move, Obj, Source, Self}) when Self == self() ->
-    io:format("Room ~p: ~p came from ~p~n", [self(), Obj, Source]),
+    log("~p came from ~p~n", [Obj, Source]),
     Props;
 succeed(Props, {move, Obj, Source, Target}) ->
-    io:format("Room ~p: Process ~p went from ~p to ~p~n", [self(), Obj, Source, Target]),
+    log("Process ~p went from ~p to ~p~n", [Obj, Source, Target]),
     Props;
 succeed(Props, {get, Obj, Item, Self}) when Self == self() ->
-    io:format("Room ~p: Process ~p got ~p from me~n", [self(), Obj, Item]),
+    log("Process ~p got ~p from me~n", [Obj, Item]),
     Props;
 succeed(Props, Msg) ->
-    io:format("~p saw ~p succeed with props ~p~n", [?MODULE, Msg, Props]),
+    log("~p saw ~p succeed with props ~p~n", [?MODULE, Msg, Props]),
     Props.
 
 fail(Props, Reason, {move, Obj, Self, Target}) when Self == self() ->
-    io:format("Room ~p: ~p couldn't go from here to ~p~n\t~p~n", [self(), Obj, Target, Reason]),
+    log("~p couldn't go from here to ~p~n\t~p~n", [Obj, Target, Reason]),
     Props;
 fail(Props, Reson, {move, Obj, Source, Self}) when Self == self() ->
-    io:format("Room ~p: ~p couldn't come here from ~p~n\t~p~n", [self(), Obj, Source, Reson]),
+    log("Room ~p: ~p couldn't come here from ~p~n\t~p~n", [Obj, Source, Reson]),
     Props.
+
+log(Msg, Format) ->
+    erlmud_event_log:log("~p:~n" ++ Msg, [?MODULE | Format]).

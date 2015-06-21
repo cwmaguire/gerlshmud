@@ -53,26 +53,26 @@
 -spec start_link(any(), atom(), proplist()) -> {ok, pid()}.
 start_link(Id, Type, Props) ->
     {ok, Pid} = gen_server:start_link(?MODULE, {Type, Props}, []),
-    register_(Id, Pid),
-    erlmud_index:put({Id, Pid}),
+    erlmud_index:put(Id, Pid),
     {ok, Pid}.
 
 populate(Pid, ProcIds) ->
-    io:format("populate on ~p ...~n", [Pid]),
-    gen_server:cast(Pid, {populate, ProcIds}).
+    log("populate on ~p~n", [Pid]),
+    send(Pid, {populate, ProcIds}).
 
 attempt(Pid, Msg) ->
     Caller = self(),
-    gen_server:cast(Pid, {attempt, Msg, #procs{subs = [Caller]}}).
+    send(Pid, {attempt, Msg, #procs{subs = [Caller]}}).
 
-attempt_after(Millis, Pid, Msg) ->
-    erlang:send_after(Millis, {Pid, Msg}).
+attempt_after(Milis, Pid, Msg) ->
+    log("attempt after ~p, Pid = ~p~nMsg = ~p~n", [Milis, Pid, Msg]),
+    erlang:send_after(Milis, Pid, {Pid, Msg}).
 
 add(Pid, Type, AddPid) ->
-    gen_server:cast(Pid, {add, Type, AddPid}).
+    send(Pid, {add, Type, AddPid}).
 
 remove(Pid, Type, RemovePid) ->
-    gen_server:cast(Pid, {remove, Type, RemovePid}).
+    send(Pid, {remove, Type, RemovePid}).
 
 %% gen_server.
 
@@ -102,7 +102,11 @@ handle_cast({succeed, Msg}, State) ->
     {noreply, State#state{props = succeed(Msg, State)}}.
 
 handle_info({Pid, Msg}, State) ->
+    log("handle_info attempt Pid = ~p~nMsg = ~p~n", [Pid, Msg]),
     attempt(Pid, Msg),
+    {noreply, State};
+handle_info(Unknown, State) ->
+    log("Unknown Message: ~p~n", [Unknown]),
     {noreply, State}.
 
 terminate(_Reason, _State) ->
@@ -122,7 +126,7 @@ maybe_attempt(Msg,
         true ->
             attempt_(Msg, Procs, State);
         false ->
-            _ = handle(succeed, Msg, done(self, Procs)),
+            _ = handle(succeed, Msg, done(self(), Procs)),
             State
     end;
 maybe_attempt(Msg, Procs, State) ->
@@ -139,24 +143,31 @@ ensure_message(_, T) ->
     T.
 
 handle({resend, Target, Msg}, _OrigMsg, _NoProps) ->
-    gen_server:cast(Target, {attempt, Msg, #procs{}});
+    send(Target, {attempt, Msg, #procs{}});
 handle({fail, Reason}, Msg, #procs{subs = Subs}) ->
-    [gen_server:cast(Sub, {fail, Reason, Msg}) || Sub <- Subs];
+    [send(Sub, {fail, Reason, Msg}) || Sub <- Subs];
 handle(succeed, Msg, Procs = #procs{subs = Subs}) ->
     _ = case next(Procs) of
         {Next, Procs2} ->
-            gen_server:cast(Next, {attempt, Msg, Procs2});
+            send(Next, {attempt, Msg, Procs2});
         none ->
-            [gen_server:cast(Sub, {succeed, Msg}) || Sub <- Subs]
+            [send(Sub, {succeed, Msg}) || Sub <- Subs]
     end.
+
+send(Pid, Msg) ->
+    Id = erlmud_index:get(Pid),
+    gen_server:cast(Pid, Msg),
+    log("Sending:~nPid: ~p (~p)~nMsg: ~p~n", [Pid, Id, Msg]).
+
 
 populate_(Props, IdPids) ->
     [{K, proc(V, IdPids)} || {K, V} <- Props].
 
 procs(Props) ->
-    io:format("Object ~p is looking for pids in ~p~n", [self(), Props]),
+    log("looking for pids in ~p~n", [Props]),
     Pids = [Pid || {_, Pid} <- Props, is_pid(Pid)],
-    io:format("Object ~p found pids: ~p~n", [self(), Pids]),
+    PidIds = [{Pid, erlmud_index:get(Pid)} || Pid <- Pids],
+    log("found pids: ~p~n", [PidIds]),
     Pids.
 
 proc(Value, IdPids) when is_atom(Value) ->
@@ -216,7 +227,5 @@ add_(Type, Props, Obj) ->
 remove_(RemType, Obj, Props) ->
     [Prop || Prop = {Type, Pid} <- Props, Type /= RemType, Pid /= Obj].
 
-register_(undefined, _Pid) ->
-    ok;
-register_(Id, Pid) ->
-    erlmud_index:put({Id, Pid}).
+log(Msg, Format) ->
+    erlmud_event_log:log("~p:~n" ++ Msg, [?MODULE | Format]).

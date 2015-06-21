@@ -31,8 +31,8 @@ set(Type, Obj, Props) ->
 attempt(Props, {Action, Obj, [_ | _] = PartialItemName}) when Action == get; Action == drop ->
     case re:run(proplists:get_value(name, Props, ""), PartialItemName, [{capture, none}]) of
         match ->
-            io:format("~p resending {~p, ~p, ~p} as {~p, ~p, ~p}~n",
-                      [?MODULE, Action, Obj, PartialItemName, Action, Obj, self()]),
+            log("resending {~p, ~p, ~p} as {~p, ~p, ~p}~n",
+                [Action, Obj, PartialItemName, Action, Obj, self()]),
             {{resend, Obj, {Action, Obj, self()}}, true, Props};
         _ ->
             {succeed, false, Props}
@@ -46,28 +46,30 @@ attempt(Props, {calc_damage, Attack, Source, Target, Damage}) ->
         _ ->
             {succeed, false, Props}
     end;
-attempt(Props, Msg) ->
-    log(Msg, Props),
-    {succeed, true, Props}.
+attempt(Props, Msg = {Action, _, Self, _}) when Self == self() ->
+    log("subscribed attempt: ~p, props: ~p~n", [Msg, Props]),
+    {succeed, lists:member(Action, [get, drop]), Props};
+attempt(Props, _Msg) ->
+    %log("ignored attempt: ~p, props: ~p~n", [Msg, Props]),
+    {succeed, false, Props}.
 
 succeed(Props, {get, Receiver, Self, Owner}) when Self == self() ->
     move(Props, Owner, Receiver);
 succeed(Props, {drop, Owner, Self, Receiver}) when Self == self() ->
     move(Props, Owner, Receiver);
 succeed(Props, Msg) ->
-    io:format("~p saw ~p succeed with props ~p~n", [?MODULE, Msg, Props]),
+    log("saw ~p succeed with props ~p~n", [Msg, Props]),
     Props.
 
 fail(Props, Result, Msg) ->
-    io:format("~p message: ~p~n", [Result, Msg]),
+    log("result: ~p message: ~p~n", [Result, Msg]),
     Props.
 
 move(Props, Owner, Receiver) ->
-    io:format("Item ~p: moving from ~p to ~p~n", [self(), Owner, Receiver]),
+    log("moving from ~p to ~p~n", [Owner, Receiver]),
     gen_server:cast(Owner, {remove, item, self()}),
     gen_server:cast(Receiver, {add, item, self()}),
     set(owner, Receiver, Props).
 
-log(Msg, Props) ->
-    io:format("Item ~p received: ~p with props: ~p~n",
-              [self(), Msg, Props]).
+log(Msg, Format) ->
+    erlmud_event_log:log("~p:~n" ++ Msg, [?MODULE | Format]).

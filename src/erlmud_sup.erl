@@ -38,5 +38,11 @@ init([]) ->
               permanent,
               brutal_kill,
               worker,
-              [erlmud_index]}],
+              [erlmud_index]},
+             {erlmud_event_log,
+               {erlmud_event_log, start_link, []},
+               permanent,
+               brutal_kill,
+               worker,
+               [erlmud_event_log]}],
     {ok, {{one_for_one, 1, 5}, Procs}}.

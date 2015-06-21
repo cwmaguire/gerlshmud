@@ -25,18 +25,29 @@
 added(_, _) -> ok.
 removed(_, _) -> ok.
 
-attempt(Props, {hit, Attack, Attacker, Name}) when is_list(Name) ->
+attempt(Props, {attack, Attack, Attacker, Name}) when is_list(Name) ->
+    log("Checking if name ~p matches", [Name]),
     case re:run(proplists:get_value(name, Props, ""), Name, [{capture, none}]) of
         match ->
-            io:format("~p resending {hit, ~p, ~p} as {hit, ~p, ~p}~n",
-                      [?MODULE, Attacker, Name, Attacker, self()]),
-            {{resend, Attack, {hit, Attack, Attacker, self()}}, true, Props};
+            log("resending {attack, ~p, ~p} as {attack, ~p, ~p}~n",
+                [Attacker, Name, Attacker, self()]),
+            {{resend, Attack, {attack, Attack, Attacker, self()}}, true, Props};
+        _ ->
+            log("Name ~p did not match.~n\tProps: ~p~n", [Name, Props]),
+            {succeed, false, Props}
+    end;
+attempt(Props, {calc_hit, Attack, Attacker, Self, _}) when Self == self() ->
+    case proplists:get_value(hp, Props) of
+        X when X < 0 ->
+            {{resend, Attacker, {killed, Attack, Attacker, self()}}, true, Props};
         _ ->
             {succeed, false, Props}
     end;
+attempt(Props, {damage, _, _, Self, _}) when Self == self() ->
+    {succeed, true, Props};
 attempt(Props, Msg) ->
-    log(Msg, Props),
-    {succeed, true, Props}.
+    log("ignored attempt: ~p~nProps: ~p~n", [Msg, Props]),
+    {succeed, false, Props}.
 
 succeed(Props, {damage, _Attack, _Source, Self, Damage}) when Self == self() ->
     take_damage(Damage, Props);
@@ -47,17 +58,14 @@ succeed(Props, {die, Self}) when Self == self() ->
 succeed(_Props, {cleanup, Self}) when Self == self() ->
     exit(cleanup);
 succeed(Props, Msg) ->
-    io:format("~p saw ~p succeed with props ~p~n", [?MODULE, Msg, Props]),
+    log("saw ~p succeed with props ~p~n", [Msg, Props]),
     Props.
 
 fail(Props, _Message, _Reason) ->
     Props.
 
-log(Msg, Props) ->
-    io:format("~p received: ~p props: ~p~n", [?MODULE, Msg, Props]).
-
 take_damage(Damage, Props) ->
-    io:format("~p ~p took ~p damage~nProps: ~p~n", [?MODULE, self(), Damage, Props]),
+    log("took ~p damage~nProps: ~p~n", [Damage, Props]),
     Hp = proplists:get_value(hp, Props, 0) - Damage,
     case Hp of
         X when X < 1 ->
@@ -66,3 +74,6 @@ take_damage(Damage, Props) ->
             ok
     end,
     lists:keystore(hp, 1, Props, {hp, Hp}).
+
+log(Msg, Format) ->
+    erlmud_event_log:log("~p:~n" ++ Msg, [?MODULE | Format]).
