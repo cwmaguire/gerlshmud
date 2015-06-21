@@ -16,11 +16,15 @@ until:
 - The chain ends
 - The message is changed and the chain restarted
 
+Videos:
+Jun 20, 2015 - How attacks work: https://youtu.be/oSG1EXPMJVw
+
 Updates:
 Jan 27, 2015 - propagated first succeed message back to a subscribers
 Jan 29, 2015 - move player between two rooms via an exit
 Jan 31, 2015 - move player between two rooms with a direction
 Feb 20, 2015 - web interface and login process
+Jun 20, 2015 - attacks, logging
 
 How to run it:
 make && make rel && _rel/erlmud_release/bin/erlmud_release console
