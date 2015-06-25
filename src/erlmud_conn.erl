@@ -71,7 +71,7 @@ dead(_, StateData = #state{socket = Socket}) ->
 live(Event, StateData) ->
     io:format("erlmud_conn got event ~p in state 'live' with state data ~p~n",
               [Event, StateData]),
-    _ = case erlmud_parse:parse(Event) of
+    _ = case erlmud_parse:parse(StateData#state.player, Event) of
         {error, Error} ->
             StateData#state.socket ! {send, Error};
         Message ->

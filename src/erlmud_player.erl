@@ -78,7 +78,7 @@ attempt(Props, Msg) ->
 succeed(Props, {move, Self, Source, Target}) when Self == self(), is_pid(Target) ->
     log("moved from ~p to ~p~n", [Source, Target]),
     erlmud_object:remove(Source, player, self()),
-    erlmud_object:add(Source, player, self()),
+    erlmud_object:add(Target, player, self()),
     set(room, Target, Props);
 succeed(Props, {move, Self, Source, Direction}) when Self == self(), is_atom(Direction) ->
     log("succeeded in moving ~p from ~p~n", [Direction, Source]),

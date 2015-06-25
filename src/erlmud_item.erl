@@ -28,11 +28,24 @@ removed(_, _) -> ok.
 set(Type, Obj, Props) ->
     lists:keystore(Type, 1, Props, {Type, Obj}).
 
-attempt(Props, {Action, Obj, [_ | _] = PartialItemName}) when Action == get; Action == drop ->
-    case re:run(proplists:get_value(name, Props, ""), PartialItemName, [{capture, none}]) of
-        match ->
-            log("resending {~p, ~p, ~p} as {~p, ~p, ~p}~n",
-                [Action, Obj, PartialItemName, Action, Obj, self()]),
+is_name(Props, Name) ->
+    match == re:run(proplists:get_value(name, Props, ""), Name, [{capture, none}]).
+
+attempt(Props, {Action, Obj, ItemName, BodyPart})
+  when is_list(ItemName),
+       Action == add;
+       Action == remove ->
+    case is_name(Props, ItemName) of
+        true ->
+            {{resend, Obj, {Action, Obj, {self(), Props}, BodyPart}}, true, Props};
+        _ ->
+            {succeed, false, Props}
+    end;
+attempt(Props, {Action, Obj, [_ | _] = ItemName}) when Action == get; Action == drop ->
+    case is_name(Props, ItemName) of
+        true ->
+            %log("resending {~p, ~p, ~p} as {~p, ~p, ~p}~n",
+                %[Action, Obj, PartialItemName, Action, Obj, self()]),
             {{resend, Obj, {Action, Obj, self()}}, true, Props};
         _ ->
             {succeed, false, Props}

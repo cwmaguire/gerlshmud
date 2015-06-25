@@ -13,16 +13,24 @@
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 -module(erlmud_parse).
 
--export([parse/1]).
+-export([parse/2]).
 
 %-record(state, {}).
 
-parse(<<"get ", Item/binary>>) ->
-    io:format("Getting ~p~n", [Item]),
-    {get, binary_to_list(Item)};
-parse(<<"drop ", Item/binary>>) ->
-    io:format("Dropping ~p~n", [Item]),
-    {drop, binary_to_list(Item)};
-parse(_) ->
+%% TODO turn this into a gen server and populate exits based
+%% on real exits (and also allow creating new exits while playing)
+
+parse(Player, <<"n">>) ->
+    log("Moving n~n", []),
+    {move, Player, n};
+parse(Player, <<"get ", Item/binary>>) ->
+    log("Getting ~p~n", [Item]),
+    {get, Player, binary_to_list(Item)};
+parse(Player, <<"drop ", Item/binary>>) ->
+    log("Dropping ~p~n", [Item]),
+    {drop, Player, binary_to_list(Item)};
+parse(_, _) ->
     {error, "Huh?"}.
 
+log(Msg, Format) ->
+    erlmud_event_log:log("~p:~n" ++ Msg, [?MODULE | Format]).

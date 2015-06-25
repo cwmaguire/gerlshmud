@@ -1,26 +1,37 @@
 -module(erlmud_SUITE).
 -compile(export_all).
 
--define(OBJECTS, [{erlmud_room, room1, [{exit, exit1},
-                                        {item, item1},
-                                        {ai, ai1},
-                                        {player, player1}]},
-                  {erlmud_room, room2, [{exit, exit1}, {exit, exit2}]},
-                  {erlmud_room, room3, [{exit, exit2}]},
-                  {erlmud_exit, exit1, [{{room, s}, room2}, {{room, n}, room1}]},
-                  {erlmud_exit, exit2, [{{room, n}, room2}, {{room, s}, room3}]},
-                  {erlmud_player, player, [{room, room1}, {item, item2}, {item, fist1}, {attack_wait, 10}]},
-                  {erlmud_item, item1, [{name, "sword"}, {owner, room1}]},
-                  {erlmud_item, item2, [{name, "helmet"}, {owner, player}]},
-                  {erlmud_ai, ai1, [{hp, 10}, {room, room1}, {name, "zombie"}]},
-                  {erlmud_item, fist1, [{dmg, 5}, {owner, player}]}]).
+-define(WORLD_1, [{erlmud_room, room_n, [{exit, exit}, {player, player}]},
+                  {erlmud_room, room_s, [{exit, exit}]},
+                  {erlmud_player, player, [{room, room_n}]},
+                  {erlmud_exit, exit, [{{room, n}, room_n}, {{room, s}, room_s}]}]).
+
+-define(WORLD_2, [{erlmud_room, room, [{player, player}, {item, sword}, {item, apple}]},
+                  {erlmud_player, player, [{room, room}, {item, helmet}]},
+                  {erlmud_item, sword, [{owner, room}, {name, "sword"}]},
+                  {erlmud_item, helmet, [{owner, player}, {name, "helmet"}]},
+                  {erlmud_item, apple, [{owner, room}, {name, "apple"}]}]).
+
+-define(WORLD_3, [{erlmud_room, room, [{player, player}, {ai, zombie}]},
+                  {erlmud_player, player, [{room, room}, {attack_wait, 10}, {item, fist}]},
+                  {erlmud_ai, zombie, [{hp, 10}, {room, room}, {name, "zombie"}]},
+                  {erlmud_item, fist, [{dmg, 5}, {owner, player}]}]).
+
+-define(WORLD_4, [{erlmud_room, room, [{player, player}]},
+                  {erlmud_player, player, [{room, room},
+                                           {item, helmet},
+                                           {body_part, head}]},
+                  {erlmud_body_part, head, [{name, "head"}, {owner, player}]},
+                  {erlmud_item, helmet, [{owner, player}, {name, "helmet"}]}]).
+
 all() ->
     [player_move,
      player_move_fail,
      player_get_item,
      player_drop_item,
-     player_attack
-    ].
+     player_attack,
+     player_attack_wait,
+     player_wield].
 
 init_per_testcase(_, Config) ->
     {ok, _Started} = application:ensure_all_started(erlmud),
@@ -29,51 +40,81 @@ init_per_testcase(_, Config) ->
 end_per_testcase(_, _) ->
     application:stop(erlmud).
 
-player_move(_Config) ->
-    start(),
-    Player = erlmud_index:get(player),
-    Room2 =  erlmud_index:get(room2),
-    gen_server:cast(Player, {attempt, {move, Player, s}, {procs, undefined, [], [], []}}),
-    receive after 100 -> ok end,
-    {_, _, PlayerProps} = sys:get_state(erlmud_index:get(player)),
-    Room2 = proplists:get_value(room, PlayerProps).
+val(Key, Obj) ->
+    proplists:get_value(Key, get_props(Obj)).
 
-player_move_fail(_config) ->
-    start(),
+all(Key, Obj) ->
+    proplists:get_all_values(Key, get_props(Obj)).
+
+has(Val, Obj) ->
+    false /= lists:keyfind(Val, 2, get_props(Obj)).
+
+get_props(Obj) when is_atom(Obj) ->
+    get_props(erlmud_index:get(Obj));
+get_props(Pid) ->
+    {_, _, Props} = sys:get_state(Pid),
+    Props.
+
+player_move(_Config) ->
+    start(?WORLD_1),
     Player = erlmud_index:get(player),
-    Room1 =  erlmud_index:get(room1),
-    gen_server:cast(Player, {attempt, {move, Player, non_existent_exit}, {procs, undefined, [], [], []}}),
+    RoomNorth =  erlmud_index:get(room_n),
+    RoomSouth =  erlmud_index:get(room_s),
+
+    RoomNorth = val(room, Player),
+    erlmud_object:attempt(Player, {move, Player, s}),
     receive after 100 -> ok end,
-    {_, _, PlayerProps} = sys:get_state(erlmud_index:get(player)),
-    Room1 = proplists:get_value(room, PlayerProps).
+    RoomSouth = val(room, Player).
+
+player_move_fail(_Config) ->
+    start(?WORLD_1),
+    Player = erlmud_index:get(player),
+    RoomNorth =  erlmud_index:get(room_n),
+    RoomNorth = val(room, Player),
+    erlmud_object:attempt(Player, {move, Player, non_existent_exit}),
+    receive after 100 -> ok end,
+    RoomNorth = val(room, Player).
 
 player_get_item(_Config) ->
-    start(),
+    start(?WORLD_2),
     Player = erlmud_index:get(player),
-    Item = erlmud_index:get(item1),
-    gen_server:cast(Player, {attempt, {get, Player, "sword"}, {procs, undefined, [], [], []}}),
+    Item = erlmud_index:get(item),
+    erlmud_object:attempt(Player, {get, Player, "sword"}),
     receive after 100 -> ok end,
-    {_, _, PlayerProps} = sys:get_state(erlmud_index:get(player)),
-    true = lists:member(Item, proplists:get_all_values(item, PlayerProps)).
+    has(Item, player).
 
 player_drop_item(_Config) ->
-    start(),
+    start(?WORLD_2),
     Player = erlmud_index:get(player),
-    gen_server:cast(Player, {attempt, {drop, Player, "helmet"}, {procs, undefined, [], [], []}}),
+    erlmud_object:attempt(Player, {drop, Player, "helmet"}),
     receive after 100 -> ok end,
-    {_, _, PlayerProps} = sys:get_state(erlmud_index:get(player)),
-    [] = proplists:get_all_values(item, PlayerProps).
+    [] = all(item, Player).
 
 player_attack(_Config) ->
-    start(),
+    start(?WORLD_3),
     Player = erlmud_index:get(player),
-    gen_server:cast(Player, {attempt, {attack, Player, "zombie"}, {procs, undefined, [], [], []}}),
+    erlmud_object:attempt(Player, {attack, Player, "zombie"}),
     receive after 1000 -> ok end,
-    {_, _, AIProps} = sys:get_state(erlmud_index:get(ai1)),
-    -2 = proplists:get_value(hp, AIProps).
+    -2 = val(hp, zombie).
 
-start() ->
-    IdPids = [{Id, start_obj(Id, Type, Props)} || {Type, Id, Props} <- ?OBJECTS],
+player_attack_wait(_Config) ->
+    start(?WORLD_3),
+    Player = erlmud_index:get(player),
+    erlmud_object:set(Player, {attack_wait, 1000000}),
+    erlmud_object:attempt(Player, {attack, Player, "zombie"}),
+    receive after 1000 -> ok end,
+    4 = val(hp, zombie).
+
+player_wield(_Config) ->
+    start(?WORLD_4),
+    Player = erlmud_index:get(player),
+    Helmet = erlmud_index:get(helmet),
+    erlmud_object:attempt(Player, {add, Player, "helmet", "head"}),
+    receive after 100 -> ok end,
+    Helmet = val(item, head).
+
+start(Objects) ->
+    IdPids = [{Id, start_obj(Id, Type, Props)} || {Type, Id, Props} <- Objects],
     _Objs = [erlmud_object:populate(Pid, IdPids) || {_, Pid} <- IdPids].
 
 start_obj(Id, Type, Props) ->

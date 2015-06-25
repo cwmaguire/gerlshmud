@@ -28,7 +28,7 @@ start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 init([]) ->
-    LogPath = os:getenv("ERLMUD_LOG_PATH"),
+    LogPath = get_log_path(),
     {ok, File} = file:open(LogPath ++ "/erlmud.log", [append]),
     Line = lists:duplicate(80, $=),
     io:format(File, "~n~n~s~n~p~n~s~n~n", [Line, os:timestamp(), Line]),
@@ -58,3 +58,11 @@ terminate(_Reason, _State) ->
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
+
+get_log_path() ->
+    case os:getenv("ERLMUD_LOG_PATH") of
+        false ->
+            file:get_cwd();
+        Path ->
+            Path
+    end.

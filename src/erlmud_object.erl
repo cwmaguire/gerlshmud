@@ -21,6 +21,7 @@
 -export([attempt_after/3]).
 -export([add/3]).
 -export([remove/3]).
+-export([set/2]).
 
 %% gen_server.
 -export([init/1]).
@@ -74,6 +75,10 @@ add(Pid, Type, AddPid) ->
 remove(Pid, Type, RemovePid) ->
     send(Pid, {remove, Type, RemovePid}).
 
+set(Pid, Prop) ->
+    send(Pid, {set, Prop}).
+
+
 %% gen_server.
 
 init({Type, Props}) ->
@@ -94,6 +99,8 @@ handle_cast({remove, RemType, Pid}, State) ->
     Props2 = remove_(RemType, Pid, State#state.props),
     (State#state.type):removed(RemType, Pid),
     {noreply, State#state{props = Props2}};
+handle_cast({set, Prop = {K, _}}, State = #state{props = Props}) ->
+    {noreply, State#state{props = lists:keystore(K, 1, Props, Prop)}};
 handle_cast({attempt, Msg, Procs}, State) ->
     {noreply, maybe_attempt(Msg, Procs, State)};
 handle_cast({fail, Reason, Msg}, State) ->
@@ -142,7 +149,8 @@ ensure_message(Msg, {A, B, C}) ->
 ensure_message(_, T) ->
     T.
 
-handle({resend, Target, Msg}, _OrigMsg, _NoProps) ->
+handle({resend, Target, Msg}, OrigMsg, _NoProps) ->
+    log("resending~n\t~pas~n\t~p~n", [OrigMsg, Msg]),
     send(Target, {attempt, Msg, #procs{}});
 handle({fail, Reason}, Msg, #procs{subs = Subs}) ->
     [send(Sub, {fail, Reason, Msg}) || Sub <- Subs];
