@@ -26,6 +26,7 @@ Jan 29, 2015 - move player between two rooms via an exit
 Jan 31, 2015 - move player between two rooms with a direction
 Feb 20, 2015 - web interface and login process
 Jun 20, 2015 - attacks, logging
+Jun 24, 2015 - wielding/wearing items on body parts
 
 How to run it:
 make && make rel && _rel/erlmud_release/bin/erlmud_release console
