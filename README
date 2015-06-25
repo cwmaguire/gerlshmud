@@ -29,6 +29,7 @@ Jun 20, 2015 - attacks, logging
 Jun 24, 2015 - wielding/wearing items on body parts
 
 How to run it:
+(I haven't been running this lately, just running tests)
 make && make rel && _rel/erlmud_release/bin/erlmud_release console
 > erlmud_world:init(). %% Loads the world
 > erlmud_world:m(s).   %% Move player1 south
@@ -41,4 +42,4 @@ make && make rel && _rel/erlmud_release/bin/erlmud_release console
 Running Tests:
 make ct
 -or-
-ct_run -dir test -logdir logs
+rm -rf logs/*<hostname>*; rm -rf logs/erlmud.log; ERLMUD_LOG_PATH=$(pwd)/logs make ct
