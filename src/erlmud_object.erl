@@ -150,7 +150,7 @@ ensure_message(_, T) ->
     T.
 
 handle({resend, Target, Msg}, OrigMsg, _NoProps) ->
-    log("resending~n\t~pas~n\t~p~n", [OrigMsg, Msg]),
+    log("resending~n\t~p~nas~n\t~p~n", [OrigMsg, Msg]),
     send(Target, {attempt, Msg, #procs{}});
 handle({fail, Reason}, Msg, #procs{subs = Subs}) ->
     [send(Sub, {fail, Reason, Msg}) || Sub <- Subs];
@@ -183,7 +183,7 @@ proc(Value, IdPids) when is_atom(Value) ->
 proc(Value, _) ->
     Value.
 
-merge(_, _, {{resend, _, _, _}, _, _}, _) ->
+merge(_, _, {{resend, _, _, _}, _, _, _}, _) ->
     undefined;
 merge(Self, erlmud_room, Results, Procs = #procs{room = undefined}) ->
     merge(Self, erlmud_room, Results, Procs#procs{room = Self});

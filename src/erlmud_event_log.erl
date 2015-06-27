@@ -15,7 +15,7 @@
 -export([terminate/2]).
 -export([code_change/3]).
 
--record(state, {log_file :: string()}).
+-record(state, {log_file :: file:io_device()}).
 
 log(Msg, Params) ->
     gen_server:cast(erlmud_event_log, {log, self(), Msg, Params}).
@@ -24,7 +24,7 @@ log(From, To, Msg) ->
     gen_server:cast(erlmud_event_log, {log_msg, From, To, Msg}).
 
 start_link() ->
-    ets:new(?MODULE, [public, named_table]),
+    _ = ets:new(?MODULE, [public, named_table]),
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 init([]) ->

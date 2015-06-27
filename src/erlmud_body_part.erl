@@ -42,6 +42,9 @@ can_add(_Props, _ItemProps) ->
 can_remove(_Props, _ItemProps) ->
     true.
 
+%TODO I could keep sending messages back and forth for each constraint that the item
+%     (or any object) could yay/nay on. Or, I could send them all at once and all
+%     objects could vote en masse or even remove/add constraints as the messages fly by.
 attempt(Props, {Action, Owner, {Item, _} = ItemAndProps, [_ | _] = BodyPartName})
   when is_pid(Item),
        Action == add;
@@ -74,7 +77,7 @@ succeed(Props, {add, {Item, _}, Self}) when Self == self(), is_pid(Item) ->
     [{item, Item} | Props];
 succeed(Props, {remove, {Item, _}, Self}) when Self == self(), is_pid(Item) ->
     log("added ~p~n", [Item]),
-    Owner = proplists:get_value(Props, owner),
+    Owner = proplists:get_value(ownder, Props),
     erlmud_object:add(Owner, item, Item),
     lists:keydelete(Item, 2, Props);
 succeed(Props, Msg) ->

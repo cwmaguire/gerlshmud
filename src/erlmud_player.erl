@@ -72,7 +72,7 @@ attempt(Props, {move, Self, _, _}) when Self == self() ->
 attempt(Props, {attack, Self, _}) when Self == self() ->
     {succeed, true, Props};
 attempt(Props, Msg) ->
-    log("attempt: ~p, Props: ~p~n", [Msg, Props]),
+    log("attempt: ~p~nProps: ~p~n", [Msg, Props]),
     {succeed, false, Props}.
 
 succeed(Props, {move, Self, Source, Target}) when Self == self(), is_pid(Target) ->
