@@ -45,17 +45,19 @@ can_remove(_Props, _ItemProps) ->
 %TODO I could keep sending messages back and forth for each constraint that the item
 %     (or any object) could yay/nay on. Or, I could send them all at once and all
 %     objects could vote en masse or even remove/add constraints as the messages fly by.
+%     There's also a call function in erlmud_object
 attempt(Props, {Action, Owner, {Item, _} = ItemAndProps, [_ | _] = BodyPartName})
   when is_pid(Item),
        Action == add;
        Action == remove ->
-    case is_match(Props, Owner, BodyPartName) of
+    case Owner == proplists:get_value(owner, Props) andalso
+         is_match(Props, Owner, BodyPartName) of
         true ->
-            log("resending {~p, ~p, ~p, ~p} as {~p, ~p, ~p}~n",
-                [Action, Owner, ItemAndProps, BodyPartName, Action, ItemAndProps, self()]),
-            {{resend, Owner, {Action, ItemAndProps, self()}}, true, Props};
+            NewMessage = {Action, ItemAndProps, self()},
+            Result = {resend, Owner, NewMessage},
+            {Result, _Subscribe = true, Props};
         _ ->
-            {succeed, false, Props}
+            {succeed, _Subscribe = false, Props}
     end;
 attempt(Props, {Action, {_, ItemProps}, Self})
   when Self == self(),
@@ -63,22 +65,34 @@ attempt(Props, {Action, {_, ItemProps}, Self})
        Action == remove ->
     case can(Action, Props, ItemProps) of
         {false, Reason} ->
-            {{fail, Reason}, false, Props};
+            {{fail, Reason}, _Subscribe = false, Props};
         _ ->
-            {succeed, true, Props}
+            {succeed, _Subscribe = true, Props}
+    end;
+attempt(Props, {remove, Owner, {Item, _} = ItemAndProps}) ->
+    case Owner == proplists:get_value(owner, Props) andalso
+         {item, Item} == lists:keyfind(Item, 2, Props) of
+        true ->
+            NewMessage = {remove, ItemAndProps, self()},
+            Result = {resend, Owner, NewMessage},
+            {Result, _Subscribe = true, Props};
+        _ ->
+            {succeed, _Subscribe = true, Props}
     end;
 attempt(Props, _Msg) ->
-    {succeed, false, Props}.
+    {succeed, _Subscribe = false, Props}.
 
 succeed(Props, {add, {Item, _}, Self}) when Self == self(), is_pid(Item) ->
     log("added ~p~n", [Item]),
     Owner = proplists:get_value(owner, Props),
     erlmud_object:remove(Owner, item, Item),
+    erlmud_object:set(Item, {owner, self()}),
     [{item, Item} | Props];
 succeed(Props, {remove, {Item, _}, Self}) when Self == self(), is_pid(Item) ->
-    log("added ~p~n", [Item]),
-    Owner = proplists:get_value(ownder, Props),
+    log("removed ~p~n", [Item]),
+    Owner = proplists:get_value(owner, Props),
     erlmud_object:add(Owner, item, Item),
+    erlmud_object:set(Item, {owner, Owner}),
     lists:keydelete(Item, 2, Props);
 succeed(Props, Msg) ->
     log("saw ~p succeed with props ~p~n", [Msg, Props]),

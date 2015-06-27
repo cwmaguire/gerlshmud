@@ -149,7 +149,7 @@ ensure_message(Msg, {A, B, C}) ->
 ensure_message(_, T) ->
     T.
 
-handle({resend, Target, Msg}, OrigMsg, _NoProps) ->
+handle({resend, Target, Msg}, OrigMsg, _NoProcs) ->
     log("resending~n\t~p~nas~n\t~p~n", [OrigMsg, Msg]),
     send(Target, {attempt, Msg, #procs{}});
 handle({fail, Reason}, Msg, #procs{subs = Subs}) ->

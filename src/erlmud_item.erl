@@ -37,16 +37,29 @@ attempt(Props, {Action, Obj, ItemName, BodyPart})
        Action == remove ->
     case is_name(Props, ItemName) of
         true ->
-            {{resend, Obj, {Action, Obj, {self(), Props}, BodyPart}}, true, Props};
+            NewMessage = {Action, Obj, {self(), Props}, BodyPart},
+            Result = {resend, Obj, NewMessage},
+            {Result, true, Props};
         _ ->
-            {succeed, false, Props}
+            {succeed, _Subscribe = false, Props}
     end;
-attempt(Props, {Action, Obj, [_ | _] = ItemName}) when Action == get; Action == drop ->
+attempt(Props, {remove, Owner, ItemName}) when is_list(ItemName) ->
     case is_name(Props, ItemName) of
         true ->
-            %log("resending {~p, ~p, ~p} as {~p, ~p, ~p}~n",
-                %[Action, Obj, PartialItemName, Action, Obj, self()]),
-            {{resend, Obj, {Action, Obj, self()}}, true, Props};
+            NewMessage = {remove, Owner, {self(), Props}},
+            Result = {resend, Owner, NewMessage},
+            {Result, _Subscribe = true, Props};
+        _ ->
+            {succeed, _Subscribe = false, Props}
+    end;
+attempt(Props, {Action, Obj, [_ | _] = ItemName})
+  when Action == get;
+       Action == drop ->
+    case is_name(Props, ItemName) of
+        true ->
+            NewMessage = {Action, Obj, self()},
+            Result = {resend, Obj, NewMessage},
+            {Result, _Subscribe = true, Props};
         _ ->
             {succeed, false, Props}
     end;

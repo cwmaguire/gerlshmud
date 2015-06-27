@@ -31,7 +31,9 @@ all() ->
      player_drop_item,
      player_attack,
      player_attack_wait,
-     player_wield].
+     player_wield,
+     player_remove].
+    %[player_remove].
 
 init_per_testcase(_, Config) ->
     {ok, _Started} = application:ensure_all_started(erlmud),
@@ -105,6 +107,9 @@ player_attack_wait(_Config) ->
     receive after 1000 -> ok end,
     4 = val(hp, zombie).
 
+%%TODO: make sure we can't add an item from a player to
+%%      a different player's body part
+
 player_wield(_Config) ->
     start(?WORLD_4),
     Player = erlmud_index:get(player),
@@ -112,6 +117,27 @@ player_wield(_Config) ->
     erlmud_object:attempt(Player, {add, Player, "helmet", "head"}),
     receive after 100 -> ok end,
     Helmet = val(item, head).
+
+player_remove(_Config) ->
+    start(?WORLD_4),
+    Player = erlmud_index:get(player),
+    Helmet = erlmud_index:get(helmet),
+    erlmud_object:attempt(Player, {add, Player, "helmet", "head"}),
+    receive after 100 -> ok end,
+    undefined = val(item, player),
+    Helmet = val(item, head),
+    erlmud_object:attempt(Player, {remove, Player, "helmet", "head"}),
+    receive after 100 -> ok end,
+    Helmet = val(item, player),
+    undefined = val(item, head),
+    erlmud_object:attempt(Player, {add, Player, "helmet", "head"}),
+    receive after 100 -> ok end,
+    undefined = val(item, player),
+    Helmet = val(item, head),
+    erlmud_object:attempt(Player, {remove, Player, "helmet"}),
+    receive after 100 -> ok end,
+    Helmet = val(item, player),
+    undefined = val(item, head).
 
 start(Objects) ->
     IdPids = [{Id, start_obj(Id, Type, Props)} || {Type, Id, Props} <- Objects],
