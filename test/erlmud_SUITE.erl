@@ -24,6 +24,15 @@
                   {erlmud_body_part, head, [{name, "head"}, {owner, player}]},
                   {erlmud_item, helmet, [{owner, player}, {name, "helmet"}]}]).
 
+-define(WORLD_5, [{erlmud_player, player, [{item, helmet},
+                                           {body_part, head},
+                                           {body_part, finger}]},
+                  {erlmud_body_part, head, [{name, "head"}, {owner, player}]},
+                  {erlmud_body_part, finger, [{name, "finger"}, {owner, player}]},
+                  {erlmud_item, helmet, [{owner, player},
+                                         {name, "helmet"},
+                                         {body_parts, [head, hand]]}]).
+
 all() ->
     [player_move,
      player_move_fail,
@@ -32,6 +41,7 @@ all() ->
      player_attack,
      player_attack_wait,
      player_wield,
+     player_wield_fail,
      player_remove].
     %[player_remove].
 
@@ -96,7 +106,7 @@ player_attack(_Config) ->
     start(?WORLD_3),
     Player = erlmud_index:get(player),
     erlmud_object:attempt(Player, {attack, Player, "zombie"}),
-    receive after 1000 -> ok end,
+    receive after 100 -> ok end,
     -2 = val(hp, zombie).
 
 player_attack_wait(_Config) ->
@@ -104,7 +114,7 @@ player_attack_wait(_Config) ->
     Player = erlmud_index:get(player),
     erlmud_object:set(Player, {attack_wait, 1000000}),
     erlmud_object:attempt(Player, {attack, Player, "zombie"}),
-    receive after 1000 -> ok end,
+    receive after 100 -> ok end,
     4 = val(hp, zombie).
 
 %%TODO: make sure we can't add an item from a player to
@@ -117,6 +127,19 @@ player_wield(_Config) ->
     erlmud_object:attempt(Player, {add, Player, "helmet", "head"}),
     receive after 100 -> ok end,
     Helmet = val(item, head).
+
+player_wield_fail(_Config) ->
+    start(?WORLD_4),
+    Player = erlmud_index:get(player),
+    Helmet = erlmud_index:get(helmet),
+    erlmud_object:attempt(Player, {add, Player, "helmet", "finger"}),
+    receive after 100 -> ok end,
+    undefined = val(item, head),
+    Helmet = val(item, player),
+    erlmud_object:attempt(Player, {add, Player, "helmet", "head"}),
+    receive after 100 -> ok end,
+    Helmet = val(item, head),
+    undefined = val(item, player).
 
 player_remove(_Config) ->
     start(?WORLD_4),

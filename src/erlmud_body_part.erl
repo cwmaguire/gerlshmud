@@ -34,10 +34,26 @@ can(add, Props, ItemProps) ->
 can(remove, Props, ItemProps) ->
     can_remove(Props, ItemProps).
 
-%TODO Add logic to determine if the item can be added to this body
-%     part given the item properties (e.g. weight, bulk, size, grip, colour, whatever)
-can_add(_Props, _ItemProps) ->
-    true.
+can_add(Props, ItemProps) ->
+    has_matching_body_part(Props, ItemProps),
+    has_space(Props).
+
+has_matching_body_part(Props, ItemProps) ->
+    BodyPart = proplists:get_value(body_part, Props, any),
+    case BodyPart of
+        any ->
+            true;
+        _ ->
+            lists:member(BodyPart, proplists:get_value(body_parts, ItemProps, [BodyPart]))
+    end.
+
+has_space(Props) ->
+    case proplists:value(max_items, Props, infinite) of
+        infinite ->
+            true;
+        MaxItems ->
+            MaxItems < length(proplists:get_all_values(item, Props))
+    end.
 
 can_remove(_Props, _ItemProps) ->
     true.
