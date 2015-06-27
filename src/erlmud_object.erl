@@ -21,6 +21,7 @@
 -export([attempt_after/3]).
 -export([add/3]).
 -export([remove/3]).
+-export([get/2]).
 -export([set/2]).
 
 %% gen_server.
@@ -75,6 +76,9 @@ add(Pid, Type, AddPid) ->
 remove(Pid, Type, RemovePid) ->
     send(Pid, {remove, Type, RemovePid}).
 
+get(Pid, Key) ->
+    gen_server:call(Pid, {get, Key}).
+
 set(Pid, Prop) ->
     send(Pid, {set, Prop}).
 
@@ -86,6 +90,8 @@ init({Type, Props}) ->
 
 handle_call(props, _From, State) ->
     {reply, State#state.props, State};
+handle_call({get, Key}, _From, State = #state{props = Props}) ->
+    {reply, proplists:get_all_values(Key, Props), State};
 handle_call(_Request, _From, State) ->
     {reply, ignored, State}.
 

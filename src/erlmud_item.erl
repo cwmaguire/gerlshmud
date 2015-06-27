@@ -37,7 +37,7 @@ attempt(Props, {Action, Obj, ItemName, BodyPart})
        Action == remove ->
     case is_name(Props, ItemName) of
         true ->
-            NewMessage = {Action, Obj, {self(), Props}, BodyPart},
+            NewMessage = {Action, Obj, self(), BodyPart},
             Result = {resend, Obj, NewMessage},
             {Result, true, Props};
         _ ->
@@ -46,7 +46,7 @@ attempt(Props, {Action, Obj, ItemName, BodyPart})
 attempt(Props, {remove, Owner, ItemName}) when is_list(ItemName) ->
     case is_name(Props, ItemName) of
         true ->
-            NewMessage = {remove, Owner, {self(), Props}},
+            NewMessage = {remove, Owner, self()},
             Result = {resend, Owner, NewMessage},
             {Result, _Subscribe = true, Props};
         _ ->

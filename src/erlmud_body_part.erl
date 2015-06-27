@@ -29,82 +29,85 @@ is_match(Props, Owner, Name) ->
     Owner == proplists:get_value(owner, Props) andalso
         match == re:run(proplists:get_value(name, Props, ""), Name, [{capture, none}]).
 
-can(add, Props, ItemProps) ->
-    can_add(Props, ItemProps);
-can(remove, Props, ItemProps) ->
-    can_remove(Props, ItemProps).
+can(add, Props, Item) ->
+    can_add(Props, Item);
+can(remove, Props, Item) ->
+    can_remove(Props, Item).
 
-can_add(Props, ItemProps) ->
-    has_matching_body_part(Props, ItemProps),
+can_add(Props, Item) ->
+    has_matching_body_part(Props, Item),
     has_space(Props).
 
-has_matching_body_part(Props, ItemProps) ->
+has_matching_body_part(Props, Item) ->
+    ItemBodyParts = erlmud_object:get(Item, body_parts),
+    log("Found ~p body parts: ~p~n", [Item, ItemBodyParts]),
     BodyPart = proplists:get_value(body_part, Props, any),
     case BodyPart of
         any ->
             true;
         _ ->
-            lists:member(BodyPart, proplists:get_value(body_parts, ItemProps, [BodyPart]))
+            lists:member(BodyPart, ItemBodyParts)
     end.
 
 has_space(Props) ->
-    case proplists:value(max_items, Props, infinite) of
+    case proplists:get_value(max_items, Props, infinite) of
         infinite ->
             true;
         MaxItems ->
             MaxItems < length(proplists:get_all_values(item, Props))
     end.
 
-can_remove(_Props, _ItemProps) ->
+can_remove(_Props, _Item) ->
     true.
 
 %TODO I could keep sending messages back and forth for each constraint that the item
 %     (or any object) could yay/nay on. Or, I could send them all at once and all
 %     objects could vote en masse or even remove/add constraints as the messages fly by.
 %     There's also a call function in erlmud_object
-attempt(Props, {Action, Owner, {Item, _} = ItemAndProps, [_ | _] = BodyPartName})
-  when is_pid(Item),
-       Action == add;
-       Action == remove ->
+attempt(Props, {Action, Owner, Item, [_ | _] = BodyPartName})
+  when is_pid(Item) andalso
+       (Action == add orelse
+        Action == remove) ->
     case Owner == proplists:get_value(owner, Props) andalso
          is_match(Props, Owner, BodyPartName) of
         true ->
-            NewMessage = {Action, ItemAndProps, self()},
+            NewMessage = {Action, Item, self()},
             Result = {resend, Owner, NewMessage},
             {Result, _Subscribe = true, Props};
         _ ->
             {succeed, _Subscribe = false, Props}
     end;
-attempt(Props, {Action, {_, ItemProps}, Self})
-  when Self == self(),
-       Action == add;
-       Action == remove ->
-    case can(Action, Props, ItemProps) of
+attempt(Props, {Action, Item, Self})
+  when Self == self() andalso
+       is_pid(Item) andalso
+       (Action == add orelse
+        Action == remove) ->
+    case can(Action, Props, Item) of
         {false, Reason} ->
             {{fail, Reason}, _Subscribe = false, Props};
         _ ->
             {succeed, _Subscribe = true, Props}
     end;
-attempt(Props, {remove, Owner, {Item, _} = ItemAndProps}) ->
+attempt(Props, {remove, Owner, Item}) ->
     case Owner == proplists:get_value(owner, Props) andalso
          {item, Item} == lists:keyfind(Item, 2, Props) of
         true ->
-            NewMessage = {remove, ItemAndProps, self()},
+            NewMessage = {remove, Item, self()},
             Result = {resend, Owner, NewMessage},
             {Result, _Subscribe = true, Props};
         _ ->
-            {succeed, _Subscribe = true, Props}
+            {succeed, _Subscribe = false, Props}
     end;
 attempt(Props, _Msg) ->
     {succeed, _Subscribe = false, Props}.
 
-succeed(Props, {add, {Item, _}, Self}) when Self == self(), is_pid(Item) ->
+succeed(Props, {add, Item, Self}) when Self == self(), is_pid(Item) ->
     log("added ~p~n", [Item]),
     Owner = proplists:get_value(owner, Props),
     erlmud_object:remove(Owner, item, Item),
     erlmud_object:set(Item, {owner, self()}),
     [{item, Item} | Props];
-succeed(Props, {remove, {Item, _}, Self}) when Self == self(), is_pid(Item) ->
+succeed(Props, {remove, Item, Self}) when Self == self(), is_pid(Item) ->
     log("removed ~p~n", [Item]),
     Owner = proplists:get_value(owner, Props),
     erlmud_object:add(Owner, item, Item),

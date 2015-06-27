@@ -117,9 +117,6 @@ player_attack_wait(_Config) ->
     receive after 100 -> ok end,
     4 = val(hp, zombie).
 
-%%TODO: make sure we can't add an item from a player to
-%%      a different player's body part
-
 player_wield(_Config) ->
     start(?WORLD_4),
     Player = erlmud_index:get(player),

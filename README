@@ -27,6 +27,7 @@ Jan 31, 2015 - move player between two rooms with a direction
 Feb 20, 2015 - web interface and login process
 Jun 20, 2015 - attacks, logging
 Jun 24, 2015 - wielding/wearing items on body parts
+Jun 26, 2015 - remove items from body, body part compatibility
 
 How to run it:
 (I haven't been running this lately, just running tests)
