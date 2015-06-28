@@ -25,13 +25,36 @@
                   {erlmud_item, helmet, [{owner, player}, {name, "helmet"}]}]).
 
 -define(WORLD_5, [{erlmud_player, player, [{item, helmet},
-                                           {body_part, head},
-                                           {body_part, finger}]},
-                  {erlmud_body_part, head, [{name, "head"}, {owner, player}]},
-                  {erlmud_body_part, finger, [{name, "finger"}, {owner, player}]},
+                                           {body_part, head1},
+                                           {body_part, finger1}]},
+                  {erlmud_body_part, head1, [{name, "head"},
+                                             {owner, player},
+                                             {body_part, head}]},
+                  {erlmud_body_part, finger1, [{name, "finger"},
+                                               {owner, player},
+                                               {body_part, finger}]},
                   {erlmud_item, helmet, [{owner, player},
                                          {name, "helmet"},
-                                         {body_parts, [head, hand]]}]).
+                                         {body_parts, [head, hand]}]}]).
+
+    -define(WORLD_6, [{erlmud_player, player, [{body_part, finger1},
+                                           {body_part, finger2},
+                                           {item, ring1},
+                                           {item, ring2}]},
+                  {erlmud_body_part, finger1, [{name, "finger1"},
+                                               {owner, player},
+                                               {max_items, 1},
+                                               {body_part, finger}]},
+                  {erlmud_body_part, finger2, [{name, "finger2"},
+                                               {owner, player},
+                                               {max_items, 1},
+                                               {body_part, finger}]},
+                  {erlmud_item, ring1, [{owner, player},
+                                        {name, "ring1"},
+                                        {body_parts, [finger]}]},
+                  {erlmud_item, ring2, [{owner, player},
+                                        {name, "ring2"},
+                                        {body_parts, [finger]}]}]).
 
 all() ->
     [player_move,
@@ -41,9 +64,12 @@ all() ->
      player_attack,
      player_attack_wait,
      player_wield,
-     player_wield_fail,
+     player_wield_missing_body_part,
+     player_wield_wrong_body_part,
+     player_wield_body_part_is_full,
      player_remove].
     %[player_remove].
+    %[player_wield_wrong_body_part].
 
 init_per_testcase(_, Config) ->
     {ok, _Started} = application:ensure_all_started(erlmud),
@@ -125,7 +151,7 @@ player_wield(_Config) ->
     receive after 100 -> ok end,
     Helmet = val(item, head).
 
-player_wield_fail(_Config) ->
+player_wield_missing_body_part(_Config) ->
     start(?WORLD_4),
     Player = erlmud_index:get(player),
     Helmet = erlmud_index:get(helmet),
@@ -137,6 +163,43 @@ player_wield_fail(_Config) ->
     receive after 100 -> ok end,
     Helmet = val(item, head),
     undefined = val(item, player).
+
+player_wield_wrong_body_part(_Config) ->
+    start(?WORLD_5),
+    Player = erlmud_index:get(player),
+    Helmet = erlmud_index:get(helmet),
+    erlmud_object:attempt(Player, {add, Player, "helmet", "finger"}),
+    receive after 100 -> ok end,
+    undefined = val(item, head1),
+    Helmet = val(item, player),
+    erlmud_object:attempt(Player, {add, Player, "helmet", "head"}),
+    receive after 100 -> ok end,
+    Helmet = val(item, head1),
+    undefined = val(item, player).
+
+player_wield_body_part_is_full(_Config) ->
+    start(?WORLD_6),
+    Player = erlmud_index:get(player),
+    Ring1 = erlmud_index:get(ring1),
+    Ring2 = erlmud_index:get(ring2),
+    [Ring1, Ring2] = all(item, player),
+    [] = all(item, finger1),
+    [] = all(item, finger2),
+    erlmud_object:attempt(Player, {add, Player, "ring1", "finger1"}),
+    receive after 100 -> ok end,
+    [Ring2] = all(item, player),
+    [Ring1] = all(item, finger1),
+    [] = all(item, finger2),
+    erlmud_object:attempt(Player, {add, Player, "ring2", "finger1"}),
+    receive after 100 -> ok end,
+    [Ring2] = all(item, player),
+    [Ring1] = all(item, finger1),
+    [] = all(item, finger2),
+    erlmud_object:attempt(Player, {add, Player, "ring2"}),
+    receive after 100 -> ok end,
+    [] = all(item, player),
+    [Ring1] = all(item, finger1),
+    [Ring2] = all(item, finger2).
 
 player_remove(_Config) ->
     start(?WORLD_4),

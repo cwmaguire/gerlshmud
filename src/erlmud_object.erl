@@ -159,6 +159,7 @@ handle({resend, Target, Msg}, OrigMsg, _NoProcs) ->
     log("resending~n\t~p~nas~n\t~p~n", [OrigMsg, Msg]),
     send(Target, {attempt, Msg, #procs{}});
 handle({fail, Reason}, Msg, #procs{subs = Subs}) ->
+    log("failing msg:~n~p~nwith reaons:~n~p~nsubs:~n~p~n", [Msg, Reason, Subs]),
     [send(Sub, {fail, Reason, Msg}) || Sub <- Subs];
 handle(succeed, Msg, Procs = #procs{subs = Subs}) ->
     _ = case next(Procs) of
@@ -239,7 +240,10 @@ add_(Type, Props, Obj) ->
     end.
 
 remove_(RemType, Obj, Props) ->
-    [Prop || Prop = {Type, Pid} <- Props, Type /= RemType, Pid /= Obj].
+    log("Props before removing ~p ~p: ~p~n", [RemType, Obj, Props]),
+    NewProps = [Prop || Prop <- Props, Prop /= {RemType, Obj}],
+    log("Props after removing ~p ~p: ~p~n", [RemType, Obj, NewProps]),
+    NewProps.
 
 log(Msg, Format) ->
     erlmud_event_log:log("~p:~n" ++ Msg, [?MODULE | Format]).

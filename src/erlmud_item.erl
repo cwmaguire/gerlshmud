@@ -32,9 +32,9 @@ is_name(Props, Name) ->
     match == re:run(proplists:get_value(name, Props, ""), Name, [{capture, none}]).
 
 attempt(Props, {Action, Obj, ItemName, BodyPart})
-  when is_list(ItemName),
-       Action == add;
-       Action == remove ->
+  when is_list(ItemName) andalso
+       (Action == add orelse
+        Action == remove) ->
     case is_name(Props, ItemName) of
         true ->
             NewMessage = {Action, Obj, self(), BodyPart},
@@ -43,10 +43,10 @@ attempt(Props, {Action, Obj, ItemName, BodyPart})
         _ ->
             {succeed, _Subscribe = false, Props}
     end;
-attempt(Props, {remove, Owner, ItemName}) when is_list(ItemName) ->
+attempt(Props, {Action, Owner, ItemName}) when is_list(ItemName) ->
     case is_name(Props, ItemName) of
         true ->
-            NewMessage = {remove, Owner, self()},
+            NewMessage = {Action, Owner, self()},
             Result = {resend, Owner, NewMessage},
             {Result, _Subscribe = true, Props};
         _ ->
