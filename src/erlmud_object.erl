@@ -33,6 +33,7 @@
 -export([code_change/3]).
 
 -record(state, {type :: atom(),
+                owner :: pid(),
                 props :: list(tuple())}).
 
 -record(procs, {room = undefined :: undefined | pid(),
@@ -43,7 +44,7 @@
 -type proplist() :: [{atom(), any()}].
 -type attempt() :: {atom(), Pid, Pid, Pid}.
 
--callback attempt(proplist(), tuple()) ->
+-callback attempt(pid(), proplist(), tuple()) ->
     {succeed | {fail, string()} | {resend, attempt()}, boolean(), proplist()}.
 -callback succeed(proplist(), tuple()) -> proplist().
 -callback fail(proplist(), string(), tuple()) -> proplist().
@@ -145,8 +146,12 @@ maybe_attempt(Msg,
 maybe_attempt(Msg, Procs, State) ->
     attempt_(Msg, Procs, State).
 
-attempt_(Msg, Procs, State = #state{type = Type, props = Props}) ->
-    Results = {Result, Msg2, _, Props2} = ensure_message(Msg, Type:attempt(Props, Msg)),
+attempt_(Msg,
+         Procs,
+         State = #state{type = Type,
+                        props = Props}) ->
+    Owner = proplists:get_value(owner, Props),
+    Results = {Result, Msg2, _, Props2} = ensure_message(Msg, Type:attempt(Owner, Props, Msg)),
     _ = handle(Result, Msg2, merge(self(), Type, Results, Procs)),
     State#state{props = Props2}.
 

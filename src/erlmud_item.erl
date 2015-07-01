@@ -18,7 +18,7 @@
 %% object behaviour
 -export([added/2]).
 -export([removed/2]).
--export([attempt/2]).
+-export([attempt/3]).
 -export([succeed/2]).
 -export([fail/3]).
 
@@ -31,7 +31,9 @@ set(Type, Obj, Props) ->
 is_name(Props, Name) ->
     match == re:run(proplists:get_value(name, Props, ""), Name, [{capture, none}]).
 
-attempt(Props, {Action, Obj, ItemName, BodyPart})
+attempt(
+
+attempt(_Owner, Props, {Action, Obj, ItemName, BodyPart})
   when is_list(ItemName) andalso
        (Action == add orelse
         Action == remove) ->
@@ -43,7 +45,7 @@ attempt(Props, {Action, Obj, ItemName, BodyPart})
         _ ->
             {succeed, _Subscribe = false, Props}
     end;
-attempt(Props, {Action, Owner, ItemName}) when is_list(ItemName) ->
+attempt(_Owner, Props, {Action, Owner, ItemName}) when is_list(ItemName) ->
     case is_name(Props, ItemName) of
         true ->
             NewMessage = {Action, Owner, self()},
@@ -52,7 +54,7 @@ attempt(Props, {Action, Owner, ItemName}) when is_list(ItemName) ->
         _ ->
             {succeed, _Subscribe = false, Props}
     end;
-attempt(Props, {Action, Obj, [_ | _] = ItemName})
+attempt(_Owner, Props, {Action, Obj, [_ | _] = ItemName})
   when Action == get;
        Action == drop ->
     case is_name(Props, ItemName) of
@@ -63,15 +65,10 @@ attempt(Props, {Action, Obj, [_ | _] = ItemName})
         _ ->
             {succeed, false, Props}
     end;
-attempt(Props, {calc_damage, Attack, Source, Target, Damage}) ->
-    case proplists:get_value(owner, Props) of
-        Source ->
-            UpdatedDmg = Damage + proplists:get_value(dmg, Props, 0),
-            UpdatedMsg = {calc_damage, Attack, Source, Target, UpdatedDmg},
-            {succeed, UpdatedMsg, false, Props};
-        _ ->
-            {succeed, false, Props}
-    end;
+attempt(Owner, Props, {calc_damage, Attack, Owner, Target, Damage}) ->
+    UpdatedDmg = Damage + proplists:get_value(dmg, Props, 0),
+    UpdatedMsg = {calc_damage, Attack, Source, Target, UpdatedDmg},
+    {succeed, UpdatedMsg, false, Props};
 attempt(Props, Msg = {Action, _, Self, _}) when Self == self() ->
     log("subscribed attempt: ~p, props: ~p~n", [Msg, Props]),
     {succeed, lists:member(Action, [get, drop]), Props};

@@ -18,7 +18,7 @@
 %% object behaviour
 -export([added/2]).
 -export([removed/2]).
--export([attempt/2]).
+-export([attempt/3]).
 -export([succeed/2]).
 -export([fail/3]).
 
@@ -33,6 +33,9 @@ set(Type, Obj, Props) ->
 
 get_(Type, Props) ->
     lists:keyfind(Type, 1, Props).
+
+attempt(_Owner, Props, Msg) ->
+    attempt(Props, Msg).
 
 attempt(Props, {move, Self, Direction}) when Self == self() ->
     case proplists:get_value(room, Props) of

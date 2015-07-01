@@ -11,7 +11,7 @@
 %% WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 %% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
--module(erlmud_life).
+-module(erlmud_hitpoints).
 
 -behaviour(erlmud_object).
 
@@ -25,32 +25,18 @@
 added(_, _) -> ok.
 removed(_, _) -> ok.
 
-is_dead_action(revive) ->
-    true;
-is_dead_action(_) ->
-    false.
-
-attempt(Owner, Props, {die, Target}) when Owner == Target ->
-    {succeed, _Subscribe = true, Props};
-attempt(Owner, Props, Msg) when Owner == element(2, Msg) ->
-    IsAlive = proplists:get_value(is_alive, Props, false),
-    IsDeadAction = is_dead_action(element(1, Props)),
-    case IsAlive orelse IsDeadAction of
-        true ->
-            {succeed, _Subscribe = false, Props};
-        false ->
-            {fail, _Subscribe = false, Props}
-    end;
+attempt(Owner,
+        Props,
+        {damage, _Attack, _Source, Owner, _Damage}) ->
+    {succeed, true, Props};
 attempt(_Owner, Props, _Msg) ->
     {succeed, false, Props}.
 
-succeed(Props, {die, Target}) ->
+succeed(Props, {damage, _Attack, _Source, Target, Damage}) ->
     Owner = proplists:get_value(owner, Props),
     case Owner == Target of
         true ->
-            CorpseCleanupMilis = application:get_env(erlmud, corpse_cleanup_milis, 10 * 60 * 1000),
-            erlmud_object:attempt_after(CorpseCleanupMilis, self(), {cleanup, Owner}),
-            lists:keystore(is_alive, 1, Props, {is_alive, false});
+            take_damage(Damage, Props);
         _ ->
             Props
     end;
@@ -66,3 +52,15 @@ fail(Props, Message, _Reason) ->
 
 log(Msg, Format) ->
     erlmud_event_log:log("~p:~n" ++ Msg, [?MODULE | Format]).
+
+take_damage(Damage, Props) ->
+    log("took ~p damage~nProps: ~p~n", [Damage, Props]),
+    Hp = proplists:get_value(hitpoints, Props, 0) - Damage,
+    case Hp of
+        X when X < 1 ->
+            Owner = proplists:get_value(owner, Props),
+            erlmud_object:attempt(Owner, {die, Owner});
+        _ ->
+            ok
+    end,
+    lists:keystore(hp, 1, Props, {hp, Hp}).

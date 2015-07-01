@@ -77,10 +77,11 @@ player_drop_item(_Config) ->
 
 player_attack(_Config) ->
     start(?WORLD_3),
-    Player = erlmud_index:get(player),
+    Player = erlmud_index:get(player1),
     erlmud_object:attempt(Player, {attack, Player, "zombie"}),
     receive after 100 -> ok end,
-    -2 = val(hp, zombie).
+    false = val(is_alive, z_life),
+    0 = val(hitpoints, z_hp).
 
 player_attack_wait(_Config) ->
     start(?WORLD_3),

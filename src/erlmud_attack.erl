@@ -18,7 +18,7 @@
 %% object behaviour
 -export([added/2]).
 -export([removed/2]).
--export([attempt/2]).
+-export([attempt/3]).
 -export([succeed/2]).
 -export([fail/3]).
 
@@ -26,6 +26,9 @@
 
 added(_, _) -> ok.
 removed(_, _) -> ok.
+
+attempt(_Owner, Props, Msg) ->
+    attempt(Props, Msg).
 
 %attempt(Props, {attack, Self, Source, Target}) when is_pid(Target) ->
     %{{resend, Self, {drop, Self, Source, Target, ?PROPS}}, true, Props};
