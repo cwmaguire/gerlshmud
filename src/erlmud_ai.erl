@@ -46,18 +46,10 @@ attempt(Props, {calc_hit, Attack, Attacker, Self, _}) when Self == self() ->
         _ ->
             {succeed, false, Props}
     end;
-%attempt(Props, {damage, _, _, Self, _}) when Self == self() ->
-    %{succeed, true, Props};
 attempt(Props, Msg) ->
     log("ignored attempt: ~p~nProps: ~p~n", [Msg, Props]),
     {succeed, false, Props}.
 
-%succeed(Props, {damage, _Attack, _Source, Self, Damage}) when Self == self() ->
-    %take_damage(Damage, Props);
-%succeed(Props, {die, Self}) when Self == self() ->
-    %CorpseCleanupMilis = application:get_env(erlmud, corpse_cleanup_milis, 10 * 60 * 1000),
-    %erlmud_object:attempt_after(CorpseCleanupMilis, self(), {cleanup, Self}),
-    %Props;
 succeed(_Props, {cleanup, Self}) when Self == self() ->
     %% TODO: drop all objects
     %% TODO: kill all connected processes

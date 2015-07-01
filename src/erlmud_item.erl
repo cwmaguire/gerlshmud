@@ -25,13 +25,11 @@
 added(_, _) -> ok.
 removed(_, _) -> ok.
 
-set(Type, Obj, Props) ->
-    lists:keystore(Type, 1, Props, {Type, Obj}).
+set(Key, Obj, Props) ->
+    lists:keystore(Key, 1, Props, {Key, Obj}).
 
 is_name(Props, Name) ->
     match == re:run(proplists:get_value(name, Props, ""), Name, [{capture, none}]).
-
-attempt(
 
 attempt(_Owner, Props, {Action, Obj, ItemName, BodyPart})
   when is_list(ItemName) andalso
@@ -67,13 +65,12 @@ attempt(_Owner, Props, {Action, Obj, [_ | _] = ItemName})
     end;
 attempt(Owner, Props, {calc_damage, Attack, Owner, Target, Damage}) ->
     UpdatedDmg = Damage + proplists:get_value(dmg, Props, 0),
-    UpdatedMsg = {calc_damage, Attack, Source, Target, UpdatedDmg},
+    UpdatedMsg = {calc_damage, Attack, Owner, Target, UpdatedDmg},
     {succeed, UpdatedMsg, false, Props};
-attempt(Props, Msg = {Action, _, Self, _}) when Self == self() ->
+attempt(_Owner, Props, Msg = {Action, _, Self, _}) when Self == self() ->
     log("subscribed attempt: ~p, props: ~p~n", [Msg, Props]),
     {succeed, lists:member(Action, [get, drop]), Props};
-attempt(Props, _Msg) ->
-    %log("ignored attempt: ~p, props: ~p~n", [Msg, Props]),
+attempt(_Owner, Props, _Msg) ->
     {succeed, false, Props}.
 
 succeed(Props, {get, Receiver, Self, Owner}) when Self == self() ->

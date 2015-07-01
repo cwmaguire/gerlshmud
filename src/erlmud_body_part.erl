@@ -18,16 +18,15 @@
 %% object behaviour
 -export([added/2]).
 -export([removed/2]).
--export([attempt/2]).
+-export([attempt/3]).
 -export([succeed/2]).
 -export([fail/3]).
 
 added(_, _) -> ok.
 removed(_, _) -> ok.
 
-is_match(Props, Owner, Name) ->
-    Owner == proplists:get_value(owner, Props) andalso
-        match == re:run(proplists:get_value(name, Props, ""), Name, [{capture, none}]).
+is_match(Props, Name) ->
+    match == re:run(proplists:get_value(name, Props, ""), Name, [{capture, none}]).
 
 can(add, Props, Item) ->
     can_add(Props, Item);
@@ -82,15 +81,11 @@ can_remove(_Props, _Item) ->
 has_owner(Item, Owner) when is_pid(Item) ->
     [Owner] == erlmud_object:get(Item, owner).
 
-is_owner(Props, Owner) ->
-    Owner == proplists:get_value(owner, Props).
-
-attempt(Props, {Action, Owner, Item, [_ | _] = BodyPartName})
+attempt(Owner, Props, {Action, Owner, Item, [_ | _] = BodyPartName})
   when is_pid(Item) andalso
        (Action == add orelse
         Action == remove) ->
-    case Owner == proplists:get_value(owner, Props) andalso
-         is_match(Props, Owner, BodyPartName) of
+    case is_match(Props, BodyPartName) of
         true ->
             NewMessage = {Action, Item, self()},
             Result = {resend, Owner, NewMessage},
@@ -98,7 +93,7 @@ attempt(Props, {Action, Owner, Item, [_ | _] = BodyPartName})
         _ ->
             {succeed, _Subscribe = false, Props}
     end;
-attempt(Props, {Action, Item, Self})
+attempt(_Owner, Props, {Action, Item, Self})
   when Self == self() andalso
        is_pid(Item) andalso
        (Action == add orelse
@@ -109,9 +104,8 @@ attempt(Props, {Action, Item, Self})
         _ ->
             {succeed, _Subscribe = true, Props}
     end;
-attempt(Props, {add, Owner, Item}) ->
+attempt(Owner, Props, {add, Owner, Item}) ->
     case is_pid(Item) andalso
-         is_owner(Props, Owner) andalso
          has_owner(Item, Owner) andalso
          can_add(Props, Item) of
         true ->
@@ -121,9 +115,8 @@ attempt(Props, {add, Owner, Item}) ->
         _ ->
             {succeed, _Subscribe = false, Props}
     end;
-attempt(Props, {remove, Owner, Item}) ->
-    case Owner == proplists:get_value(owner, Props) andalso
-         {item, Item} == lists:keyfind(Item, 2, Props) of
+attempt(Owner, Props, {remove, Owner, Item}) ->
+    case {item, Item} == lists:keyfind(Item, 2, Props) of
         true ->
             NewMessage = {remove, Item, self()},
             Result = {resend, Owner, NewMessage},
@@ -131,7 +124,7 @@ attempt(Props, {remove, Owner, Item}) ->
         _ ->
             {succeed, _Subscribe = false, Props}
     end;
-attempt(Props, Msg) ->
+attempt(_Owner, Props, Msg) ->
     log("attempt ignored.~nProps = ~p~nMsg = ~p~n", [Props, Msg]),
     {succeed, _Subscribe = false, Props}.
 

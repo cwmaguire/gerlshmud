@@ -18,7 +18,7 @@
 %% object behaviour
 -export([added/2]).
 -export([removed/2]).
--export([attempt/2]).
+-export([attempt/3]).
 -export([succeed/2]).
 -export([fail/3]).
 
@@ -35,6 +35,9 @@ is_attached_to_room(Props, Room) ->
                   false
               end,
     lists:any(HasRoom, Props).
+
+attempt(_Owner, Props, Msg) ->
+    attempt(Props, Msg).
 
 attempt(Props, {move, Obj, FromRoom, Exit}) when is_atom(Exit) ->
     %% If I have an exit to the Source room and a _different_ exit with name Exit

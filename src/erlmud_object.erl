@@ -33,7 +33,6 @@
 -export([code_change/3]).
 
 -record(state, {type :: atom(),
-                owner :: pid(),
                 props :: list(tuple())}).
 
 -record(procs, {room = undefined :: undefined | pid(),

@@ -18,7 +18,7 @@
 %% object behaviour
 -export([added/2]).
 -export([removed/2]).
--export([attempt/2]).
+-export([attempt/3]).
 -export([succeed/2]).
 -export([fail/3]).
 
@@ -27,6 +27,9 @@ has_pid(Props, Pid) ->
 
 added(_, _) -> ok.
 removed(_, _) -> ok.
+
+attempt(_Owner, Props, Msg) ->
+    attempt(Props, Msg).
 
 attempt(Props, {move, Obj, Self, Target}) when Self == self() ->
     log("~p wants to go to ~p from here~n", [Obj, Target]),

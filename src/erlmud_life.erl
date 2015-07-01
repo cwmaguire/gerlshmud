@@ -41,6 +41,13 @@ attempt(Owner, Props, Msg) when Owner == element(2, Msg) ->
         false ->
             {fail, _Subscribe = false, Props}
     end;
+attempt(Owner, Props, {calc_hit, Attack, Attacker, Owner, _}) ->
+    case proplists:get_value(is_alive, Props) of
+        false ->
+            {{resend, Attacker, {killed, Attack, Attacker, Owner}}, false, Props};
+        _ ->
+            {succeed, false, Props}
+    end;
 attempt(_Owner, Props, _Msg) ->
     {succeed, false, Props}.
 

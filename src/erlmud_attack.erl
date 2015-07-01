@@ -30,12 +30,9 @@ removed(_, _) -> ok.
 attempt(_Owner, Props, Msg) ->
     attempt(Props, Msg).
 
-%attempt(Props, {attack, Self, Source, Target}) when is_pid(Target) ->
-    %{{resend, Self, {drop, Self, Source, Target, ?PROPS}}, true, Props};
 attempt(Props, {calc_hit, Self, _, _}) when Self == self() ->
     case proplists:get_value(done, Props) of
         true ->
-            %{{resend, Self, {move, Self, Room, Direction}}, false, Props}
             {fail, "It's dead Jim"};
         _ ->
             {succeed, true, Props}

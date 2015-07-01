@@ -16,7 +16,10 @@ all() ->
      player_wield_body_part_is_full,
      player_remove].
     %[player_remove].
+    %[player_wield].
     %[player_wield_wrong_body_part].
+    %[player_attack].
+    %[player_attack_wait].
 
 init_per_testcase(_, Config) ->
     {ok, _Started} = application:ensure_all_started(erlmud),
@@ -77,19 +80,19 @@ player_drop_item(_Config) ->
 
 player_attack(_Config) ->
     start(?WORLD_3),
-    Player = erlmud_index:get(player1),
+    Player = erlmud_index:get(player),
     erlmud_object:attempt(Player, {attack, Player, "zombie"}),
     receive after 100 -> ok end,
-    false = val(is_alive, z_life),
-    0 = val(hitpoints, z_hp).
+    false = val(is_alive, life),
+    -2 = val(hitpoints, hp).
 
 player_attack_wait(_Config) ->
     start(?WORLD_3),
     Player = erlmud_index:get(player),
-    erlmud_object:set(Player, {attack_wait, 1000000}),
+    erlmud_object:set(Player, {attack_wait, 10000}),
     erlmud_object:attempt(Player, {attack, Player, "zombie"}),
     receive after 100 -> ok end,
-    4 = val(hp, zombie).
+    4 = val(hitpoints, hp).
 
 player_wield(_Config) ->
     start(?WORLD_4),

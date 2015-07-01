@@ -9,28 +9,28 @@
                   {erlmud_item, helmet, [{owner, player}, {name, "helmet"}]},
                   {erlmud_item, apple, [{owner, room}, {name, "apple"}]}]).
 
--define(WORLD_3, [{erlmud_room, room, [{player, player1},
+-define(WORLD_3, [{erlmud_room, room, [{player, player},
                                        {ai, zombie}]},
-                  {erlmud_player, player1, [{room, room},
-                                            {attack_wait, 10},
-                                            {item, fist}]},
+                  {erlmud_player, player, [{room, room},
+                                           {attack_wait, 10},
+                                           {item, fist}]},
                   {erlmud_ai, zombie, [{room, room},
                                        {name, "zombie"},
                                        {hitpoints, hp},
-                                       {life, life1}]},
+                                       {life, life}]},
                   {erlmud_item, fist, [{dmg, 5},
                                        {owner, player}]},
-                  {erlmud_hitpoints, z_hp, [{hitpoints, 10},
-                                            {owner, zombie}]},
-                  {erlmud_life, z_life, [{is_alive, true},
-                                         {owner, zombie}]}]).
+                  {erlmud_hitpoints, hp, [{hitpoints, 10},
+                                          {owner, zombie}]},
+                  {erlmud_life, life, [{is_alive, true},
+                                       {owner, zombie}]}]).
 
 -define(WORLD_4, [{erlmud_room, room, [{player, player}]},
                   {erlmud_player, player, [{room, room},
                                            {item, helmet},
                                            {body_part, head}]},
                   {erlmud_body_part, head, [{name, "head"}, {owner, player}]},
-                  {erlmud_item, helmet, [{owner, player}, {name, "helmet"}]}]).
+                  {erlmud_item, helmet, [{name, "helmet"}, {owner, player}]}]).
 
 -define(WORLD_5, [{erlmud_player, player, [{item, helmet},
                                            {body_part, head1},

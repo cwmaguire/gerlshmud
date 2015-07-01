@@ -25,9 +25,7 @@
 added(_, _) -> ok.
 removed(_, _) -> ok.
 
-attempt(Owner,
-        Props,
-        {damage, _Attack, _Source, Owner, _Damage}) ->
+attempt(Owner, Props, {damage, _Att, _Src, Owner, _Dmg}) ->
     {succeed, true, Props};
 attempt(_Owner, Props, _Msg) ->
     {succeed, false, Props}.
@@ -40,11 +38,15 @@ succeed(Props, {damage, _Attack, _Source, Target, Damage}) ->
         _ ->
             Props
     end;
+succeed(Props, {die, _}) ->
+    Props;
 succeed(Props, Msg) ->
     log("saw ~p succeed with props ~p~n", [Msg, Props]),
     throw(should_never_happen).
     %Props.
 
+fail(Props, {damage, _, _, _, _} = Message, _Reason) ->
+    log("saw ~p fail with props ~p~n", [Message, Props]);
 fail(Props, Message, _Reason) ->
     log("saw ~p fail with props ~p~n", [Message, Props]),
     throw(should_never_happen).
@@ -63,4 +65,4 @@ take_damage(Damage, Props) ->
         _ ->
             ok
     end,
-    lists:keystore(hp, 1, Props, {hp, Hp}).
+    lists:keystore(hitpoints, 1, Props, {hitpoints, Hp}).
