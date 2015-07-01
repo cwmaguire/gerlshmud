@@ -1,20 +1,20 @@
 -define(WORLD_1, [{erlmud_room, room_n, [{exit, exit}, {player, player}]},
                   {erlmud_room, room_s, [{exit, exit}]},
-                  {erlmud_player, player, [{room, room_n}]},
+                  {erlmud_character, player, [{room, room_n}]},
                   {erlmud_exit, exit, [{{room, n}, room_n}, {{room, s}, room_s}]}]).
 
 -define(WORLD_2, [{erlmud_room, room, [{player, player}, {item, sword}, {item, apple}]},
-                  {erlmud_player, player, [{room, room}, {item, helmet}]},
+                  {erlmud_character, player, [{room, room}, {item, helmet}]},
                   {erlmud_item, sword, [{owner, room}, {name, "sword"}]},
                   {erlmud_item, helmet, [{owner, player}, {name, "helmet"}]},
                   {erlmud_item, apple, [{owner, room}, {name, "apple"}]}]).
 
 -define(WORLD_3, [{erlmud_room, room, [{player, player},
                                        {ai, zombie}]},
-                  {erlmud_player, player, [{room, room},
+                  {erlmud_character, player, [{room, room},
                                            {attack_wait, 10},
                                            {item, fist}]},
-                  {erlmud_ai, zombie, [{room, room},
+                  {erlmud_character, zombie, [{room, room},
                                        {name, "zombie"},
                                        {hitpoints, hp},
                                        {life, life}]},
@@ -26,13 +26,13 @@
                                        {owner, zombie}]}]).
 
 -define(WORLD_4, [{erlmud_room, room, [{player, player}]},
-                  {erlmud_player, player, [{room, room},
+                  {erlmud_character, player, [{room, room},
                                            {item, helmet},
                                            {body_part, head}]},
                   {erlmud_body_part, head, [{name, "head"}, {owner, player}]},
                   {erlmud_item, helmet, [{name, "helmet"}, {owner, player}]}]).
 
--define(WORLD_5, [{erlmud_player, player, [{item, helmet},
+-define(WORLD_5, [{erlmud_character, player, [{item, helmet},
                                            {body_part, head1},
                                            {body_part, finger1}]},
                   {erlmud_body_part, head1, [{name, "head"},
@@ -45,7 +45,7 @@
                                          {name, "helmet"},
                                          {body_parts, [head, hand]}]}]).
 
--define(WORLD_6, [{erlmud_player, player, [{body_part, finger1},
+-define(WORLD_6, [{erlmud_character, player, [{body_part, finger1},
                                            {body_part, finger2},
                                            {item, ring1},
                                            {item, ring2}]},

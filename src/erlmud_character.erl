@@ -11,7 +11,7 @@
 %% WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 %% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
--module(erlmud_player).
+-module(erlmud_character).
 
 -behaviour(erlmud_object).
 
@@ -40,14 +40,14 @@ attempt(_Owner, Props, Msg) ->
 attempt(Props, {move, Self, Direction}) when Self == self() ->
     case proplists:get_value(room, Props) of
         undefined ->
-            {{fail, "Player doesn't have room"}, false, Props};
+            {{fail, "Character doesn't have room"}, false, Props};
         Room ->
             {{resend, Self, {move, Self, Room, Direction}}, false, Props}
     end;
 attempt(Props, {enter_world, Self}) when Self == self() ->
     case proplists:get_value(room, Props) of
         undefined ->
-            {{fail, "Player doesn't have room"}, false, Props};
+            {{fail, "Character doesn't have room"}, false, Props};
         Room when is_pid(Room) ->
             {succeed, true, Props}
     end;
@@ -62,12 +62,32 @@ attempt(Props, {drop, Self, Pid}) when Self == self(), is_pid(Pid) ->
         _ ->
             {succeed, _Interested = false, Props}
     end;
+attempt(Props, {attack, Attack, Attacker, Name}) when is_list(Name) ->
+    log("Checking if name ~p matches", [Name]),
+    case re:run(proplists:get_value(name, Props, ""), Name, [{capture, none}]) of
+        match ->
+            log("resending {attack, ~p, ~p} as {attack, ~p, ~p}~n",
+                [Attacker, Name, Attacker, self()]),
+            {{resend, Attack, {attack, Attack, Attacker, self()}}, true, Props};
+        _ ->
+            log("Name ~p did not match.~n\tProps: ~p~n", [Name, Props]),
+            {succeed, false, Props}
+    end;
+%% TODO: shouldn't something else figure out if something is "killed"
+%%       vs. just dead (i.e. something other than the attack killed it)?
+attempt(Props, {calc_hit, Attack, Attacker, Self, _}) when Self == self() ->
+    case proplists:get_value(hp, Props) of
+        X when X < 0 ->
+            {{resend, Attacker, {killed, Attack, Attacker, self()}}, true, Props};
+        _ ->
+            {succeed, false, Props}
+    end;
 attempt(Props, {calc_next_attack_wait, Attack, Self, Target, Sent, Wait})
     when Self == self() ->
-    PlayerWait = proplists:get_value(attack_wait, Props, 0),
-    log("Player attack wait is ~p~n", [PlayerWait]),
+    CharacterWait = proplists:get_value(attack_wait, Props, 0),
+    log("Character attack wait is ~p~n", [CharacterWait]),
     {succeed,
-     {calc_next_attack_wait, Attack, Self, Target, Sent, Wait + PlayerWait},
+     {calc_next_attack_wait, Attack, Self, Target, Sent, Wait + CharacterWait},
      false,
      Props};
 attempt(Props, {move, Self, _, _}) when Self == self() ->
@@ -80,8 +100,8 @@ attempt(Props, Msg) ->
 
 succeed(Props, {move, Self, Source, Target}) when Self == self(), is_pid(Target) ->
     log("moved from ~p to ~p~n", [Source, Target]),
-    erlmud_object:remove(Source, player, self()),
-    erlmud_object:add(Target, player, self()),
+    erlmud_object:remove(Source, character, self()),
+    erlmud_object:add(Target, character, self()),
     set(room, Target, Props);
 succeed(Props, {move, Self, Source, Direction}) when Self == self(), is_atom(Direction) ->
     log("succeeded in moving ~p from ~p~n", [Direction, Source]),
@@ -90,7 +110,7 @@ succeed(Props, {enter_world, Self})
     when Self == self() ->
     Room = proplists:get_value(room, Props),
     log("entering ~p~n", [Room]),
-    erlmud_object:add(Room, player, self());
+    erlmud_object:add(Room, character, self());
 succeed(Props, {get, Self, Source, Item}) when Self == self() ->
     log("getting ~p from ~p~n\tProps: ~p~n", [Item, Source, Props]),
     Props;
@@ -100,6 +120,10 @@ succeed(Props, {attack, Self, Target}) when Self == self() ->
         "\tProps: ~p~n",
         [Target, Props]),
     attack(Target, stop_attack(Props));
+succeed(_Props, {cleanup, Self}) when Self == self() ->
+    %% TODO: drop all objects
+    %% TODO: kill all connected processes
+    exit(cleanup);
 succeed(Props, Msg) ->
     log("saw ~p succeed with props ~p~n", [Msg, Props]),
     Props.
@@ -117,8 +141,10 @@ stop_attack(Props) ->
     end.
 
 attack(Target, Props) ->
-    {ok, Attack} = supervisor:start_child(erlmud_object_sup,
-                                          [undefined, erlmud_attack, [{player, self()}]]),
+    Args = [_Id = undefined,
+            _Type = erlmud_attack,
+            _Props = [{character, self()}]],
+    {ok, Attack} = supervisor:start_child(erlmud_object_sup, Args),
     log("Attack ~p started, sending attempt~n", [Attack]),
     erlmud_object:attempt(Attack, {attack, Attack, self(), Target}),
     [{attack, Attack} | Props].

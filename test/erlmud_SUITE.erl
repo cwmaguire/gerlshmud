@@ -94,6 +94,14 @@ player_attack_wait(_Config) ->
     receive after 100 -> ok end,
     4 = val(hitpoints, hp).
 
+player_ai_fight(_Config) ->
+    start(?WORLD_3),
+    Player = erlmud_index:get(player),
+    Zombie = erlmud_index:get(zombie),
+    erlmud_object:attempt(Player, {attack, Player, "zombie"}),
+    receive after 100 -> ok end,
+    4 = val(hitpoints, hp).
+
 player_wield(_Config) ->
     start(?WORLD_4),
     Player = erlmud_index:get(player),

@@ -39,6 +39,8 @@ attempt(Props, {attack, Attack, Attacker, Name}) when is_list(Name) ->
             log("Name ~p did not match.~n\tProps: ~p~n", [Name, Props]),
             {succeed, false, Props}
     end;
+%% TODO: shouldn't something else figure out if something is "killed"
+%%       vs. just dead (i.e. something other than the attack killed it)?
 attempt(Props, {calc_hit, Attack, Attacker, Self, _}) when Self == self() ->
     case proplists:get_value(hp, Props) of
         X when X < 0 ->
@@ -63,3 +65,19 @@ fail(Props, _Message, _Reason) ->
 
 log(Msg, Format) ->
     erlmud_event_log:log("~p:~n" ++ Msg, [?MODULE | Format]).
+
+attack(Target, Props) ->
+    {ok, Attack} = supervisor:start_child(erlmud_object_sup,
+                                          [undefined, erlmud_attack, [{player, self()}]]),
+    log("Attack ~p started, sending attempt~n", [Attack]),
+    erlmud_object:attempt(Attack, {attack, Attack, self(), Target}),
+    [{attack, Attack} | Props].
+
+stop_attack(Props) ->
+    case lists:keytake(attack, 1, Props) of
+        {Pid, _, Props2} ->
+            exit(Pid),
+            Props2;
+        _ ->
+            Props
+    end.
