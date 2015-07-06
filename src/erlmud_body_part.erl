@@ -21,9 +21,11 @@
 -export([attempt/3]).
 -export([succeed/2]).
 -export([fail/3]).
+-export([died/3]).
 
 added(_, _) -> ok.
 removed(_, _) -> ok.
+died(_, _, _) -> ok.
 
 is_match(Props, Name) ->
     match == re:run(proplists:get_value(name, Props, ""), Name, [{capture, none}]).

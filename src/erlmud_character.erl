@@ -21,9 +21,11 @@
 -export([attempt/3]).
 -export([succeed/2]).
 -export([fail/3]).
+-export([died/3]).
 
 added(_, _) -> ok.
 removed(_, _) -> ok.
+died(_, _, _) -> ok.
 
 has_pid(Props, Pid) ->
     lists:any(fun({_, Pid_}) when Pid == Pid_ -> true; (_) -> false end, Props).
@@ -119,7 +121,8 @@ succeed(Props, {attack, Self, Target}) when Self == self() ->
         "Starting attack process~n"
         "\tProps: ~p~n",
         [Target, Props]),
-    attack(Target, stop_attack(Props));
+    %attack(Target, stop_attack(Props));
+    attack(Target, lists:keydelete(attack, 1, Props));
 succeed(_Props, {cleanup, Self}) when Self == self() ->
     %% TODO: drop all objects
     %% TODO: kill all connected processes
@@ -131,19 +134,19 @@ succeed(Props, Msg) ->
 fail(Props, _Message, _Reason) ->
     Props.
 
-stop_attack(Props) ->
-    case lists:keytake(attack, 1, Props) of
-        {Pid, _, Props2} ->
-            exit(Pid),
-            Props2;
-        _ ->
-            Props
-    end.
+%stop_attack(Props) ->
+    %case lists:keytake(attack, 1, Props) of
+        %{Pid, _, Props2} ->
+            %exit(Pid),
+            %Props2;
+        %_ ->
+            %Props
+    %end.
 
 attack(Target, Props) ->
     Args = [_Id = undefined,
             _Type = erlmud_attack,
-            _Props = [{character, self()}]],
+            _Props = [{owner, self()}, {target, Target}]],
     {ok, Attack} = supervisor:start_child(erlmud_object_sup, Args),
     log("Attack ~p started, sending attempt~n", [Attack]),
     erlmud_object:attempt(Attack, {attack, Attack, self(), Target}),

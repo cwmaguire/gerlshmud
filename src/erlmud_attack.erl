@@ -21,12 +21,18 @@
 -export([attempt/3]).
 -export([succeed/2]).
 -export([fail/3]).
+-export([died/3]).
 
 -define(PROPS, [{hit, 0}, {miss, 0}]).
 
 added(_, _) -> ok.
 removed(_, _) -> ok.
+died(_, _, _) -> ok.
 
+attempt(Owner, Props, {move, Owner, _Src, _Target}) ->
+    {succeed, true, Props};
+attempt(Owner, Props, {attack, NotSelf, Owner, _Target}) when self() /= NotSelf ->
+    {succeed, true, Props};
 attempt(_Owner, Props, Msg) ->
     attempt(Props, Msg).
 
@@ -46,6 +52,8 @@ attempt(Props, Msg) ->
     log("Attempt: ~p~n\tProps: ~p~n", [Msg, Props]),
     {succeed, false, Props}.
 
+succeed(Props, {Action, _, _, _}) when Action == move, Action == attack ->
+  {stop, Props};
 succeed(Props, {attack, Self, _Source, UnknownTargetName})
   when is_list(UnknownTargetName),
        Self == self() ->
@@ -93,9 +101,12 @@ succeed(Props, {calc_next_attack_wait, Self, Source, Target, Sent, Wait}) ->
                                 self(),
                                 {calc_hit, Self, Source, Target, 1}),
     Props;
-succeed(Props, Msg = {killed, Self, _Source, _Target}) when Self == self() ->
+succeed(Props, Msg = {killed, Self, Source, Target}) when Self == self() ->
     log("Killed it! Huzzah!~nMessage: ~p~nProps: ~p~n", [Msg, Props]),
-    [{done, true} | Props];
+    erlmud_object:attempt(self(), {stop_attack, self(), Source, Target}),
+    Props;
+succeed(Props, {stop_attack, Self, _, _}) when Self == self() ->
+    {stop, Props};
 succeed(Props, Msg) ->
     log("saw ~p succeed with props ~p~n", [Msg, Props]),
     Props.

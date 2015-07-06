@@ -49,6 +49,7 @@
 -callback fail(proplist(), string(), tuple()) -> proplist().
 -callback added(atom(), pid()) -> ok.
 -callback removed(atom(), pid()) -> ok.
+-callback died(pid(), pid(), term()) -> ok.
 
 %% API.
 
@@ -86,6 +87,7 @@ set(Pid, Prop) ->
 %% gen_server.
 
 init({Type, Props}) ->
+    process_flag(trap_exit, true),
     {ok, #state{type = Type, props = Props}}.
 
 handle_call(props, _From, State) ->
@@ -112,11 +114,21 @@ handle_cast({attempt, Msg, Procs}, State) ->
 handle_cast({fail, Reason, Msg}, State) ->
     {noreply, State#state{props = fail(Reason, Msg, State)}};
 handle_cast({succeed, Msg}, State) ->
-    {noreply, State#state{props = succeed(Msg, State)}}.
+    case succeed(Msg, State) of
+        {stop, Props} ->
+            {stop, no_reason, State#state{props = Props}};
+        Props ->
+            {noreply, State#state{props = Props}}
+     end.
 
 handle_info({Pid, Msg}, State) ->
     log("handle_info attempt Pid = ~p~nMsg = ~p~n", [Pid, Msg]),
     attempt(Pid, Msg),
+    {noreply, State};
+handle_info({'EXIT', Pid, Reason},
+            State = #state{props = Props, type = Type}) ->
+    Owner = proplists:get_value(owner, Props),
+    Type:died(Owner, Pid, Reason),
     {noreply, State};
 handle_info(Unknown, State) ->
     log("Unknown Message: ~p~n", [Unknown]),

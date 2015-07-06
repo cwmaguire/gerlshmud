@@ -21,6 +21,7 @@
 -export([attempt/3]).
 -export([succeed/2]).
 -export([fail/3]).
+-export([died/3]).
 
 added(_, _) -> ok.
 removed(_, _) -> ok.
@@ -28,13 +29,32 @@ removed(_, _) -> ok.
 attempt(Owner, Props, Msg = {damage, _Att, _Src, Owner, _Dmg}) ->
     log("subscribed attempt: ~p, props: ~p~n", [Msg, Props]),
     {succeed, true, Props};
+attempt(Owner, Props, Msg = {attack, _Att, _Src, Owner, _Dmg}) ->
+    log("subscribed attempt: ~p, props: ~p~n", [Msg, Props]),
+    {succeed, true, Props};
+attempt(Owner, Props, {stop_attack, Attack, Owner, _Target}) ->
+    case [Pid || {attack, Pid, _} <- Props, Pid == Attack] of
+        [_ | _] ->
+            lists:keydelete(attack, 1, Props);
+        _ ->
+            Props
+    end;
 attempt(_Owner, Props, _Msg) ->
     {succeed, false, Props}.
 
-succeed(Props, {damage, _Att, Src, Owner}) ->
-    erlmud_object:attempt_after(1000,
-                                Owner
-                                {attack, Self, Source, Target, 1}),
+succeed(Props, {attack, Attack, _Owner, Target}) ->
+    link(Attack),
+    lists:keystore(target, 1, Props, {attack, Attack, Target});
+succeed(Props, {damage, _Att, Attacker, Owner}) ->
+    case [Target || {attack, _, Target} <- Props, Target == Attacker] of
+        [] ->
+            AttackWait = proplists:get_value(attack_wait, Props, 1000),
+            erlmud_object:attempt_after(AttackWait,
+                                        Owner,
+                                        {attack, Owner, Attacker});
+        _ ->
+            ok
+    end,
     Props;
 succeed(Props, Msg) ->
     log("saw ~p succeed with props ~p~n", [Msg, Props]),
@@ -43,6 +63,14 @@ succeed(Props, Msg) ->
 fail(Props, Result, Msg) ->
     log("result: ~p message: ~p~n", [Result, Msg]),
     Props.
+
+died(Props, Pid, _Reason) ->
+    case [Attack || {attack, Attack, _} <- Props, Attack == Pid] of
+        [_ | _] ->
+            lists:keydelete(attack, 1, Props);
+        _ ->
+            Props
+    end.
 
 log(Msg, Format) ->
     erlmud_event_log:log("~p:~n" ++ Msg, [?MODULE | Format]).

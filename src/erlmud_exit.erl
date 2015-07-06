@@ -21,12 +21,14 @@
 -export([attempt/3]).
 -export([succeed/2]).
 -export([fail/3]).
+-export([died/3]).
 
 %% internal
 -export([is_attached_to_room/2]).
 
 added(_, _) -> ok.
 removed(_, _) -> ok.
+died(_, _, _) -> ok.
 
 is_attached_to_room(Props, Room) ->
     HasRoom = fun({{room, _}, R}) ->

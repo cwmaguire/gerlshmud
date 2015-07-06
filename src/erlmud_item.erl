@@ -21,9 +21,11 @@
 -export([attempt/3]).
 -export([succeed/2]).
 -export([fail/3]).
+-export([died/3]).
 
 added(_, _) -> ok.
 removed(_, _) -> ok.
+died(_, _, _) -> ok.
 
 set(Key, Obj, Props) ->
     lists:keystore(Key, 1, Props, {Key, Obj}).
