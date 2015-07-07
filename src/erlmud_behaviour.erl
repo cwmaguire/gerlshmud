@@ -21,7 +21,6 @@
 -export([attempt/3]).
 -export([succeed/2]).
 -export([fail/3]).
--export([died/3]).
 
 added(_, _) -> ok.
 removed(_, _) -> ok.
@@ -39,23 +38,36 @@ attempt(Owner, Props, {stop_attack, Attack, Owner, _Target}) ->
         _ ->
             Props
     end;
-attempt(_Owner, Props, _Msg) ->
+attempt(Owner, Props, Msg) ->
+    log("subscribed attempt: ~p, props: ~p~nowner: ~p~n", [Msg, Props, Owner]),
     {succeed, false, Props}.
 
 succeed(Props, {attack, Attack, _Owner, Target}) ->
-    link(Attack),
+    %link(Attack),
     lists:keystore(target, 1, Props, {attack, Attack, Target});
-succeed(Props, {damage, _Att, Attacker, Owner}) ->
-    case [Target || {attack, _, Target} <- Props, Target == Attacker] of
+succeed(Props, {damage, _Att, Attacker, Owner, _Dmg}) ->
+    log("caught damage succeeded~n~p~n~p~n", [Attacker, Owner]),
+    _ = case [Target || {attack, _, Target} <- Props, Target == Attacker] of
         [] ->
+            log("no attacks on ~p~nprops:~n\t~p~n", [Attacker, Props]),
             AttackWait = proplists:get_value(attack_wait, Props, 1000),
             erlmud_object:attempt_after(AttackWait,
                                         Owner,
                                         {attack, Owner, Attacker});
         _ ->
+            log("already attacks on ~p~nprops:~n\t~p~n", [Attacker, Props]),
             ok
     end,
     Props;
+succeed(Props, {stop_attack, Pid, Source, _Target}) ->
+    Owner = proplists:get_value(owner, Props),
+    case Owner == Source andalso
+         [Attack || {attack, Attack, _} <- Props, Attack == Pid] of
+        [_ | _] ->
+            lists:keydelete(attack, 1, Props);
+        _ ->
+            Props
+    end;
 succeed(Props, Msg) ->
     log("saw ~p succeed with props ~p~n", [Msg, Props]),
     Props.
@@ -63,14 +75,6 @@ succeed(Props, Msg) ->
 fail(Props, Result, Msg) ->
     log("result: ~p message: ~p~n", [Result, Msg]),
     Props.
-
-died(Props, Pid, _Reason) ->
-    case [Attack || {attack, Attack, _} <- Props, Attack == Pid] of
-        [_ | _] ->
-            lists:keydelete(attack, 1, Props);
-        _ ->
-            Props
-    end.
 
 log(Msg, Format) ->
     erlmud_event_log:log("~p:~n" ++ Msg, [?MODULE | Format]).

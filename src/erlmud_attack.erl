@@ -21,13 +21,11 @@
 -export([attempt/3]).
 -export([succeed/2]).
 -export([fail/3]).
--export([died/3]).
 
 -define(PROPS, [{hit, 0}, {miss, 0}]).
 
 added(_, _) -> ok.
 removed(_, _) -> ok.
-died(_, _, _) -> ok.
 
 attempt(Owner, Props, {move, Owner, _Src, _Target}) ->
     {succeed, true, Props};
@@ -52,8 +50,11 @@ attempt(Props, Msg) ->
     log("Attempt: ~p~n\tProps: ~p~n", [Msg, Props]),
     {succeed, false, Props}.
 
-succeed(Props, {Action, _, _, _}) when Action == move, Action == attack ->
-  {stop, Props};
+succeed(Props, {Action, NotSelf, Owner, Target}) when Action == move orelse
+                                             (Action == attack andalso
+                                              NotSelf /= self()) ->
+  erlmud_object:attempt(self(), {stop_attack, self(), Owner, Target}),
+  Props;
 succeed(Props, {attack, Self, _Source, UnknownTargetName})
   when is_list(UnknownTargetName),
        Self == self() ->
@@ -63,12 +64,12 @@ succeed(Props, {attack, Self, _Source, UnknownTargetName})
     Props;
 succeed(Props, {attack, Self, Source, Target}) when is_pid(Target), Self == self() ->
     erlmud_object:attempt(self(), {calc_hit, self(), Source, Target, 1}),
-    [{target, Target} | Props];
+    lists:keystore(target, 1, Props, {target, Target});
 succeed(Props, {calc_hit, Self, Source, Target, HitScore})
   when is_pid(Target),
        Self == self(),
        HitScore > 0 ->
-    erlmud_object:attempt(self(), {calc_damage, self(), Source, Target, 1}),
+    erlmud_object:attempt(self(), {calc_damage, self(), Source, Target, 0}),
     Props;
 succeed(Props, {calc_hit, Self, Source, Target, _Miss})
   when is_pid(Target),

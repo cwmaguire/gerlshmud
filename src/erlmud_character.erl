@@ -21,11 +21,9 @@
 -export([attempt/3]).
 -export([succeed/2]).
 -export([fail/3]).
--export([died/3]).
 
 added(_, _) -> ok.
 removed(_, _) -> ok.
-died(_, _, _) -> ok.
 
 has_pid(Props, Pid) ->
     lists:any(fun({_, Pid_}) when Pid == Pid_ -> true; (_) -> false end, Props).
@@ -96,6 +94,8 @@ attempt(Props, {move, Self, _, _}) when Self == self() ->
     {succeed, true, Props};
 attempt(Props, {attack, Self, _}) when Self == self() ->
     {succeed, true, Props};
+attempt(Props, {stop_attack, Attack, Self, _}) when Self == self() ->
+    {succeed, true, Props};
 attempt(Props, Msg) ->
     log("attempt: ~p~nProps: ~p~n", [Msg, Props]),
     {succeed, false, Props}.
@@ -123,6 +123,14 @@ succeed(Props, {attack, Self, Target}) when Self == self() ->
         [Target, Props]),
     %attack(Target, stop_attack(Props));
     attack(Target, lists:keydelete(attack, 1, Props));
+succeed(Props, {stop_attack, Attack, Self, _Target}) when Self == self() ->
+    CurAttack = proplists:get_value(attack, Props),
+    case CurAttack == Attack of
+        true ->
+            lists:keydelete(attack, 1, Props);
+        _ ->
+            Props
+    end;
 succeed(_Props, {cleanup, Self}) when Self == self() ->
     %% TODO: drop all objects
     %% TODO: kill all connected processes

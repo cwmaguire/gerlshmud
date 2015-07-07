@@ -21,11 +21,9 @@
 -export([attempt/3]).
 -export([succeed/2]).
 -export([fail/3]).
--export([died/3]).
 
 added(_, _) -> ok.
 removed(_, _) -> ok.
-died(_, _, _) -> ok.
 
 is_dead_action(revive) ->
     true;
@@ -36,7 +34,7 @@ attempt(Owner, Props, {die, Target}) when Owner == Target ->
     {succeed, _Subscribe = true, Props};
 attempt(Owner, Props, Msg) when Owner == element(2, Msg) ->
     IsAlive = proplists:get_value(is_alive, Props, false),
-    IsDeadAction = is_dead_action(element(1, Props)),
+    IsDeadAction = is_dead_action(element(1, Msg)),
     case IsAlive orelse IsDeadAction of
         true ->
             {succeed, _Subscribe = false, Props};
@@ -70,8 +68,8 @@ succeed(Props, Msg) ->
 
 fail(Props, Message, _Reason) ->
     log("saw ~p fail with props ~p~n", [Message, Props]),
-    throw(should_never_happen).
-    %Props.
+    %throw(should_never_happen).
+    Props.
 
 log(Msg, Format) ->
     erlmud_event_log:log("~p:~n" ++ Msg, [?MODULE | Format]).

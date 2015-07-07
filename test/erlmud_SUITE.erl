@@ -4,22 +4,25 @@
 -include("erlmud_test_worlds.hrl").
 
 all() ->
-    [player_move,
-     player_move_fail,
-     player_get_item,
-     player_drop_item,
-     player_attack,
-     player_attack_wait,
-     player_wield,
-     player_wield_missing_body_part,
-     player_wield_wrong_body_part,
-     player_wield_body_part_is_full,
-     player_remove].
+    %[player_move,
+     %player_move_fail,
+     %player_get_item,
+     %player_drop_item,
+     %player_attack,
+     %player_attack_wait,
+     %one_sided_fight,
+     %counterattack_behaviour,
+     %player_wield,
+     %player_wield_missing_body_part,
+     %player_wield_wrong_body_part,
+     %player_wield_body_part_is_full,
+     %player_remove].
     %[player_remove].
     %[player_wield].
     %[player_wield_wrong_body_part].
     %[player_attack].
     %[player_attack_wait].
+    [counterattack_behaviour].
 
 init_per_testcase(_, Config) ->
     {ok, _Started} = application:ensure_all_started(erlmud),
@@ -82,9 +85,9 @@ player_attack(_Config) ->
     start(?WORLD_3),
     Player = erlmud_index:get(player),
     erlmud_object:attempt(Player, {attack, Player, "zombie"}),
-    receive after 100 -> ok end,
-    false = val(is_alive, life),
-    -2 = val(hitpoints, hp).
+    receive after 900 -> ok end,
+    false = val(is_alive, z_life),
+    0 = val(hitpoints, z_hp).
 
 player_attack_wait(_Config) ->
     start(?WORLD_3),
@@ -92,15 +95,41 @@ player_attack_wait(_Config) ->
     erlmud_object:set(Player, {attack_wait, 10000}),
     erlmud_object:attempt(Player, {attack, Player, "zombie"}),
     receive after 100 -> ok end,
-    4 = val(hitpoints, hp).
+    5 = val(hitpoints, z_hp),
+    true = val(is_alive, z_life),
+    true = is_pid(val(attack, Player)).
 
-player_ai_fight(_Config) ->
+one_sided_fight(_Config) ->
     start(?WORLD_3),
     Player = erlmud_index:get(player),
     Zombie = erlmud_index:get(zombie),
     erlmud_object:attempt(Player, {attack, Player, "zombie"}),
     receive after 100 -> ok end,
-    4 = val(hitpoints, hp).
+    1000 = val(hitpoints, p_hp),
+    true = val(is_alive, p_life),
+    undefined = val(attack, Player),
+    0 = val(hitpoints, z_hp),
+    false = val(is_alive, z_life),
+    undefined = val(attack, Zombie).
+
+counterattack_behaviour(_Config) ->
+    start(?WORLD_3),
+    Player = erlmud_index:get(player),
+    erlmud_object:set(Player, {attack_wait, 20}),
+    Zombie = erlmud_index:get(zombie),
+    Behaviour = start_obj(behaviour,
+                          erlmud_behaviour,
+                          [{owner, Zombie},
+                           {attack_wait, 10}]),
+    erlmud_object:set(Zombie, {behaviour, Behaviour}),
+    erlmud_object:attempt(Player, {attack, Player, "zombie"}),
+    receive after 100 -> ok end,
+    true = 1000 > val(hitpoints, p_hp),
+    true = val(is_alive, p_life),
+    undefined = val(attack, Player),
+    0 = val(hitpoints, z_hp),
+    false = val(is_alive, z_life),
+    undefined = val(attack, Zombie).
 
 player_wield(_Config) ->
     start(?WORLD_4),

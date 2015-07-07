@@ -21,14 +21,12 @@
 -export([attempt/3]).
 -export([succeed/2]).
 -export([fail/3]).
--export([died/3]).
 
 has_pid(Props, Pid) ->
     lists:any(fun({_, Pid_}) when Pid == Pid_ -> true; (_) -> false end, Props).
 
 added(_, _) -> ok.
 removed(_, _) -> ok.
-died(_, _, _) -> ok.
 
 attempt(_Owner, Props, Msg) ->
     attempt(Props, Msg).
