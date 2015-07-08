@@ -96,6 +96,8 @@ attempt(Props, {attack, Self, _}) when Self == self() ->
     {succeed, true, Props};
 attempt(Props, {stop_attack, Attack, Self, _}) when Self == self() ->
     {succeed, true, Props};
+attempt(Props, {die, Self}) when Self == self() ->
+    {succeed, true, Props};
 attempt(Props, Msg) ->
     log("attempt: ~p~nProps: ~p~n", [Msg, Props]),
     {succeed, false, Props}.
@@ -131,25 +133,18 @@ succeed(Props, {stop_attack, Attack, Self, _Target}) when Self == self() ->
         _ ->
             Props
     end;
-succeed(_Props, {cleanup, Self}) when Self == self() ->
+succeed(Props, {die, Self}) when Self == self() ->
+    %% TODO: kill/disconnect all connected processes
+    lists:keydelete(attack, 1, Props);
+succeed(Props, {cleanup, Self}) when Self == self() ->
     %% TODO: drop all objects
-    %% TODO: kill all connected processes
-    exit(cleanup);
+    {stop, Props};
 succeed(Props, Msg) ->
-    log("saw ~p succeed with props ~p~n", [Msg, Props]),
+    log("saw ~p succeed with props~n~p~n", [Msg, Props]),
     Props.
 
 fail(Props, _Message, _Reason) ->
     Props.
-
-%stop_attack(Props) ->
-    %case lists:keytake(attack, 1, Props) of
-        %{Pid, _, Props2} ->
-            %exit(Pid),
-            %Props2;
-        %_ ->
-            %Props
-    %end.
 
 attack(Target, Props) ->
     Args = [_Id = undefined,

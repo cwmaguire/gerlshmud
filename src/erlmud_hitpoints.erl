@@ -61,6 +61,7 @@ take_damage(Damage, Props) ->
     Hp = proplists:get_value(hitpoints, Props, 0) - Damage,
     case Hp of
         X when X < 1 ->
+            log("dying", []),
             Owner = proplists:get_value(owner, Props),
             erlmud_object:attempt(Owner, {die, Owner});
         _ ->

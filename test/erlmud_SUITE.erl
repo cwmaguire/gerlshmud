@@ -123,13 +123,19 @@ counterattack_behaviour(_Config) ->
                            {attack_wait, 10}]),
     erlmud_object:set(Zombie, {behaviour, Behaviour}),
     erlmud_object:attempt(Player, {attack, Player, "zombie"}),
-    receive after 100 -> ok end,
+    receive after 1000 -> ok end,
     true = 1000 > val(hitpoints, p_hp),
+    ct:pal("p hp", []),
     true = val(is_alive, p_life),
+    ct:pal("p life", []),
     undefined = val(attack, Player),
+    ct:pal("p attack", []),
     0 = val(hitpoints, z_hp),
+    ct:pal("z hp", []),
     false = val(is_alive, z_life),
-    undefined = val(attack, Zombie).
+    ct:pal("z life", []),
+    undefined = val(attack, Zombie),
+    ct:pal("z attack", []).
 
 player_wield(_Config) ->
     start(?WORLD_4),

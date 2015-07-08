@@ -110,10 +110,17 @@ handle_cast({set, Prop = {K, _}}, State = #state{props = Props}) ->
 handle_cast({attempt, Msg, Procs}, State) ->
     {noreply, maybe_attempt(Msg, Procs, State)};
 handle_cast({fail, Reason, Msg}, State) ->
-    {noreply, State#state{props = fail(Reason, Msg, State)}};
+    case fail(Reason, Msg, State) of
+        {stop, Props} ->
+            %% TODO: remove from index
+            {stop, Reason, State#state{props = Props}};
+        Props ->
+            {noreply, State#state{props = Props}}
+    end;
 handle_cast({succeed, Msg}, State) ->
     case succeed(Msg, State) of
         {stop, Props} ->
+            %% TODO: remove from index
             {stop, no_reason, State#state{props = Props}};
         Props ->
             {noreply, State#state{props = Props}}
@@ -190,7 +197,9 @@ populate_(Props, IdPids) ->
 procs(Props) ->
     log("looking for pids in ~p~n", [Props]),
     Pids = [Pid || {_, Pid} <- Props, is_pid(Pid)],
-    PidIds = [{Pid, erlmud_index:get(Pid)} || Pid <- Pids],
+    DeadPids = [{Pid, erlmud_index:get(Pid)} || Pid <- Pids, not is_process_alive(Pid)],
+    log("dead pids: ~p~n", [DeadPids]),
+    PidIds = [{Pid, erlmud_index:get(Pid)} || Pid <- Pids, is_process_alive(Pid)],
     log("found pids: ~p~n", [PidIds]),
     Pids.
 

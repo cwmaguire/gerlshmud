@@ -31,6 +31,8 @@ attempt(Owner, Props, {move, Owner, _Src, _Target}) ->
     {succeed, true, Props};
 attempt(Owner, Props, {attack, NotSelf, Owner, _Target}) when self() /= NotSelf ->
     {succeed, true, Props};
+attempt(Owner, Props, {die, Owner}) ->
+    {succeed, true, Props};
 attempt(_Owner, Props, Msg) ->
     attempt(Props, Msg).
 
@@ -108,11 +110,16 @@ succeed(Props, Msg = {killed, Self, Source, Target}) when Self == self() ->
     Props;
 succeed(Props, {stop_attack, Self, _, _}) when Self == self() ->
     {stop, Props};
+succeed(Props, {die, _Owner}) ->
+    {stop, Props};
 succeed(Props, Msg) ->
     log("saw ~p succeed with props ~p~n", [Msg, Props]),
     Props.
 
-fail(Props, _Message, _Reason) ->
+fail(Props, target_is_dead, _Message) ->
+    log("Stopping because target is dead~n", []),
+    {stop, Props};
+fail(Props, _Reason, _Message) ->
     Props.
 
 attack_again(Source, Target) ->

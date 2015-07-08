@@ -28,8 +28,8 @@ removed(_, _) -> ok.
 attempt(Owner, Props, Msg = {damage, _Att, _Src, Owner, _Dmg}) ->
     log("subscribed attempt: ~p, props: ~p~n", [Msg, Props]),
     {succeed, true, Props};
-attempt(Owner, Props, Msg = {attack, _Att, _Src, Owner, _Dmg}) ->
-    log("subscribed attempt: ~p, props: ~p~n", [Msg, Props]),
+attempt(Owner, Props, Msg = {attack, _Att, Owner, _Target}) ->
+    log("subscribed attempt: ~p,~nprops: ~p~n", [Msg, Props]),
     {succeed, true, Props};
 attempt(Owner, Props, {stop_attack, Attack, Owner, _Target}) ->
     case [Pid || {attack, Pid, _} <- Props, Pid == Attack] of
@@ -39,12 +39,16 @@ attempt(Owner, Props, {stop_attack, Attack, Owner, _Target}) ->
             Props
     end;
 attempt(Owner, Props, Msg) ->
-    log("subscribed attempt: ~p, props: ~p~nowner: ~p~n", [Msg, Props, Owner]),
+    log("ignoring attempt: ~p, props: ~p~nowner: ~p~n", [Msg, Props, Owner]),
     {succeed, false, Props}.
 
-succeed(Props, {attack, Attack, _Owner, Target}) ->
-    %link(Attack),
-    lists:keystore(target, 1, Props, {attack, Attack, Target});
+succeed(Props, {attack, Attack, Attacker, Target}) ->
+    case proplists:get_value(owner, Props) of
+        Owner when Owner == Attacker ->
+            lists:keystore(attack, 1, Props, {attack, Attack, Target});
+        _ ->
+            Props
+    end;
 succeed(Props, {damage, _Att, Attacker, Owner, _Dmg}) ->
     log("caught damage succeeded~n~p~n~p~n", [Attacker, Owner]),
     _ = case [Target || {attack, _, Target} <- Props, Target == Attacker] of
