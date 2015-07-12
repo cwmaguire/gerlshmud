@@ -49,24 +49,32 @@ succeed(Props, {attack, Attack, Attacker, Target}) ->
         _ ->
             Props
     end;
+%% should we always counter-attack the most recent attacker?
+%% That should be an option for the particular behaviour to decide:
+%% a particularly tenacious enemy will stick to one attacker; a less decisive
+%% enemy might keep switching to attack the most recent thing that attacked it.
+%% (e.g. something stupid, or with a short memory)
 succeed(Props, {damage, _Att, Attacker, Owner, _Dmg}) ->
     log("caught damage succeeded~n~p~n~p~n", [Attacker, Owner]),
-    _ = case [Target || {attack, _, Target} <- Props, Target == Attacker] of
+
+    %% pitbull attack: stick with first character that damages us
+    %% TODO: make sure the attack originates from something we can attack back,
+    %%       not a poison or extreme cold or something.
+    _ = case [Attack || Attack = {attack, _, _} <- Props] of
         [] ->
-            log("no attacks on ~p~nprops:~n\t~p~n", [Attacker, Props]),
+            log("no attacks yet, attack back~nprops:~n\t~p~n", [Props]),
             AttackWait = proplists:get_value(attack_wait, Props, 1000),
             erlmud_object:attempt_after(AttackWait,
                                         Owner,
                                         {attack, Owner, Attacker});
         _ ->
-            log("already attacks on ~p~nprops:~n\t~p~n", [Attacker, Props]),
+            log("already attacking something, stick with it~nprops:~n\t~p~n", [Props]),
             ok
     end,
     Props;
-succeed(Props, {stop_attack, Pid, Source, _Target}) ->
-    Owner = proplists:get_value(owner, Props),
-    case Owner == Source andalso
-         [Attack || {attack, Attack, _} <- Props, Attack == Pid] of
+%% If we have an attack that stopped, remove it
+succeed(Props, {stop_attack, AttackPid}) ->
+    case [Attack || {attack, Attack, _} <- Props, Attack == AttackPid] of
         [_ | _] ->
             lists:keydelete(attack, 1, Props);
         _ ->

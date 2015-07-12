@@ -73,15 +73,6 @@ attempt(Props, {attack, Attack, Attacker, Name}) when is_list(Name) ->
             log("Name ~p did not match.~n\tProps: ~p~n", [Name, Props]),
             {succeed, false, Props}
     end;
-%% TODO: shouldn't something else figure out if something is "killed"
-%%       vs. just dead (i.e. something other than the attack killed it)?
-attempt(Props, {calc_hit, Attack, Attacker, Self, _}) when Self == self() ->
-    case proplists:get_value(hp, Props) of
-        X when X < 0 ->
-            {{resend, Attacker, {killed, Attack, Attacker, self()}}, true, Props};
-        _ ->
-            {succeed, false, Props}
-    end;
 attempt(Props, {calc_next_attack_wait, Attack, Self, Target, Sent, Wait})
     when Self == self() ->
     CharacterWait = proplists:get_value(attack_wait, Props, 0),
@@ -94,8 +85,8 @@ attempt(Props, {move, Self, _, _}) when Self == self() ->
     {succeed, true, Props};
 attempt(Props, {attack, Self, _}) when Self == self() ->
     {succeed, true, Props};
-attempt(Props, {stop_attack, Attack, Self, _}) when Self == self() ->
-    {succeed, true, Props};
+attempt(Props, {stop_attack, Attack}) ->
+    {succeed, _IsCurrAttack = lists:member({attack, Attack}, Props), Props};
 attempt(Props, {die, Self}) when Self == self() ->
     {succeed, true, Props};
 attempt(Props, Msg) ->
@@ -114,10 +105,13 @@ succeed(Props, {enter_world, Self})
     when Self == self() ->
     Room = proplists:get_value(room, Props),
     log("entering ~p~n", [Room]),
-    erlmud_object:add(Room, character, self());
+    erlmud_object:add(Room, character, self()),
+    Props;
 succeed(Props, {get, Self, Source, Item}) when Self == self() ->
     log("getting ~p from ~p~n\tProps: ~p~n", [Item, Source, Props]),
     Props;
+%% I don't get this: we delete any current attack if a partially started
+%% attack (no attack pid, just source and target) succeeds?
 succeed(Props, {attack, Self, Target}) when Self == self() ->
     log("{attack, self(), ~p} succeeded~n"
         "Starting attack process~n"
@@ -125,24 +119,23 @@ succeed(Props, {attack, Self, Target}) when Self == self() ->
         [Target, Props]),
     %attack(Target, stop_attack(Props));
     attack(Target, lists:keydelete(attack, 1, Props));
-succeed(Props, {stop_attack, Attack, Self, _Target}) when Self == self() ->
-    CurAttack = proplists:get_value(attack, Props),
-    case CurAttack == Attack of
-        true ->
-            lists:keydelete(attack, 1, Props);
-        _ ->
-            Props
-    end;
+succeed(Props, {stop_attack, AttackPid}) ->
+    log("Character ~p attack ~p stopped; remove (if applicable) from props:~n\t~p~n",
+        [self(), AttackPid, Props]),
+    lists:filter(fun({attack, Pid}) when Pid == AttackPid -> false; (_) -> true end, Props);
 succeed(Props, {die, Self}) when Self == self() ->
     %% TODO: kill/disconnect all connected processes
     lists:keydelete(attack, 1, Props);
 succeed(Props, {cleanup, Self}) when Self == self() ->
     %% TODO: drop all objects
-    {stop, Props};
+    {stop, cleanup_succeeded, Props};
 succeed(Props, Msg) ->
     log("saw ~p succeed with props~n~p~n", [Msg, Props]),
     Props.
 
+fail(Props, target_is_dead, _Message) ->
+    log("Stopping because target is dead~n", []),
+    {stop, Props};
 fail(Props, _Message, _Reason) ->
     Props.
 

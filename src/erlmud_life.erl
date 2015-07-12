@@ -30,6 +30,9 @@ is_dead_action(revive) ->
 is_dead_action(_) ->
     false.
 
+attempt(Owner, Props, Msg = {killed, _Attack, Source, Owner}) ->
+    log("attempt: ~p, props: ~p~n", [Msg, Props]),
+    {succeed, _Subscribe = true, Props};
 attempt(Owner, Props, Msg = {die, Owner}) ->
     log("attempt: ~p, props: ~p~n", [Msg, Props]),
     {succeed, _Subscribe = true, Props};
@@ -53,6 +56,24 @@ attempt(Owner, Props, Msg = {Action, _Attack, Attacker, Owner, _})
         _ ->
             {succeed, false, Props}
     end;
+attempt(Owner, Props, Msg = {calc_next_attack_wait, _Attack, Attacker, Owner, _, _}) ->
+    log("attempt: ~p,~nprops: ~p~n", [Msg, Props]),
+    case proplists:get_value(is_alive, Props, false) of
+        false ->
+            log("~p cannot ~p to attack ~p when ~p is dead~n", [Attacker, calc_next_attack_wait, Owner, Owner]),
+            {{fail, target_is_dead}, _Subscribe = false, Props};
+        _ ->
+            {succeed, false, Props}
+    end;
+attempt(Owner, Props, Msg = {calc_next_attack_wait, _Attack, Owner, Target, _, _}) ->
+    log("attempt: ~p,~nprops: ~p~n", [Msg, Props]),
+    case proplists:get_value(is_alive, Props, false) of
+        false ->
+            log("~p cannot ~p to attack ~p when ~p is dead~n", [Owner, calc_next_attack_wait, Target, Target]),
+            {{fail, target_is_dead}, _Subscribe = false, Props};
+        _ ->
+            {succeed, false, Props}
+    end;
 attempt(Owner, Props, Msg = {attack, _Attack, Attacker, Owner}) ->
     log("attempt: ~p, props: ~p~n", [Msg, Props]),
     case proplists:get_value(is_alive, Props, false) of
@@ -62,11 +83,12 @@ attempt(Owner, Props, Msg = {attack, _Attack, Attacker, Owner}) ->
         _ ->
             {succeed, false, Props}
     end;
-attempt(Owner, Props, Msg = {attack, _Attack, Owner, _Target}) ->
+attempt(Owner, Props, Msg = {attack, _Attack, Owner, Target}) ->
     log("attempt: ~p, props: ~p~n", [Msg, Props]),
     case proplists:get_value(is_alive, Props, false) of
         false ->
-            FailMsg = lists:flatten(io_lib:format("~p cannot attack when dead~n", [Owner])),
+            FailMsg = lists:flatten(io_lib:format("~p cannot attack ~p when ~p is dead~n",
+                                                  [Owner, Target, Owner])),
             log("~p", [FailMsg]),
             {{fail, attacker_is_dead}, _Subscribe = false, Props};
         _ ->
@@ -96,6 +118,11 @@ attempt(Owner, Props, {calc_hit, Attack, Attacker, Owner, _}) ->
 attempt(_Owner, Props, _Msg) ->
     {succeed, false, Props}.
 
+succeed(Props, {killed, _Attack, Source, Owner}) ->
+    log("Character ~p killed by ~p, sending die: ~p~nprops: ~p~n",
+        [Owner, Source, Owner, Props]),
+    erlmud_object:attempt(self(), {die, Owner}),
+    Props;
 succeed(Props, {die, Target}) ->
     Owner = proplists:get_value(owner, Props),
     case Target of

@@ -31,8 +31,17 @@ attempt(Owner, Props, {move, Owner, _Src, _Target}) ->
     {succeed, true, Props};
 attempt(Owner, Props, {attack, NotSelf, Owner, _Target}) when self() /= NotSelf ->
     {succeed, true, Props};
+%% die means that our character has died
 attempt(Owner, Props, {die, Owner}) ->
     {succeed, true, Props};
+attempt(Owner, Props, {Action, Self, Owner, Target})
+  when Self == self(),
+       is_pid(Target) ->
+    ShouldSubscribe = lists:member(Action, [attack, calc_hit, calc_damage, damage, killed]),
+    {succeed, ShouldSubscribe, Props};
+attempt(Owner, Props, Msg = {stop_attack, Owner}) ->
+    log("Attempt: ~p~n\tProps: ~p~n", [Msg, Props]),
+    {succeed, _Subscribe = true, Props};
 attempt(_Owner, Props, Msg) ->
     attempt(Props, Msg).
 
@@ -43,11 +52,6 @@ attempt(Props, {calc_hit, Self, _, _}) when Self == self() ->
         _ ->
             {succeed, true, Props}
     end;
-attempt(Props, {Action, Self, _, Target})
-  when Self == self(),
-       is_pid(Target) ->
-    ShouldSubscribe = lists:member(Action, [attack, calc_hit, calc_damage, damage, killed]),
-    {succeed, ShouldSubscribe, Props};
 attempt(Props, Msg) ->
     log("Attempt: ~p~n\tProps: ~p~n", [Msg, Props]),
     {succeed, false, Props}.
@@ -104,21 +108,20 @@ succeed(Props, {calc_next_attack_wait, Self, Source, Target, Sent, Wait}) ->
                                 self(),
                                 {calc_hit, Self, Source, Target, 1}),
     Props;
-succeed(Props, Msg = {killed, Self, Source, Target}) when Self == self() ->
-    log("Killed it! Huzzah!~nMessage: ~p~nProps: ~p~n", [Msg, Props]),
-    erlmud_object:attempt(self(), {stop_attack, self(), Source, Target}),
-    Props;
-succeed(Props, {stop_attack, Self, _, _}) when Self == self() ->
-    {stop, Props};
 succeed(Props, {die, _Owner}) ->
-    {stop, Props};
+    erlmud_object:attempt(self(), {stop_attack, self()}),
+    Props;
+succeed(Props, {stop_attack, Self}) when Self == self() ->
+    {stop, stop_attack, Props};
+
 succeed(Props, Msg) ->
     log("saw ~p succeed with props ~p~n", [Msg, Props]),
     Props.
 
 fail(Props, target_is_dead, _Message) ->
     log("Stopping because target is dead~n", []),
-    {stop, Props};
+    erlmud_object:attempt(self(), {stop_attack, self()}),
+    Props;
 fail(Props, _Reason, _Message) ->
     Props.
 

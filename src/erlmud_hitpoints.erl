@@ -30,40 +30,27 @@ attempt(Owner, Props, {damage, _Att, _Src, Owner, _Dmg}) ->
 attempt(_Owner, Props, _Msg) ->
     {succeed, false, Props}.
 
-succeed(Props, {damage, _Attack, _Source, Target, Damage}) ->
-    Owner = proplists:get_value(owner, Props),
-    case Owner == Target of
-        true ->
-            take_damage(Damage, Props);
-        _ ->
-            Props
-    end;
-succeed(Props, {die, _}) ->
-    Props;
+succeed(Props, {damage, Attack, Source, Owner, Damage}) ->
+    take_damage(Attack, Source, Owner, Damage, Props);
 succeed(Props, Msg) ->
     log("saw ~p succeed with props ~p~n", [Msg, Props]),
-    %throw(should_never_happen).
     Props.
 
-% What was this for? Wouldn't match since Message is a string
-%fail(Props, {damage, _, _, _, _} = Message, _Reason) ->
-    %log("saw ~p fail with props ~p~n", [Message, Props]);
 fail(Props, Message, _Reason) ->
     log("saw ~p fail with props ~p~n", [Message, Props]),
-    %throw(should_never_happen).
     Props.
 
 log(Msg, Format) ->
     erlmud_event_log:log("~p:~n" ++ Msg, [?MODULE | Format]).
 
-take_damage(Damage, Props) ->
+take_damage(Attack, Source, Owner, Damage, Props) ->
     log("took ~p damage~nProps: ~p~n", [Damage, Props]),
     Hp = proplists:get_value(hitpoints, Props, 0) - Damage,
     case Hp of
         X when X < 1 ->
             log("dying", []),
             Owner = proplists:get_value(owner, Props),
-            erlmud_object:attempt(Owner, {die, Owner});
+            erlmud_object:attempt(Owner, {killed, Attack, Source, Owner});
         _ ->
             ok
     end,

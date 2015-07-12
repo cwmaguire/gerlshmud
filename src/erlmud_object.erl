@@ -18,6 +18,7 @@
 -export([start_link/3]).
 -export([populate/2]).
 -export([attempt/2]).
+-export([attempt/3]).
 -export([attempt_after/3]).
 -export([add/3]).
 -export([remove/3]).
@@ -63,8 +64,16 @@ populate(Pid, ProcIds) ->
     send(Pid, {populate, ProcIds}).
 
 attempt(Pid, Msg) ->
-    Caller = self(),
-    send(Pid, {attempt, Msg, #procs{subs = [Caller]}}).
+    attempt(Pid, Msg, _ShouldSubscribe = true).
+
+attempt(Pid, Msg, ShouldSubscribe) ->
+    Subs = case ShouldSubscribe of
+               true ->
+                   [self()];
+               _ ->
+                   []
+           end,
+    send(Pid, {attempt, Msg, #procs{subs = Subs}}).
 
 attempt_after(Milis, Pid, Msg) ->
     log("attempt after ~p, Pid = ~p~nMsg = ~p~n", [Milis, Pid, Msg]),
@@ -86,6 +95,7 @@ set(Pid, Prop) ->
 %% gen_server.
 
 init({Type, Props}) ->
+    process_flag(trap_exit, true),
     {ok, #state{type = Type, props = Props}}.
 
 handle_call(props, _From, State) ->
@@ -113,19 +123,23 @@ handle_cast({fail, Reason, Msg}, State) ->
     case fail(Reason, Msg, State) of
         {stop, Props} ->
             %% TODO: remove from index
-            {stop, Reason, State#state{props = Props}};
+            {stop, {shutdown, Reason}, State#state{props = Props}};
         Props ->
             {noreply, State#state{props = Props}}
     end;
 handle_cast({succeed, Msg}, State) ->
     case succeed(Msg, State) of
-        {stop, Props} ->
-            %% TODO: remove from index
-            {stop, no_reason, State#state{props = Props}};
+        {stop, Reason, Props} ->
+            {stop, {shutdown, Reason}, State#state{props = Props}};
         Props ->
             {noreply, State#state{props = Props}}
      end.
 
+handle_info({'EXIT', From, Reason}, State = #state{props = Props}) ->
+    log("handle_info EXIT Pid = ~p~nReason = ~p~nProps: ~p~n", [From, Reason, Props]),
+    Props2 = lists:keydelete(From, 2, Props),
+    log("Props with dead pid removed:~n~p~n", [Props2]),
+    {noreply, State#state{props = Props2}};
 handle_info({Pid, Msg}, State) ->
     log("handle_info attempt Pid = ~p~nMsg = ~p~n", [Pid, Msg]),
     attempt(Pid, Msg),
@@ -134,8 +148,12 @@ handle_info(Unknown, State) ->
     log("Unknown Message: ~p~n", [Unknown]),
     {noreply, State}.
 
-terminate(_Reason, _State) ->
-    ct:pal("erlmud_object ~p shutting down~n", [self()]),
+terminate(Reason, State) ->
+    log("erlmud_object ~p shutting down~nReason: ~p~nState:~n\t~p~n",
+           [self(), Reason, State]),
+    erlmud_index:del(self()),
+    ct:pal("erlmud_object ~p shutting down~nReason: ~p~nState:~n\t~p~n",
+           [self(), Reason, State]),
     ok.
 
 code_change(_OldVsn, State, _Extra) ->
@@ -187,26 +205,29 @@ handle(succeed, Msg, Procs = #procs{subs = Subs}) ->
 
 send(Pid, Msg) ->
     Id = erlmud_index:get(Pid),
-    gen_server:cast(Pid, Msg),
-    log("Sending:~nPid: ~p (~p)~nMsg: ~p~n", [Pid, Id, Msg]).
+    log("Sending:~nPid: ~p (~p)~nMsg: ~p~nPid is alive? ~p~n",
+        [Pid, Id, Msg, is_process_alive(Pid)]),
+    gen_server:cast(Pid, Msg).
 
 
 populate_(Props, IdPids) ->
     [{K, proc(V, IdPids)} || {K, V} <- Props].
 
-procs(Props) ->
-    log("looking for pids in ~p~n", [Props]),
-    Pids = [Pid || {_, Pid} <- Props, is_pid(Pid)],
-    DeadPids = [{Pid, erlmud_index:get(Pid)} || Pid <- Pids, not is_process_alive(Pid)],
-    log("dead pids: ~p~n", [DeadPids]),
-    PidIds = [{Pid, erlmud_index:get(Pid)} || Pid <- Pids, is_process_alive(Pid)],
-    log("found pids: ~p~n", [PidIds]),
-    Pids.
-
 proc(Value, IdPids) when is_atom(Value) ->
-    proplists:get_value(Value, IdPids, Value);
+    Pid = proplists:get_value(Value, IdPids, Value),
+    case is_pid(Pid) of
+        true ->
+            log("Linking to pid: ~p for value ~p~n", [Pid, Value]),
+            link(Pid);
+        false ->
+            log("Property value is not a pid: ~p~n", [Value])
+    end,
+    Pid;
 proc(Value, _) ->
     Value.
+
+procs(Props) ->
+    [Pid || {_, Pid} <- Props, is_pid(Pid)].
 
 merge(_, _, {{resend, _, _, _}, _, _, _}, _) ->
     undefined;
