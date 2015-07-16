@@ -18,7 +18,6 @@
 -export([start_link/3]).
 -export([populate/2]).
 -export([attempt/2]).
--export([attempt/3]).
 -export([attempt_after/3]).
 -export([add/3]).
 -export([remove/3]).
@@ -45,7 +44,7 @@
 -type attempt() :: {atom(), Pid, Pid, Pid}.
 
 -callback attempt(pid(), proplist(), tuple()) ->
-    {succeed | {fail, string()} | {resend, attempt()}, boolean(), proplist()}.
+    {succeed | {fail, atom()} | {resend, attempt()}, boolean(), proplist()}.
 -callback succeed(proplist(), tuple()) -> proplist().
 -callback fail(proplist(), string(), tuple()) -> proplist().
 -callback added(atom(), pid()) -> ok.
@@ -64,16 +63,7 @@ populate(Pid, ProcIds) ->
     send(Pid, {populate, ProcIds}).
 
 attempt(Pid, Msg) ->
-    attempt(Pid, Msg, _ShouldSubscribe = true).
-
-attempt(Pid, Msg, ShouldSubscribe) ->
-    Subs = case ShouldSubscribe of
-               true ->
-                   [self()];
-               _ ->
-                   []
-           end,
-    send(Pid, {attempt, Msg, #procs{subs = Subs}}).
+    send(Pid, {attempt, Msg, #procs{}}).
 
 attempt_after(Milis, Pid, Msg) ->
     log("attempt after ~p, Pid = ~p~nMsg = ~p~n", [Milis, Pid, Msg]),

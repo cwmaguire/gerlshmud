@@ -47,7 +47,12 @@ attempt(Props, {move, Obj, FromRoom, Exit}) when is_atom(Exit) ->
     move(Props, Obj, Rooms, Exit);
 attempt(Props, {move, Obj, Source, Target}) ->
     log("Process ~p wants to leave room ~p for ~p~n", [Obj, Source, Target]),
-    {succeed, true, Props};
+    case self() == Obj andalso proplists:get_value(locked, Props) of
+        true ->
+            {{fail, locked}, false, Props};
+        _ ->
+            {succeed, true, Props}
+    end;
 attempt(Props, _Msg) ->
     %log("~p ~p: ignoring attempt ~p~n", [?MODULE, self(), Msg]),
     {succeed, false, Props}.

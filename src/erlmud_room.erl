@@ -71,7 +71,7 @@ fail(Props, Reason, {move, Obj, Self, Target}) when Self == self() ->
     log("~p couldn't go from here to ~p~n\t~p~n", [Obj, Target, Reason]),
     Props;
 fail(Props, Reson, {move, Obj, Source, Self}) when Self == self() ->
-    log("Room ~p: ~p couldn't come here from ~p~n\t~p~n", [Obj, Source, Reson]),
+    log("Room ~p: ~p couldn't come here from ~p~n\t~p~n", [Obj, Source, Reson, Props]),
     Props.
 
 log(Msg, Format) ->
