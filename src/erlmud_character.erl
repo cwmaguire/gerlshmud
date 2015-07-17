@@ -83,6 +83,8 @@ attempt(Props, {calc_next_attack_wait, Attack, Self, Target, Sent, Wait})
      Props};
 attempt(Props, {move, Self, _, _}) when Self == self() ->
     {succeed, true, Props};
+attempt(Props, {move, Self, _, _, _}) when Self == self() ->
+    {succeed, true, Props};
 attempt(Props, {attack, Self, _}) when Self == self() ->
     {succeed, true, Props};
 attempt(Props, {stop_attack, Attack}) ->
@@ -93,10 +95,11 @@ attempt(Props, Msg) ->
     log("attempt: ~p~nProps: ~p~n", [Msg, Props]),
     {succeed, false, Props}.
 
-succeed(Props, {move, Self, Source, Target}) when Self == self(), is_pid(Target) ->
+succeed(Props, {move, Self, Source, Target, _Exit}) when Self == self() ->
     log("moved from ~p to ~p~n", [Source, Target]),
     erlmud_object:remove(Source, character, self()),
     erlmud_object:add(Target, character, self()),
+    log("setting ~p's room to ~p~n", [Self, Target]),
     set(room, Target, Props);
 succeed(Props, {move, Self, Source, Direction}) when Self == self(), is_atom(Direction) ->
     log("succeeded in moving ~p from ~p~n", [Direction, Source]),

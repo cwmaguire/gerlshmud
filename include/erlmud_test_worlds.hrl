@@ -1,9 +1,9 @@
--define(WORLD_1, [{erlmud_room, room_nw, [{exit, exit_ns}, {exit, exit_ew}, {player, player}]},
+-define(WORLD_1, [{erlmud_room, room_nw, [{exit, exit_ns}, {exit, exit_ew}, {character, player}]},
                   {erlmud_room, room_s, [{exit, exit_ns}]},
                   {erlmud_room, room_e, [{exit, exit_ew}]},
                   {erlmud_character, player, [{room, room_nw}]},
                   {erlmud_exit, exit_ns, [{{room, n}, room_nw}, {{room, s}, room_s}]},
-                  {erlmud_exit, exit_ew, [{{room, w}, room_nw}, {{room, e}, room_e}, {locked, true}]}]).
+                  {erlmud_exit, exit_ew, [{{room, w}, room_nw}, {{room, e}, room_e}, {is_locked, true}]}]).
 
 -define(WORLD_2, [{erlmud_room, room, [{player, player}, {item, sword}, {item, apple}]},
                   {erlmud_character, player, [{room, room}, {item, helmet}]},

@@ -18,6 +18,7 @@
 -export([start_link/3]).
 -export([populate/2]).
 -export([attempt/2]).
+-export([attempt/3]).
 -export([attempt_after/3]).
 -export([add/3]).
 -export([remove/3]).
@@ -63,7 +64,16 @@ populate(Pid, ProcIds) ->
     send(Pid, {populate, ProcIds}).
 
 attempt(Pid, Msg) ->
-    send(Pid, {attempt, Msg, #procs{}}).
+    attempt(Pid, Msg, _ShouldSubscribe = true).
+
+attempt(Pid, Msg, ShouldSubscribe) ->
+    Subs = case ShouldSubscribe of
+               true ->
+                   [self()];
+               _ ->
+                   []
+           end,
+    send(Pid, {attempt, Msg, #procs{subs = Subs}}).
 
 attempt_after(Milis, Pid, Msg) ->
     log("attempt after ~p, Pid = ~p~nMsg = ~p~n", [Milis, Pid, Msg]),

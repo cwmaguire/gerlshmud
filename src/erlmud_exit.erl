@@ -45,12 +45,13 @@ attempt(Props, {move, Obj, FromRoom, Exit}) when is_atom(Exit) ->
     log("Process ~p wants to leave room ~p via exit ~p~n", [Obj, FromRoom, Exit]),
     Rooms = [Room || Room = {_, FromRoom_} <- Props, FromRoom_ == FromRoom],
     move(Props, Obj, Rooms, Exit);
-attempt(Props, {move, Obj, Source, Target}) ->
-    log("Process ~p wants to leave room ~p for ~p~n", [Obj, Source, Target]),
-    case self() == Obj andalso proplists:get_value(locked, Props) of
-        true ->
-            {{fail, locked}, false, Props};
-        _ ->
+attempt(Props, {move, Mover, Source, Target, Self}) when Self == self() ->
+    log("Process ~p wants to leave room ~p for ~p~nProps: ~p~n", [Mover, Source, Target, Props]),
+    %case has_rooms(Props, Source, Target) andalso
+    case blocked_reason(Props) of
+        {blocked_because, Reason} ->
+            {{fail, Reason}, false, Props};
+        not_blocked ->
             {succeed, true, Props}
     end;
 attempt(Props, _Msg) ->
@@ -72,13 +73,22 @@ move(Props, Obj, [{{room, FromExit}, FromRoom}], ToExit) when FromExit /= ToExit
         [{_, ToRoom}] ->
             log("Found room ~p with exit ~p connected to room ~p (exit ~p)~n",
                 [ToRoom, ToExit, FromRoom, FromExit]),
-            NewMsg = {move, Obj, FromRoom, ToRoom},
+            NewMsg = {move, Obj, FromRoom, ToRoom, self()},
             {{resend, Obj, NewMsg}, false, Props};
         [] ->
             {succeed, false, Props}
     end;
 move(Props, _, _, _) ->
     {succeed, false, Props}.
+
+%% TODO: add things like is_one_way, is_open, is_right_size, etc.
+blocked_reason(Props) ->
+    case proplists:get_value(is_locked, Props, false) of
+        true ->
+            {blocked_because, locked};
+        _ ->
+            not_blocked
+    end.
 
 log(Msg, Format) ->
     erlmud_event_log:log("~p:~n" ++ Msg, [?MODULE | Format]).
