@@ -16,11 +16,15 @@
 -behaviour(erlmud_object).
 
 %% object behaviour
+-export([id/3]).
 -export([added/2]).
 -export([removed/2]).
 -export([attempt/3]).
 -export([succeed/2]).
 -export([fail/3]).
+
+id(_Props, Owner, Pid) ->
+    "behaviour_for_" ++ Owner ++ "_" ++ Pid.
 
 added(_, _) -> ok.
 removed(_, _) -> ok.

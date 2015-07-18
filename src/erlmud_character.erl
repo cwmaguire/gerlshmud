@@ -16,11 +16,15 @@
 -behaviour(erlmud_object).
 
 %% object behaviour
+-export([id/3]).
 -export([added/2]).
 -export([removed/2]).
 -export([attempt/3]).
 -export([succeed/2]).
 -export([fail/3]).
+
+id(Props, _Owner, Pid) ->
+    "character_" ++ proplists:get_value(name, Props, "NoName") ++ "_" ++ Pid.
 
 added(_, _) -> ok.
 removed(_, _) -> ok.
@@ -63,14 +67,14 @@ attempt(Props, {drop, Self, Pid}) when Self == self(), is_pid(Pid) ->
             {succeed, _Interested = false, Props}
     end;
 attempt(Props, {attack, Attack, Attacker, Name}) when is_list(Name) ->
-    log("Checking if name ~p matches", [Name]),
+    log(debug, ["Checking if name ", Name, " matches"]),
     case re:run(proplists:get_value(name, Props, ""), Name, [{capture, none}]) of
         match ->
             log("resending {attack, ~p, ~p} as {attack, ~p, ~p}~n",
                 [Attacker, Name, Attacker, self()]),
             {{resend, Attack, {attack, Attack, Attacker, self()}}, true, Props};
         _ ->
-            log("Name ~p did not match.~n\tProps: ~p~n", [Name, Props]),
+            log(debug, ["Name ", Name, " did not match.\n\tProps: ~p~n", [Name, Props]),
             {succeed, false, Props}
     end;
 attempt(Props, {calc_next_attack_wait, Attack, Self, Target, Sent, Wait})
@@ -151,5 +155,6 @@ attack(Target, Props) ->
     erlmud_object:attempt(Attack, {attack, Attack, self(), Target}),
     [{attack, Attack} | Props].
 
+%% handle_cast({log, From, To, Props, Stage, {Action, Params}, Room, Next, Done, Subs}, State) ->
 log(Msg, Format) ->
     erlmud_event_log:log("~p:~n" ++ Msg, [?MODULE | Format]).

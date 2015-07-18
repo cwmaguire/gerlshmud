@@ -16,6 +16,7 @@
 -behaviour(erlmud_object).
 
 %% object behaviour
+-export([id/3]).
 -export([added/2]).
 -export([removed/2]).
 -export([attempt/3]).
@@ -24,6 +25,10 @@
 
 %% internal
 -export([is_attached_to_room/2]).
+
+id(Props, _Owner, Pid) ->
+    Directions = [atom_to_list(Dir) || {{room, Dir}, _} <- Props],
+    "exit_" ++ string:join(Directions, "_") ++ "_" ++ Pid.
 
 added(_, _) -> ok.
 removed(_, _) -> ok.

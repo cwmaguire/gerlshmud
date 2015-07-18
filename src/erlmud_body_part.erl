@@ -16,12 +16,17 @@
 -behaviour(erlmud_object).
 
 %% object behaviour
+-export([id/3]).
 -export([added/2]).
 -export([removed/2]).
 -export([attempt/3]).
 -export([succeed/2]).
 -export([fail/3]).
 -export([died/3]).
+
+id(Props, Owner, Pid) ->
+    Name = proplists:get_value(name, Props, "NoName"),
+    "body_part_" ++ Name ++ "_of_" ++ Owner ++ "_" ++ Pid.
 
 added(_, _) -> ok.
 removed(_, _) -> ok.

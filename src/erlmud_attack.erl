@@ -16,6 +16,7 @@
 -behaviour(erlmud_object).
 
 %% object behaviour
+-export([id/3]).
 -export([added/2]).
 -export([removed/2]).
 -export([attempt/3]).
@@ -23,6 +24,9 @@
 -export([fail/3]).
 
 -define(PROPS, [{hit, 0}, {miss, 0}]).
+
+id(_Props, Owner, Pid) ->
+    "attack_by_" ++ Owner ++ "_" ++ Pid.
 
 added(_, _) -> ok.
 removed(_, _) -> ok.

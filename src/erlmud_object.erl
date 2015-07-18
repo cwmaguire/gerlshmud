@@ -44,6 +44,7 @@
 -type proplist() :: [{atom(), any()}].
 -type attempt() :: {atom(), Pid, Pid, Pid}.
 
+-callback id(proplist(), list(), list()) -> list().
 -callback attempt(pid(), proplist(), tuple()) ->
     {succeed | {fail, atom()} | {resend, attempt()}, boolean(), proplist()}.
 -callback succeed(proplist(), tuple()) -> proplist().
@@ -56,8 +57,22 @@
 -spec start_link(any(), atom(), proplist()) -> {ok, pid()}.
 start_link(Id, Type, Props) ->
     {ok, Pid} = gen_server:start_link(?MODULE, {Type, Props}, []),
-    erlmud_index:put(Id, Pid),
+    erlmud_index:put(id(Id, Type, Props), Pid),
     {ok, Pid}.
+
+id(_Id = undefined, Type, Props) ->
+    Owner = case proplists:get_value(owner, Props, "NoOwner") of
+                Pid when is_pid(Pid) ->
+                    pid_to_list(Pid);
+                Atom when is_atom(Atom) ->
+                    atom_to_list(Atom);
+                List when is_list(List) ->
+                    List
+            end,
+    PidString = pid_to_list(self()),
+    Type:id(Props, Owner, PidString);
+id(Id, _, _) ->
+    Id.
 
 populate(Pid, ProcIds) ->
     log("populate on ~p~n", [Pid]),
@@ -104,6 +119,9 @@ handle_call({get, Key}, _From, State = #state{props = Props}) ->
     {reply, proplists:get_all_values(Key, Props), State};
 handle_call(_Request, _From, State) ->
     {reply, ignored, State}.
+
+handle_cast(Msg, State) ->
+    handle_cast_(Msg, State).
 
 handle_cast({populate, ProcIds}, State = #state{props = Props}) ->
     {noreply, State#state{props = populate_(Props, ProcIds)}};

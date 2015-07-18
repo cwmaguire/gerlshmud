@@ -16,11 +16,15 @@
 -behaviour(erlmud_object).
 
 %% object behaviour
+-export([id/3]).
 -export([added/2]).
 -export([removed/2]).
 -export([attempt/3]).
 -export([succeed/2]).
 -export([fail/3]).
+
+id(_Props, _Owner, Pid) ->
+    "room_" ++ Pid.
 
 has_pid(Props, Pid) ->
     lists:any(fun({_, Pid_}) when Pid == Pid_ -> true; (_) -> false end, Props).

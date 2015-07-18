@@ -16,11 +16,15 @@
 -behaviour(erlmud_object).
 
 %% object behaviour
+-export([id/3]).
 -export([added/2]).
 -export([removed/2]).
 -export([attempt/3]).
 -export([succeed/2]).
 -export([fail/3]).
+
+id(_Props, Owner, Pid) ->
+    "life_of_" ++ Owner ++ "_" ++ Pid.
 
 added(_, _) -> ok.
 removed(_, _) -> ok.
@@ -30,7 +34,7 @@ is_dead_action(revive) ->
 is_dead_action(_) ->
     false.
 
-attempt(Owner, Props, Msg = {killed, _Attack, Source, Owner}) ->
+attempt(Owner, Props, Msg = {killed, _Attack, _Source, Owner}) ->
     log("attempt: ~p, props: ~p~n", [Msg, Props]),
     {succeed, _Subscribe = true, Props};
 attempt(Owner, Props, Msg = {die, Owner}) ->
