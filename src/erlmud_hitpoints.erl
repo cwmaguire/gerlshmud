@@ -36,26 +36,26 @@ attempt(_Owner, Props, _Msg) ->
 
 succeed(Props, {damage, Attack, Source, Owner, Damage}) ->
     take_damage(Attack, Source, Owner, Damage, Props);
-succeed(Props, Msg) ->
-    log("saw ~p succeed with props ~p~n", [Msg, Props]),
+succeed(Props, _Msg) ->
+    %log("saw ~p succeed with props ~p~n", [Msg, Props]),
     Props.
 
 fail(Props, Message, _Reason) ->
-    log("saw ~p fail with props ~p~n", [Message, Props]),
+    log(["saw ", Message, " fail with props ", Props]),
     Props.
 
-log(Msg, Format) ->
-    erlmud_event_log:log("~p:~n" ++ Msg, [?MODULE | Format]).
-
 take_damage(Attack, Source, Owner, Damage, Props) ->
-    log("took ~p damage~nProps: ~p~n", [Damage, Props]),
+    %log("took ~p damage~nProps: ~p~n", [Damage, Props]),
     Hp = proplists:get_value(hitpoints, Props, 0) - Damage,
     case Hp of
         X when X < 1 ->
-            log("dying", []),
+            log(["dying"]),
             Owner = proplists:get_value(owner, Props),
             erlmud_object:attempt(Owner, {killed, Attack, Source, Owner});
         _ ->
             ok
     end,
     lists:keystore(hitpoints, 1, Props, {hitpoints, Hp}).
+
+log(Terms) ->
+    erlmud_event_log:log([?MODULE | Terms]).

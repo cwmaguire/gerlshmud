@@ -36,47 +36,46 @@ attempt(_Owner, Props, Msg) ->
     attempt(Props, Msg).
 
 attempt(Props, {move, Obj, Self, Target}) when Self == self() ->
-    log("~p wants to go to ~p from here~n", [Obj, Target]),
+    log([Obj, " wants to go to ", Target, " from here"]),
     {succeed, true, Props};
 attempt(Props, {move, Obj, Source, Self}) when Self == self() ->
-    log("~p wants to come here from ~p~n", [Obj, Source]),
+    log([Obj, " wants to come here from ", Source]),
     {succeed, true, Props};
 attempt(Props, {get, Obj, Pid}) when is_pid(Pid) ->
-    log("~p wants to get ~p~n", [Obj, Pid]),
+    log([Obj, " wants to get ", Pid]),
     case has_pid(Props, Pid) of
         true ->
-            log("~p resending {get, ~p, ~p} as {get, ~p, ~p, ~p}~n",
-                      [?MODULE, Obj, Pid, Obj, Pid, self()]),
+            log([Obj, " resending {get, ", Obj, ", ", Pid, "} as {get, ", Obj, ", ", Pid, ", ", self(), "}"]),
             {{resend, Obj, {get, Obj, Pid, self()}}, true, Props};
         _ ->
             {succeed, _Interested = false, Props}
     end;
 attempt(Props, Msg) ->
-    log("ignoring attempt ~p~n", [Msg]),
+    log(["ignoring attempt ", Msg]),
     {succeed, false, Props}.
 
 succeed(Props, {move, Obj, Self, Target}) when Self == self() ->
-    log("~p left for ~p~n", [Obj, Target]),
+    log([Obj, ", ", Target]),
     Props;
 succeed(Props, {move, Obj, Source, Self}) when Self == self() ->
-    log("~p came from ~p~n", [Obj, Source]),
+    log([Obj, " came from ", Source]),
     Props;
 succeed(Props, {move, Obj, Source, Target}) ->
-    log("Process ~p went from ~p to ~p~n", [Obj, Source, Target]),
+    log(["Process ", Obj, " went from ", Source, " to ", Target]),
     Props;
 succeed(Props, {get, Obj, Item, Self}) when Self == self() ->
-    log("Process ~p got ~p from me~n", [Obj, Item]),
+    log(["Process ", Obj, " got ", Item, " from me"]),
     Props;
 succeed(Props, Msg) ->
-    log("~p saw ~p succeed with props ~p~n", [?MODULE, Msg, Props]),
+    log(["saw ", Msg, " succeed with props ", Props]),
     Props.
 
 fail(Props, Reason, {move, Obj, Self, Target}) when Self == self() ->
-    log("~p couldn't go from here to ~p~n\t~p~n", [Obj, Target, Reason]),
+    log([Obj, " couldn't go from here to ", Target, " ", Reason]),
     Props;
-fail(Props, Reson, {move, Obj, Source, Self}) when Self == self() ->
-    log("Room ~p: ~p couldn't come here from ~p~n\t~p~n", [Obj, Source, Reson, Props]),
+fail(Props, Reason, {move, Obj, Source, Self}) when Self == self() ->
+    log(["Room ", Self, ": ", Obj, " couldn't come here from ", Source, "Reason: ", Reason, ", Props: ", Props]),
     Props.
 
-log(Msg, Format) ->
-    erlmud_event_log:log("~p:~n" ++ Msg, [?MODULE | Format]).
+log(Terms) ->
+    erlmud_event_log:log([?MODULE | Terms]).

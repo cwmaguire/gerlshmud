@@ -72,7 +72,7 @@ attempt(Owner, Props, {calc_damage, Attack, Owner, Target, Damage}) ->
     UpdatedMsg = {calc_damage, Attack, Owner, Target, UpdatedDmg},
     {succeed, UpdatedMsg, false, Props};
 attempt(_Owner, Props, Msg = {Action, _, Self, _}) when Self == self() ->
-    log("subscribed attempt: ~p, props: ~p~n", [Msg, Props]),
+    log(["subscribed attempt: ", Msg, ", props: ", Props]),
     {succeed, lists:member(Action, [get, drop]), Props};
 attempt(_Owner, Props, _Msg) ->
     {succeed, false, Props}.
@@ -82,18 +82,18 @@ succeed(Props, {get, Receiver, Self, Owner}) when Self == self() ->
 succeed(Props, {drop, Owner, Self, Receiver}) when Self == self() ->
     move(Props, Owner, Receiver);
 succeed(Props, Msg) ->
-    log("saw ~p succeed with props ~p~n", [Msg, Props]),
+    log(["saw ", Msg, " succeed with props ", Props]),
     Props.
 
 fail(Props, Result, Msg) ->
-    log("result: ~p message: ~p~n", [Result, Msg]),
+    log(["result: ", Result, " message: ", Msg]),
     Props.
 
 move(Props, Owner, Receiver) ->
-    log("moving from ~p to ~p~n", [Owner, Receiver]),
+    %log("moving from ~p to ~p~n", [Owner, Receiver]),
     gen_server:cast(Owner, {remove, item, self()}),
     gen_server:cast(Receiver, {add, item, self()}),
     set(owner, Receiver, Props).
 
-log(Msg, Format) ->
-    erlmud_event_log:log("~p:~n" ++ Msg, [?MODULE | Format]).
+log(Terms) ->
+    erlmud_event_log:log([?MODULE | Terms]).

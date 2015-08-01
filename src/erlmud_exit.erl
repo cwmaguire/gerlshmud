@@ -47,11 +47,11 @@ attempt(_Owner, Props, Msg) ->
 attempt(Props, {move, Obj, FromRoom, Exit}) when is_atom(Exit) ->
     %% If I have an exit to the Source room and a _different_ exit with name Exit
     %% then I should translate the message to a {move, Obj, Source, Target} message.
-    log("Process ~p wants to leave room ~p via exit ~p~n", [Obj, FromRoom, Exit]),
+    log(["Process ", Obj, "wants to leave room ", FromRoom, " via exit ", Exit, "\n"]),
     Rooms = [Room || Room = {_, FromRoom_} <- Props, FromRoom_ == FromRoom],
     move(Props, Obj, Rooms, Exit);
 attempt(Props, {move, Mover, Source, Target, Self}) when Self == self() ->
-    log("Process ~p wants to leave room ~p for ~p~nProps: ~p~n", [Mover, Source, Target, Props]),
+    log(["Process ", Mover, " wants to leave room ", Source, " for ", Target, "\n"]),
     %case has_rooms(Props, Source, Target) andalso
     case blocked_reason(Props) of
         {blocked_because, Reason} ->
@@ -60,15 +60,14 @@ attempt(Props, {move, Mover, Source, Target, Self}) when Self == self() ->
             {succeed, true, Props}
     end;
 attempt(Props, _Msg) ->
-    %log("~p ~p: ignoring attempt ~p~n", [?MODULE, self(), Msg]),
     {succeed, false, Props}.
 
 succeed(Props, Message) ->
-    log("Message ~p succeeded~n", [Message]),
+    log(["Message ", Message, " succeeded"]),
     Props.
 
 fail(Props, Result, Msg) ->
-    log("~p message: ~p~n", [Result, Msg]),
+    log([Result, " message: ", Msg]),
     Props.
 
 move(Props, Obj, [{{room, FromExit}, FromRoom}], ToExit) when FromExit /= ToExit ->
@@ -76,8 +75,8 @@ move(Props, Obj, [{{room, FromExit}, FromRoom}], ToExit) when FromExit /= ToExit
                   ToRoom /= FromRoom,
                   ToExit_ == ToExit] of
         [{_, ToRoom}] ->
-            log("Found room ~p with exit ~p connected to room ~p (exit ~p)~n",
-                [ToRoom, ToExit, FromRoom, FromExit]),
+            log(["Found room ", ToRoom, " with exit ", ToExit, " connected to room ", FromRoom,
+                 " (exit ", FromExit, ")"]),
             NewMsg = {move, Obj, FromRoom, ToRoom, self()},
             {{resend, Obj, NewMsg}, false, Props};
         [] ->
@@ -95,5 +94,5 @@ blocked_reason(Props) ->
             not_blocked
     end.
 
-log(Msg, Format) ->
-    erlmud_event_log:log("~p:~n" ++ Msg, [?MODULE | Format]).
+log(Terms) ->
+    erlmud_event_log:log(debug, [?MODULE | Terms]).

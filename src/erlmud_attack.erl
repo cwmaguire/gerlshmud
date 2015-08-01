@@ -44,7 +44,7 @@ attempt(Owner, Props, {Action, Self, Owner, Target})
     ShouldSubscribe = lists:member(Action, [attack, calc_hit, calc_damage, damage, killed]),
     {succeed, ShouldSubscribe, Props};
 attempt(Owner, Props, Msg = {stop_attack, Owner}) ->
-    log("Attempt: ~p~n\tProps: ~p~n", [Msg, Props]),
+    log([<<"Attempt: ">>, Msg, <<" Props: ">>, Props]),
     {succeed, _Subscribe = true, Props};
 attempt(_Owner, Props, Msg) ->
     attempt(Props, Msg).
@@ -57,7 +57,7 @@ attempt(Props, {calc_hit, Self, _, _}) when Self == self() ->
             {succeed, true, Props}
     end;
 attempt(Props, Msg) ->
-    log("Attempt: ~p~n\tProps: ~p~n", [Msg, Props]),
+    log([<<"Attempt: ">>, Msg, <<" Props: ">>, Props]),
     {succeed, false, Props}.
 
 succeed(Props, {Action, NotSelf, Owner, Target}) when Action == move orelse
@@ -119,11 +119,11 @@ succeed(Props, {stop_attack, Self}) when Self == self() ->
     {stop, stop_attack, Props};
 
 succeed(Props, Msg) ->
-    log("saw ~p succeed with props ~p~n", [Msg, Props]),
+    log([<<"saw ">>, Msg, <<" succeed with props ">>, Props]),
     Props.
 
 fail(Props, target_is_dead, _Message) ->
-    log("Stopping because target is dead~n", []),
+    log([<<"Stopping because target is dead">>]),
     erlmud_object:attempt(self(), {stop_attack, self()}),
     Props;
 fail(Props, _Reason, _Message) ->
@@ -154,5 +154,5 @@ subtract(T1, from, T2) ->
 milis({M,S,U}) ->
     M * 1000 * 1000 * 1000 + S * 1000 + round(U / 1000).
 
-log(Msg, Format) ->
-    erlmud_event_log:log("~p:~n" ++ Msg, [?MODULE | Format]).
+log(Terms) ->
+    erlmud_event_log:log([?MODULE | Terms]).

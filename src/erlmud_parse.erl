@@ -21,16 +21,16 @@
 %% on real exits (and also allow creating new exits while playing)
 
 parse(Player, <<"n">>) ->
-    log("Moving n~n", []),
+    log(["Moving n"]),
     {move, Player, n};
 parse(Player, <<"get ", Item/binary>>) ->
-    log("Getting ~p~n", [Item]),
+    log(["Getting ", Item]),
     {get, Player, binary_to_list(Item)};
 parse(Player, <<"drop ", Item/binary>>) ->
-    log("Dropping ~p~n", [Item]),
+    log(["Dropping ", Item]),
     {drop, Player, binary_to_list(Item)};
 parse(_, _) ->
     {error, "Huh?"}.
 
-log(Msg, Format) ->
-    erlmud_event_log:log("~p:~n" ++ Msg, [?MODULE | Format]).
+log(Terms) ->
+    erlmud_event_log:log([?MODULE | Terms]).

@@ -45,20 +45,22 @@ can_add(Props, Item) ->
              fun has_space/2], Props, Item, true).
 
 can_add([], _, _, Result) ->
-    log("can_add([], _, _, ~p)~n", [Result]),
+    log(["can_add([], _, _, ", Result ,")"]),
     Result;
 can_add(_, _, _, {false, Reason}) ->
-    log("can_add([_ | _], _, _, {false, ~p})~n", [Reason]),
+    log(["can_add([_ | _], _, _, {false, ", Reason,"})"]),
     {false, Reason};
 can_add([Fun | Funs], Props, Item, true) ->
-    log("can_add([~p | ~p], ~p, ~p, true)~n", [Fun, Funs, Props, Item]),
+    log(["can_add([", Fun, " | ", Funs, "], ", Props, ", ", Item, ", true)"]),
     can_add(Funs, Props, Item, Fun(Props, Item)).
 
 has_matching_body_part(Props, Item) ->
     BodyPart = proplists:get_value(body_part, Props, any),
     ItemBodyParts = lists:flatten(erlmud_object:get(Item, body_parts)),
-    log("has_matching_body_part(~p, ~p):~n~p~n",
-        [BodyPart, ItemBodyParts, {BodyPart, lists:member(BodyPart, ItemBodyParts)}]),
+    log(["has_matching_body_part(", BodyPart,
+         ", ", ItemBodyParts, "):",
+         " {", BodyPart,
+         lists:member(BodyPart, ItemBodyParts), "}"]),
     case {BodyPart, lists:member(BodyPart, ItemBodyParts)} of
         {any, _} ->
             true;
@@ -70,8 +72,8 @@ has_matching_body_part(Props, Item) ->
 
 has_space(Props, _) ->
     NumItems = length(proplists:get_all_values(item, Props)),
-    log("has_space(~p)~nNum items: ~p~nMax items: ~p~n",
-        [Props, NumItems, proplists:get_value(max_items, Props, infinite)]),
+    MaxItems = proplists:get_value(max_items, Props, infinite),
+    log(["has_space(", Props, ") Num items: ", NumItems, " Max items: ", MaxItems]),
     case proplists:get_value(max_items, Props, infinite) of
         infinite ->
             true;
@@ -131,28 +133,28 @@ attempt(Owner, Props, {remove, Owner, Item}) ->
         _ ->
             {succeed, _Subscribe = false, Props}
     end;
-attempt(_Owner, Props, Msg) ->
-    log("attempt ignored.~nProps = ~p~nMsg = ~p~n", [Props, Msg]),
+attempt(_Owner, Props, _Msg) ->
+    %log("attempt ignored.~nProps = ~p~nMsg = ~p~n", [Props, Msg]),
     {succeed, _Subscribe = false, Props}.
 
 succeed(Props, {add, Item, Self}) when Self == self(), is_pid(Item) ->
-    log("added ~p~n", [Item]),
+    %log("added ~p~n", [Item]),
     Owner = proplists:get_value(owner, Props),
     erlmud_object:remove(Owner, item, Item),
     erlmud_object:set(Item, {owner, self()}),
     [{item, Item} | Props];
 succeed(Props, {remove, Item, Self}) when Self == self(), is_pid(Item) ->
-    log("removed ~p~n", [Item]),
+    %log("removed ~p~n", [Item]),
     Owner = proplists:get_value(owner, Props),
     erlmud_object:add(Owner, item, Item),
     erlmud_object:set(Item, {owner, Owner}),
     lists:keydelete(Item, 2, Props);
 succeed(Props, Msg) ->
-    log("saw ~p succeed with props ~p~n", [Msg, Props]),
+    log(["saw ", Msg, " succeed with props ", Props]),
     Props.
 
 fail(Props, _Message, _Reason) ->
     Props.
 
-log(Msg, Format) ->
-    erlmud_event_log:log("~p:~n" ++ Msg, [?MODULE | Format]).
+log(Terms) ->
+    erlmud_event_log:log(debug, [?MODULE | Terms]).
