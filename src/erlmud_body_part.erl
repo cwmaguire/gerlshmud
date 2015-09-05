@@ -45,19 +45,19 @@ can_add(Props, Item) ->
              fun has_space/2], Props, Item, true).
 
 can_add([], _, _, Result) ->
-    log(["can_add([], _, _, ", Result ,")"]),
+    log([<<"can_add([], _, _, ">>, Result ,<<")">>]),
     Result;
 can_add(_, _, _, {false, Reason}) ->
-    log(["can_add([_ | _], _, _, {false, ", Reason,"})"]),
+    log([<<"can_add([_ | _], _, _, {false, ">>, Reason,<<"})">>]),
     {false, Reason};
 can_add([Fun | Funs], Props, Item, true) ->
-    log(["can_add([", Fun, " | ", Funs, "], ", Props, ", ", Item, ", true)"]),
+    log([<<"can_add([">>, Fun, <<" | ">>, Funs, <<"], ">>, Props, <<", ">>, Item, <<", true)">>]),
     can_add(Funs, Props, Item, Fun(Props, Item)).
 
 has_matching_body_part(Props, Item) ->
     BodyPart = proplists:get_value(body_part, Props, any),
     ItemBodyParts = lists:flatten(erlmud_object:get(Item, body_parts)),
-    log(["has_matching_body_part(", BodyPart,
+    log([<<"has_matching_body_part(">>, BodyPart,
          ", ", ItemBodyParts, "):",
          " {", BodyPart,
          lists:member(BodyPart, ItemBodyParts), "}"]),
@@ -73,7 +73,7 @@ has_matching_body_part(Props, Item) ->
 has_space(Props, _) ->
     NumItems = length(proplists:get_all_values(item, Props)),
     MaxItems = proplists:get_value(max_items, Props, infinite),
-    log(["has_space(", Props, ") Num items: ", NumItems, " Max items: ", MaxItems]),
+    log([<<"has_space(">>, Props, <<") Num items: ">>, NumItems, <<" Max items: ">>, MaxItems]),
     case proplists:get_value(max_items, Props, infinite) of
         infinite ->
             true;
@@ -150,11 +150,11 @@ succeed(Props, {remove, Item, Self}) when Self == self(), is_pid(Item) ->
     erlmud_object:set(Item, {owner, Owner}),
     lists:keydelete(Item, 2, Props);
 succeed(Props, Msg) ->
-    log(["saw ", Msg, " succeed with props ", Props]),
+    log([<<"saw ">>, Msg, <<" succeed with props ">>, Props]),
     Props.
 
 fail(Props, _Message, _Reason) ->
     Props.
 
 log(Terms) ->
-    erlmud_event_log:log(debug, [?MODULE | Terms]).
+    erlmud_event_log:log(debug, [atom_to_list(?MODULE) | Terms]).

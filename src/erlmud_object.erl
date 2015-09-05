@@ -91,7 +91,7 @@ attempt(Pid, Msg, ShouldSubscribe) ->
     send(Pid, {attempt, Msg, #procs{subs = Subs}}).
 
 attempt_after(Millis, Pid, Msg) ->
-    log(["attempt after ", Millis, ", Pid = ", Pid, ": Msg = ", Msg]),
+    log([<<"attempt after ">>, Millis, <<", Pid = ">>, Pid, <<": Msg = ">>, Msg]),
     erlang:send_after(Millis, Pid, {Pid, Msg}).
 
 add(Pid, Type, AddPid) ->
@@ -126,7 +126,7 @@ handle_cast(Msg, State) ->
     handle_cast_(Msg, State).
 
 handle_cast_({populate, ProcIds}, State = #state{props = Props}) ->
-    log(["populate on ", self()]),
+    log([<<"populate on ">>, self()]),
     {noreply, State#state{props = populate_(Props, ProcIds)}};
 handle_cast_({add, AddType, Pid}, State) ->
     Props2 = add_(AddType, State#state.props, Pid),
@@ -157,20 +157,20 @@ handle_cast_({succeed, Msg}, State) ->
      end.
 
 handle_info({'EXIT', From, Reason}, State = #state{props = Props}) ->
-    log(["handle_info EXIT Pid = ", From, ", Reason = ", Reason, " Props: ", Props]),
+    log([<<"handle_info EXIT Pid = ">>, From, <<", Reason = ">>, Reason, <<" Props: ">>, Props]),
     Props2 = lists:keydelete(From, 2, Props),
-    log(["Props with dead pid removed: ", Props2]),
+    log([<<"Props with dead pid removed: ">>, Props2]),
     {noreply, State#state{props = Props2}};
 handle_info({Pid, Msg}, State) ->
-    log(["handle_info attempt Pid = ", Pid, " Msg = ", Msg]),
+    log([<<"handle_info attempt Pid = ">>, Pid, <<" Msg = ">>, Msg]),
     attempt(Pid, Msg),
     {noreply, State};
 handle_info(Unknown, State) ->
-    log(["Unknown Message: ", Unknown]),
+    log([<<"Unknown Message: ">>, Unknown]),
     {noreply, State}.
 
 terminate(Reason, State) ->
-    log(["erlmud_object ", self(), " shutting down Reason: ", Reason, " State: ", State]),
+    log([<<"erlmud_object ">>, self(), <<" shutting down Reason: ">>, Reason, <<" State: ">>, State]),
     erlmud_index:del(self()),
     ct:pal("erlmud_object ~p shutting down~nReason: ~p~nState:~n\t~p~n",
            [self(), Reason, State]),
@@ -210,10 +210,10 @@ ensure_message(_, T) ->
     T.
 
 handle({resend, Target, Msg}, OrigMsg, _NoProcs) ->
-    log(["resending ", OrigMsg, " as ", Msg]),
+    log([<<"resending ">>, OrigMsg, <<" as ">>, Msg]),
     send(Target, {attempt, Msg, #procs{}});
 handle({fail, Reason}, Msg, Procs = #procs{subs = Subs}) ->
-    log(["failing msg: ", Msg, " with reaons: ", Reason, " subs: ", Subs]),
+    log([<<"failing msg: ">>, Msg, <<" with reaons: ">>, Reason, <<" subs: ">>, Subs]),
     [send(Sub, {fail, Reason, Msg}, Procs) || Sub <- Subs];
 handle(succeed, Msg, Procs = #procs{subs = Subs}) ->
     _ = case next(Procs) of
@@ -245,10 +245,10 @@ proc(Value, IdPids) when is_atom(Value) ->
     Pid = proplists:get_value(Value, IdPids, Value),
     case is_pid(Pid) of
         true ->
-            log(["Linking to pid: ", Pid, " for value ", Value]),
+            log([<<"Linking to pid: ">>, Pid, <<" for value ">>, Value]),
             link(Pid);
         false ->
-            log(["Property value is not a pid: ", Value])
+            log([<<"Property value is not a pid: ">>, Value])
     end,
     Pid;
 proc(Value, _) ->
@@ -307,9 +307,9 @@ add_(Type, Props, Obj) ->
     end.
 
 remove_(RemType, Obj, Props) ->
-    log(["Props before removing ", RemType, " ", Obj, ": ", Props]),
+    log([<<"Props before removing ">>, RemType, <<" ">>, Obj, <<": ">>, Props]),
     NewProps = [Prop || Prop <- Props, Prop /= {RemType, Obj}],
-    log(["Props after removing ", RemType, " ", Obj, ": ", NewProps]),
+    log([<<"Props after removing ">>, RemType, <<" ">>, Obj, <<": ">>, NewProps]),
     NewProps.
 
 log(To, Stage, Msg, Procs) when is_tuple(Msg) ->
@@ -322,4 +322,4 @@ log(To, Stage, Msg, Procs) when is_tuple(Msg) ->
                          Procs#procs.subs).
 
 log(Terms) ->
-    erlmud_event_log:log(debug, [atom_to_list(?MODULE) | Terms]).
+    erlmud_event_log:log(debug, [list_to_binary(atom_to_list(?MODULE)) | Terms]).

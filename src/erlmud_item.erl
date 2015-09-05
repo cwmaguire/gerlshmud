@@ -72,7 +72,7 @@ attempt(Owner, Props, {calc_damage, Attack, Owner, Target, Damage}) ->
     UpdatedMsg = {calc_damage, Attack, Owner, Target, UpdatedDmg},
     {succeed, UpdatedMsg, false, Props};
 attempt(_Owner, Props, Msg = {Action, _, Self, _}) when Self == self() ->
-    log(["subscribed attempt: ", Msg, ", props: ", Props]),
+    log([<<"subscribed attempt: ">>, Msg, <<", props: ">>, Props]),
     {succeed, lists:member(Action, [get, drop]), Props};
 attempt(_Owner, Props, _Msg) ->
     {succeed, false, Props}.
@@ -82,11 +82,11 @@ succeed(Props, {get, Receiver, Self, Owner}) when Self == self() ->
 succeed(Props, {drop, Owner, Self, Receiver}) when Self == self() ->
     move(Props, Owner, Receiver);
 succeed(Props, Msg) ->
-    log(["saw ", Msg, " succeed with props ", Props]),
+    log([<<"saw ">>, Msg, <<" succeed with props ">>, Props]),
     Props.
 
 fail(Props, Result, Msg) ->
-    log(["result: ", Result, " message: ", Msg]),
+    log([<<"result: ">>, Result, <<" message: ">>, Msg]),
     Props.
 
 move(Props, Owner, Receiver) ->

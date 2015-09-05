@@ -47,11 +47,11 @@ attempt(_Owner, Props, Msg) ->
 attempt(Props, {move, Obj, FromRoom, Exit}) when is_atom(Exit) ->
     %% If I have an exit to the Source room and a _different_ exit with name Exit
     %% then I should translate the message to a {move, Obj, Source, Target} message.
-    log(["Process ", Obj, "wants to leave room ", FromRoom, " via exit ", Exit, "\n"]),
+    log([<<"Process ">>, Obj, <<"wants to leave room ">>, FromRoom, <<" via exit ">>, Exit, <<"\n">>]),
     Rooms = [Room || Room = {_, FromRoom_} <- Props, FromRoom_ == FromRoom],
     move(Props, Obj, Rooms, Exit);
 attempt(Props, {move, Mover, Source, Target, Self}) when Self == self() ->
-    log(["Process ", Mover, " wants to leave room ", Source, " for ", Target, "\n"]),
+    log([<<"Process ">>, Mover, <<" wants to leave room ">>, Source, <<" for ">>, Target, <<"\n">>]),
     %case has_rooms(Props, Source, Target) andalso
     case blocked_reason(Props) of
         {blocked_because, Reason} ->
@@ -63,11 +63,11 @@ attempt(Props, _Msg) ->
     {succeed, false, Props}.
 
 succeed(Props, Message) ->
-    log(["Message ", Message, " succeeded"]),
+    log([<<"Message ">>, Message, <<" succeeded">>]),
     Props.
 
 fail(Props, Result, Msg) ->
-    log([Result, " message: ", Msg]),
+    log([Result, <<" message: ">>, Msg]),
     Props.
 
 move(Props, Obj, [{{room, FromExit}, FromRoom}], ToExit) when FromExit /= ToExit ->
@@ -75,7 +75,7 @@ move(Props, Obj, [{{room, FromExit}, FromRoom}], ToExit) when FromExit /= ToExit
                   ToRoom /= FromRoom,
                   ToExit_ == ToExit] of
         [{_, ToRoom}] ->
-            log(["Found room ", ToRoom, " with exit ", ToExit, " connected to room ", FromRoom,
+            log([<<"Found room ">>, ToRoom, <<" with exit ">>, ToExit, <<" connected to room ">>, FromRoom,
                  " (exit ", FromExit, ")"]),
             NewMsg = {move, Obj, FromRoom, ToRoom, self()},
             {{resend, Obj, NewMsg}, false, Props};
@@ -95,4 +95,4 @@ blocked_reason(Props) ->
     end.
 
 log(Terms) ->
-    erlmud_event_log:log(debug, [?MODULE | Terms]).
+    erlmud_event_log:log(debug, [atom_to_list(?MODULE) | Terms]).

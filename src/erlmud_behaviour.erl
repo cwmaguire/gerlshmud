@@ -30,10 +30,10 @@ added(_, _) -> ok.
 removed(_, _) -> ok.
 
 attempt(Owner, Props, Msg = {damage, _Att, _Src, Owner, _Dmg}) ->
-    log(["subscribed attempt: ", Msg, ", props: ", Props]),
+    log([<<"subscribed attempt: ">>, Msg, <<", props: ">>, Props]),
     {succeed, true, Props};
 attempt(Owner, Props, Msg = {attack, _Att, Owner, _Target}) ->
-    log(["subscribed attempt: ", Msg, ", props: ", Props]),
+    log([<<"subscribed attempt: ">>, Msg, <<", props: ">>, Props]),
     {succeed, true, Props};
 attempt(Owner, Props, {stop_attack, Attack, Owner, _Target}) ->
     case [Pid || {attack, Pid, _} <- Props, Pid == Attack] of
@@ -43,7 +43,7 @@ attempt(Owner, Props, {stop_attack, Attack, Owner, _Target}) ->
             Props
     end;
 attempt(Owner, Props, Msg) ->
-    log(["ignoring attempt: ", Msg, ", props: ", Props, " owner: ", Owner]),
+    log([<<"ignoring attempt: ">>, Msg, <<", props: ">>, Props, <<" owner: ">>, Owner]),
     {succeed, false, Props}.
 
 succeed(Props, {attack, Attack, Attacker, Target}) ->
@@ -59,20 +59,20 @@ succeed(Props, {attack, Attack, Attacker, Target}) ->
 %% enemy might keep switching to attack the most recent thing that attacked it.
 %% (e.g. something stupid, or with a short memory)
 succeed(Props, {damage, _Att, Attacker, Owner, _Dmg}) ->
-    log(["caught damage succeeded ", Attacker, " ", Owner]),
+    log([<<"caught damage succeeded ">>, Attacker, <<" ">>, Owner]),
 
     %% pitbull attack: stick with first character that damages us
     %% TODO: make sure the attack originates from something we can attack back,
     %%       not a poison or extreme cold or something.
     _ = case [Attack || Attack = {attack, _, _} <- Props] of
         [] ->
-            log(["no attacks yet, attack back props: ", Props]),
+            log([<<"no attacks yet, attack back props: ">>, Props]),
             AttackWait = proplists:get_value(attack_wait, Props, 1000),
             erlmud_object:attempt_after(AttackWait,
                                         Owner,
                                         {attack, Owner, Attacker});
         _ ->
-            log(["already attacking something, stick with it props: ", Props]),
+            log([<<"already attacking something, stick with it props: ">>, Props]),
             ok
     end,
     Props;
@@ -85,12 +85,12 @@ succeed(Props, {stop_attack, AttackPid}) ->
             Props
     end;
 succeed(Props, Msg) ->
-    log(["saw ", Msg, " succeed with props ", Props]),
+    log([<<"saw ">>, Msg, <<" succeed with props ">>, Props]),
     Props.
 
 fail(Props, Result, Msg) ->
-    log(["result: ", Result, " message: ", Msg]),
+    log([<<"result: ">>, Result, <<" message: ">>, Msg]),
     Props.
 
 log(Terms) ->
-    erlmud_event_log:log(debug, [?MODULE | Terms]).
+    erlmud_event_log:log(debug, [atom_to_list(?MODULE) | Terms]).

@@ -56,18 +56,18 @@ attempt(Props, {enter_world, Self}) when Self == self() ->
             {succeed, true, Props}
     end;
 attempt(Props, {drop, Self, Pid}) when Self == self(), is_pid(Pid) ->
-    log(debug, [Self, "attempting to drop ", Pid, "\n"]),
+    log(debug, [Self, <<"attempting to drop ">>, Pid, <<"\n">>]),
     case has_pid(Props, Pid) of
         true ->
             {room, Room} = get_(room, Props),
-            log(debug, ["resending {drop, ", Self, ", ", Pid,
+            log(debug, [<<"resending {drop, ">>, Self, <<", ">>, Pid,
                         "} as {drop, ", Self, ", ", Pid, ", ", Room, "}\n"]),
             {{resend, Self, {drop, Self, Pid, Room}}, true, Props};
         _ ->
             {succeed, _Interested = false, Props}
     end;
 attempt(Props, {attack, Attack, Attacker, Name}) when is_list(Name) ->
-    log(debug, ["Checking if name ", Name, " matches"]),
+    log(debug, [<<"Checking if name ">>, Name, <<" matches">>]),
     case re:run(proplists:get_value(name, Props, ""), Name, [{capture, none}]) of
         match ->
             log(debug,
@@ -75,13 +75,13 @@ attempt(Props, {attack, Attack, Attacker, Name}) when is_list(Name) ->
                  "} as {attack, ", Attacker, ", ", self(), "}\n"]),
             {{resend, Attack, {attack, Attack, Attacker, self()}}, true, Props};
         _ ->
-            log(debug, ["Name ", Name, " did not match.\n"]),
+            log(debug, [<<"Name ">>, Name, <<" did not match.\n">>]),
             {succeed, false, Props}
     end;
 attempt(Props, {calc_next_attack_wait, Attack, Self, Target, Sent, Wait})
     when Self == self() ->
     CharacterWait = proplists:get_value(attack_wait, Props, 0),
-    log(debug, ["Character attack wait is ", CharacterWait, "\n"]),
+    log(debug, [<<"Character attack wait is ">>, CharacterWait, <<"\n">>]),
     {succeed,
      {calc_next_attack_wait, Attack, Self, Target, Sent, Wait + CharacterWait},
      false,
@@ -97,35 +97,35 @@ attempt(Props, {stop_attack, Attack}) ->
 attempt(Props, {die, Self}) when Self == self() ->
     {succeed, true, Props};
 attempt(Props, Msg) ->
-    log(debug, ["attempt: ", Msg, "\nProps: ", Props, "\n"]),
+    log(debug, [<<"attempt: ">>, Msg, <<"\nProps: ">>, Props, <<"\n">>]),
     {succeed, false, Props}.
 
 succeed(Props, {move, Self, Source, Target, _Exit}) when Self == self() ->
-    log(debug, ["moved from ", Source, " to ", Target, "\n"]),
+    log(debug, [<<"moved from ">>, Source, <<" to ">>, Target, <<"\n">>]),
     erlmud_object:remove(Source, character, self()),
     erlmud_object:add(Target, character, self()),
-    log(debug, ["setting ", Self, "'s room to ", Target, "\n"]),
+    log(debug, [<<"setting ">>, Self, <<"'s room to ">>, Target, <<"\n">>]),
     set(room, Target, Props);
 succeed(Props, {move, Self, Source, Direction}) when Self == self(), is_atom(Direction) ->
-    log(debug, ["succeeded in moving ", Direction, " from ", Source, "\n"]),
+    log(debug, [<<"succeeded in moving ">>, Direction, <<" from ">>, Source, <<"\n">>]),
     Props;
 succeed(Props, {enter_world, Self})
     when Self == self() ->
     Room = proplists:get_value(room, Props),
-    log(debug, ["entering ", Room, "\n"]),
+    log(debug, [<<"entering ">>, Room, <<"\n">>]),
     erlmud_object:add(Room, character, self()),
     Props;
 succeed(Props, {get, Self, Source, Item}) when Self == self() ->
-    log(debug, ["getting ", Item, " from ", Source, "\n\tProps: ", Props, "\n"]),
+    log(debug, [<<"getting ">>, Item, <<" from ">>, Source, <<"\n\tProps: ">>, Props, <<"\n">>]),
     Props;
 %% I don't get this: we delete any current attack if a partially started
 %% attack (no attack pid, just source and target) succeeds?
 succeed(Props, {attack, Self, Target}) when Self == self() ->
-    log(debug, ["{attack, self(), ", Target, "} succeeded\n" "Starting attack process\n"]),
+    log(debug, [<<"{attack, self(), ">>, Target, <<"} succeeded. Starting attack process">>]),
     %attack(Target, stop_attack(Props));
     attack(Target, lists:keydelete(attack, 1, Props));
 succeed(Props, {stop_attack, AttackPid}) ->
-    log(debug, ["Character ", self(), " attack ", AttackPid, " stopped; remove (if applicable) from props:\n\t", Props, "\n"]),
+    log(debug, [<<"Character ">>, self(), <<" attack ">>, AttackPid, <<" stopped; remove (if applicable) from props:\n\t">>, Props, <<"\n">>]),
     lists:filter(fun({attack, Pid}) when Pid == AttackPid -> false; (_) -> true end, Props);
 succeed(Props, {die, Self}) when Self == self() ->
     %% TODO: kill/disconnect all connected processes
@@ -134,11 +134,11 @@ succeed(Props, {cleanup, Self}) when Self == self() ->
     %% TODO: drop all objects
     {stop, cleanup_succeeded, Props};
 succeed(Props, Msg) ->
-    log(debug, ["saw ", Msg, " succeed with props\n"]),
+    log(debug, [<<"saw ">>, Msg, <<" succeed with props\n">>]),
     Props.
 
 fail(Props, target_is_dead, _Message) ->
-    log(debug, ["Stopping because target is dead\n"]),
+    log(debug, [<<"Stopping because target is dead\n">>]),
     {stop, Props};
 fail(Props, _Message, _Reason) ->
     Props.
@@ -148,7 +148,7 @@ attack(Target, Props) ->
             _Type = erlmud_attack,
             _Props = [{owner, self()}, {target, Target}]],
     {ok, Attack} = supervisor:start_child(erlmud_object_sup, Args),
-    log(debug, ["Attack ", Attack, " started, sending attempt\n"]),
+    log(debug, [<<"Attack ">>, Attack, <<" started, sending attempt\n">>]),
     erlmud_object:attempt(Attack, {attack, Attack, self(), Target}),
     [{attack, Attack} | Props].
 

@@ -35,7 +35,7 @@ is_dead_action(_) ->
     false.
 
 attempt(Owner, Props, Msg = {killed, _Attack, _Source, Owner}) ->
-    log(["attempt: ", Msg, ", props: ", Props]),
+    log([<<"attempt: ">>, Msg, <<", props: ">>, Props]),
     {succeed, _Subscribe = true, Props};
 attempt(Owner, Props, _Msg = {die, Owner}) ->
     %log("attempt: ~p, props: ~p~n", [Msg, Props]),
@@ -148,4 +148,4 @@ fail(Props, _Message, _Reason) ->
     Props.
 
 log(Terms) ->
-    erlmud_event_log:log([?MODULE | Terms]).
+    erlmud_event_log:log([atom_to_list(?MODULE) | Terms]).
