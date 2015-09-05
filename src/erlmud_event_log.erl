@@ -45,6 +45,9 @@ init([]) ->
               "<html>"
                 "<head>"
                   "<link rel=\"stylesheet\" href=\"log.css\">"
+                  "<script src=\"lists.js\"></script>"
+                  "<script src=\"test.js\"></script>"
+                  "<script src=\"log.js\"></script>"
                 "</head>"
                 "<body>",
               []),
@@ -64,10 +67,10 @@ handle_cast({old_log, Pid, Msg, Params}, State) ->
               [Pid, Id | Params]),
     {noreply, State};
 handle_cast({log, Level, Pid, Terms}, State) ->
-    IoData = [io(maybe_name(Term)) || Term <- lists:flatten(Terms)],
+    IoData = [[io(maybe_name(Term)), " "] || Term <- lists:flatten(Terms)],
     Props = erlmud_object:props(Pid),
     PropsWithNames = [{K, maybe_name(V)} || {K, V} <- Props],
-    ok = file:write(State#state.log_file,
+    ok = file:write(State#state.html_file,
                     spans(["log", Level, io(erlmud_index:get(Pid))],
                           [div_("log_message", IoData),
                            div_("log_props", io(PropsWithNames))])),
@@ -87,7 +90,7 @@ handle_cast({log, From, To, Stage, Action, Params, Room, Next, Done, Subs}, Stat
     DoneNames = names(Done),
     SubNames = names(Subs),
 
-    ok = file:write(State#state.log_file,
+    ok = file:write(State#state.html_file,
                     spans([Stage, Action, FromName, ToName],
                           [div_("columns",
                                 [span("col_count", State#state.count),
@@ -113,7 +116,10 @@ handle_info(_Info, State) ->
     {noreply, State}.
 
 terminate(_Reason, #state{html_file = HtmlFile}) ->
-    io:format(HtmlFile, "</body></html>", []),
+    io:format(HtmlFile,
+              "<script language=\"JavaScript\">createClassCheckboxes();</script>"
+              "</body></html>",
+              []),
     ok.
 
 code_change(_OldVsn, State, _Extra) ->
@@ -135,6 +141,8 @@ maybe_name(Pid) when is_pid(Pid) ->
 maybe_name(NotPid) ->
     NotPid.
 
+io(X) when is_binary(X) ->
+    io_lib:format("~s", [X]);
 io(X) ->
     io_lib:format("~p", [X]).
 

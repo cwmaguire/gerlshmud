@@ -3,6 +3,5 @@
 _rel
 deps
 ebin
-logs
 rel
 relx*
