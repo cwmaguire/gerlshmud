@@ -138,6 +138,7 @@ one_sided_fight(Config) ->
     undefined = val(attack, Zombie).
 
 counterattack_behaviour(Config) ->
+    erlmud_dbg:add(erlmud_event_log),
     start(?WORLD_3),
     Player = erlmud_index:get(player),
     erlmud_object:set(Player, {attack_wait, 20}),
