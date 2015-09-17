@@ -19,6 +19,10 @@
                 html_file :: file:io_device(),
                 count :: integer()}).
 
+-define(DIV(X), "<div>"X"</div>").
+-define(SPAN(Class), "<span class=\"" Class "\">~p</span>").
+-define(SPAN, ?SPAN("~p")).
+
 log(Level, Terms) when is_atom(Level) ->
     case whereis(erlmud_event_log) of
         undefined ->
@@ -38,7 +42,7 @@ log(To, Stage, Msg, Room, Next, Done, Subs) ->
         Pid ->
             case is_process_alive(Pid) of
                 true ->
-                    ct:pal("Logger process is alive~n"),
+                    %ct:pal("Logger process is alive~n"),
                     ok;
                 _ ->
                     exit("logger is dead")
@@ -60,25 +64,11 @@ init([]) ->
     Line = lists:duplicate(80, $=),
     io:format(LogFile, "~n~n~s~n~p~n~s~n~n", [Line, os:timestamp(), Line]),
 
-    io:format(HtmlFile,
-              "<html>\n"
-              "  <head>\n"
-              "    <link rel=\"stylesheet\" href=\"log.css\">\n"
-              "    <script src=\"lists.js\"></script>\n"
-              "    <script src=\"test.js\"></script>\n"
-              "    <script src=\"log.js\"></script>\n"
-              "  </head>\n"
-              "  <body>\n",
-              []),
     {ok, #state{log_file = LogFile,
                 html_file = HtmlFile}}.
 
 handle_call(_Request, _From, State) ->
     {reply, ignored, State}.
-
--define(DIV(X), "<div>"X"</div>").
--define(SPAN(Class), "<span class=\"" Class "\">~p</span>").
--define(SPAN, ?SPAN("~p")).
 
 handle_cast({old_log, Pid, Msg, Params}, State) ->
     Id = erlmud_index:get(Pid),

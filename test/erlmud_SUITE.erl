@@ -35,7 +35,7 @@ init_per_testcase(_, Config) ->
     [{test_object, TestObject} | Config].
 
 end_per_testcase(_, Config) ->
-    TestObject = proplists:get_value(test_object, Config),
+    TestObject = proplists:get_values(test_object, Config),
     TestObject ! stop,
     application:stop(erlmud).
 
