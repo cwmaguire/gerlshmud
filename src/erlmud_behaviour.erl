@@ -93,4 +93,4 @@ fail(Props, Result, Msg) ->
     Props.
 
 log(Terms) ->
-    erlmud_event_log:log(debug, [atom_to_list(?MODULE) | Terms]).
+    erlmud_event_log:log(debug, [list_to_binary(atom_to_list(?MODULE)) | Terms]).

@@ -155,4 +155,4 @@ milis({M,S,U}) ->
     M * 1000 * 1000 * 1000 + S * 1000 + round(U / 1000).
 
 log(Terms) ->
-    erlmud_event_log:log([?MODULE | Terms]).
+    erlmud_event_log:log(debug, [?MODULE | Terms]).

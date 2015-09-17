@@ -96,4 +96,4 @@ move(Props, Owner, Receiver) ->
     set(owner, Receiver, Props).
 
 log(Terms) ->
-    erlmud_event_log:log([?MODULE | Terms]).
+    erlmud_event_log:log(debug, [?MODULE | Terms]).

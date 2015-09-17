@@ -82,6 +82,7 @@ attempt(Pid, Msg) ->
     attempt(Pid, Msg, _ShouldSubscribe = true).
 
 attempt(Pid, Msg, ShouldSubscribe) ->
+    log([<<"attempt Pid = ">>, Pid, <<": Msg = ">>, Msg]),
     Subs = case ShouldSubscribe of
                true ->
                    [self()];
@@ -107,7 +108,15 @@ set(Pid, Prop) ->
     send(Pid, {set, Prop}).
 
 props(Pid) ->
-    gen_server:call(Pid, props).
+    From = self(),
+    ct:pal("gen_server:props(~p) from ~p~n", [Pid, From]),
+    case is_process_alive(Pid) of
+        true ->
+            gen_server:call(Pid, props);
+        _ ->
+            ct:pal("gen_server:props(~p)\tPid is dead.~n", [Pid]),
+            []
+    end.
 
 %% gen_server.
 
@@ -225,15 +234,20 @@ handle(succeed, Msg, Procs = #procs{subs = Subs}) ->
 
 send(Pid, SendMsg = {fail, _Reason, Msg}, Procs) ->
     log(Pid, fail, Msg, Procs),
-    send(Pid, SendMsg);
+    send_(Pid, SendMsg);
 send(Pid, SendMsg = {succeed, Msg}, Procs) ->
     log(Pid, succeed, Msg, Procs),
-    send(Pid, SendMsg).
+    send_(Pid, SendMsg).
 
 send(Pid, SendMsg = {attempt, Msg, Procs}) ->
     log(Pid, attempt, Msg, Procs),
-    send(Pid, SendMsg);
+    send_(Pid, SendMsg);
 send(Pid, Msg) ->
+    %ct:pal("sending non-attempt: ~p~n", [Msg]),
+    %log(Pid, not_attempt, Msg, Procs),
+    send_(Pid, Msg).
+
+send_(Pid, Msg) ->
     %log([Msg]),
     gen_server:cast(Pid, Msg).
 
@@ -319,7 +333,9 @@ log(To, Stage, Msg, Procs) when is_tuple(Msg) ->
                          Procs#procs.room,
                          Procs#procs.next,
                          Procs#procs.done,
-                         Procs#procs.subs).
+                         Procs#procs.subs),
+    %timer:sleep(100),
+    erlang:yield().
 
 log(Terms) ->
     erlmud_event_log:log(debug, [list_to_binary(atom_to_list(?MODULE)) | Terms]).

@@ -78,4 +78,4 @@ fail(Props, Reason, {move, Obj, Source, Self}) when Self == self() ->
     Props.
 
 log(Terms) ->
-    erlmud_event_log:log([?MODULE | Terms]).
+    erlmud_event_log:log(debug, [list_to_binary(atom_to_list(?MODULE)) | Terms]).

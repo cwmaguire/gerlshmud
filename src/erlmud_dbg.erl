@@ -24,7 +24,7 @@ add(Module, Fun, Arity) ->
 
 maybe_start_tracer() ->
     case dbg:tracer() of
-        {error, already_start} ->
+        {error, already_started} ->
             ok;
         _ ->
             dbg:p(all, call)

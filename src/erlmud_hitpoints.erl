@@ -58,4 +58,4 @@ take_damage(Attack, Source, Owner, Damage, Props) ->
     lists:keystore(hitpoints, 1, Props, {hitpoints, Hp}).
 
 log(Terms) ->
-    erlmud_event_log:log([atom_to_list(?MODULE) | Terms]).
+    erlmud_event_log:log(debug, [atom_to_list(?MODULE) | Terms]).

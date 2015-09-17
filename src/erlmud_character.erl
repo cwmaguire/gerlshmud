@@ -67,7 +67,7 @@ attempt(Props, {drop, Self, Pid}) when Self == self(), is_pid(Pid) ->
             {succeed, _Interested = false, Props}
     end;
 attempt(Props, {attack, Attack, Attacker, Name}) when is_list(Name) ->
-    log(debug, [<<"Checking if name ">>, Name, <<" matches">>]),
+    log(debug, [<<"Checking if name ">>, list_to_binary(Name), <<" matches">>]),
     case re:run(proplists:get_value(name, Props, ""), Name, [{capture, none}]) of
         match ->
             log(debug,
@@ -121,7 +121,9 @@ succeed(Props, {get, Self, Source, Item}) when Self == self() ->
 %% I don't get this: we delete any current attack if a partially started
 %% attack (no attack pid, just source and target) succeeds?
 succeed(Props, {attack, Self, Target}) when Self == self() ->
-    log(debug, [<<"{attack, self(), ">>, Target, <<"} succeeded. Starting attack process">>]),
+    log(debug, [<<"{attack, self(), ">>,
+                Target,
+                <<"} succeeded. Starting attack process">>]),
     %attack(Target, stop_attack(Props));
     attack(Target, lists:keydelete(attack, 1, Props));
 succeed(Props, {stop_attack, AttackPid}) ->

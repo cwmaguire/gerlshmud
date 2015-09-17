@@ -33,4 +33,4 @@ parse(_, _) ->
     {error, "Huh?"}.
 
 log(Terms) ->
-    erlmud_event_log:log([atom_to_list(?MODULE) | Terms]).
+    erlmud_event_log:log(debug, [atom_to_list(?MODULE) | Terms]).
