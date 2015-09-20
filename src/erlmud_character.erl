@@ -56,12 +56,12 @@ attempt(Props, {enter_world, Self}) when Self == self() ->
             {succeed, true, Props}
     end;
 attempt(Props, {drop, Self, Pid}) when Self == self(), is_pid(Pid) ->
-    log(debug, [Self, <<"attempting to drop ">>, Pid, <<"\n">>]),
+    %log(debug, [Self, <<"attempting to drop ">>, Pid, <<"\n">>]),
     case has_pid(Props, Pid) of
         true ->
             {room, Room} = get_(room, Props),
-            log(debug, [<<"resending {drop, ">>, Self, <<", ">>, Pid,
-                        "} as {drop, ", Self, ", ", Pid, ", ", Room, "}\n"]),
+            %log(debug, [<<"resending {drop, ">>, Self, <<", ">>, Pid,
+                        %"} as {drop, ", Self, ", ", Pid, ", ", Room, "}\n"]),
             {{resend, Self, {drop, Self, Pid, Room}}, true, Props};
         _ ->
             {succeed, _Interested = false, Props}
@@ -70,12 +70,12 @@ attempt(Props, {attack, Attack, Attacker, Name}) when is_list(Name) ->
     log(debug, [<<"Checking if name ">>, list_to_binary(Name), <<" matches">>]),
     case re:run(proplists:get_value(name, Props, ""), Name, [{capture, none}]) of
         match ->
-            log(debug,
-                ["resending {attack, ", Attacker, ", ", Name,
-                 "} as {attack, ", Attacker, ", ", self(), "}\n"]),
+            %log(debug,
+                %[<<"resending {attack, ">>, Attacker, <<", ">>, list_to_binary(Name),
+                 %<<"} as {attack, ">>, Attacker, <<", ">>, self(), <<"}\n">>]),
             {{resend, Attack, {attack, Attack, Attacker, self()}}, true, Props};
         _ ->
-            log(debug, [<<"Name ">>, Name, <<" did not match.\n">>]),
+            log(debug, [<<"Name ">>, list_to_binary(Name), <<" did not match.\n">>]),
             {succeed, false, Props}
     end;
 attempt(Props, {calc_next_attack_wait, Attack, Self, Target, Sent, Wait})
@@ -97,7 +97,6 @@ attempt(Props, {stop_attack, Attack}) ->
 attempt(Props, {die, Self}) when Self == self() ->
     {succeed, true, Props};
 attempt(Props, Msg) ->
-    log(debug, [<<"attempt: ">>, Msg, <<"\nProps: ">>, Props, <<"\n">>]),
     {succeed, false, Props}.
 
 succeed(Props, {move, Self, Source, Target, _Exit}) when Self == self() ->
@@ -122,7 +121,10 @@ succeed(Props, {get, Self, Source, Item}) when Self == self() ->
 %% attack (no attack pid, just source and target) succeeds?
 succeed(Props, {attack, Self, Target}) when Self == self() ->
     log(debug, [<<"{attack, self(), ">>,
-                Target,
+                case Target of
+                    T when is_pid(T) -> Target;
+                    T when is_list(T)-> list_to_binary(T)
+                end,
                 <<"} succeeded. Starting attack process">>]),
     %attack(Target, stop_attack(Props));
     attack(Target, lists:keydelete(attack, 1, Props));
@@ -156,4 +158,4 @@ attack(Target, Props) ->
 
 %% handle_cast({log, From, To, Props, Stage, {Action, Params}, Room, Next, Done, Subs}, State) ->
 log(Level, IoData) ->
-    erlmud_event_log:log(Level, IoData).
+    erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).

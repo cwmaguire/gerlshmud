@@ -34,10 +34,10 @@ attempt(Owner, Props, {damage, _Att, _Src, Owner, _Dmg}) ->
 attempt(_Owner, Props, _Msg) ->
     {succeed, false, Props}.
 
-succeed(Props, {damage, Attack, Source, Owner, Damage}) ->
+succeed(Props, Msg = {damage, Attack, Source, Owner, Damage}) ->
+    log([<<"saw ">>, Msg, <<"succeed">>]),
     take_damage(Attack, Source, Owner, Damage, Props);
 succeed(Props, _Msg) ->
-    %log("saw ~p succeed with props ~p~n", [Msg, Props]),
     Props.
 
 fail(Props, Message, _Reason) ->
@@ -45,17 +45,18 @@ fail(Props, Message, _Reason) ->
     Props.
 
 take_damage(Attack, Source, Owner, Damage, Props) ->
-    %log("took ~p damage~nProps: ~p~n", [Damage, Props]),
+    log([<<"taking ">>, Damage, <<" points of damage.">>]),
     Hp = proplists:get_value(hitpoints, Props, 0) - Damage,
     case Hp of
         X when X < 1 ->
-            log([<<"dying">>]),
+            log([<<"dying; hp = ">>, Hp]),
             Owner = proplists:get_value(owner, Props),
             erlmud_object:attempt(Owner, {killed, Attack, Source, Owner});
         _ ->
+            log([<<"Not dying; hitpoints = ">>, Hp]),
             ok
     end,
     lists:keystore(hitpoints, 1, Props, {hitpoints, Hp}).
 
 log(Terms) ->
-    erlmud_event_log:log(debug, [atom_to_list(?MODULE) | Terms]).
+    erlmud_event_log:log(debug, [list_to_binary(atom_to_list(?MODULE)) | Terms]).

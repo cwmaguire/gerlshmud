@@ -34,14 +34,15 @@ init_per_testcase(_, Config) ->
     erlmud_index:put("TestObject", TestObject),
     [{test_object, TestObject} | Config].
 
-end_per_testcase(_, Config) ->
-    TestObject = proplists:get_values(test_object, Config),
-    TestObject ! stop,
+end_per_testcase(_, _Config) ->
+    %TestObject = proplists:get_values(test_object, Config),
+    %TestObject ! stop,
     application:stop(erlmud).
 
 val(Key, Obj) ->
-    ct:pal("get val for ~p in ~p~n", [Key, Obj]),
-    proplists:get_value(Key, get_props(Obj)).
+    Val = proplists:get_value(Key, get_props(Obj)),
+    ct:pal("~p for ~p is ~p~n", [Key, Obj, Val]),
+    Val.
 
 all(Key, Obj) ->
     proplists:get_all_values(Key, get_props(Obj)).
@@ -50,8 +51,10 @@ has(Val, Obj) ->
     false /= lists:keyfind(Val, 2, get_props(Obj)).
 
 get_props(Obj) when is_atom(Obj) ->
-    %ct:pal("get pid for ~p~n", [Obj]),
-    get_props(erlmud_index:get(Obj));
+    Pid = erlmud_index:get(Obj),
+    Props = get_props(Pid),
+    ct:pal("Pid for ~p is ~p, props are ~p~n", [Obj, Pid, Props]),
+    Props;
 get_props(Pid) ->
     %ct:pal("get state for pid ~p~n", [Pid]),
     %ct:pal("Pid ~p is alive? ~p~n", [Pid, is_process_alive(Pid)]),
@@ -155,15 +158,15 @@ counterattack_behaviour(Config) ->
     ct:pal("Started behaviour pid: ~p~n", [Behaviour]),
     erlmud_object:set(Zombie, {behaviour, Behaviour}),
     attempt(Config, Player, {attack, Player, "zombie"}),
-    receive after 100 -> ok end,
+    receive after 2000 -> ok end,
     HitPoints = val(hitpoints, p_hp),
     ct:pal("HitPoints: ~p~n", [HitPoints]),
-    %true = 1000 > val(hitpoints, p_hp),
-    %true = val(is_alive, p_life),
-    %undefined = val(attack, Player),
-    %0 = val(hitpoints, z_hp),
-    %false = val(is_alive, z_life),
-    %undefined = val(attack, Zombie).
+    true = 1000 > val(hitpoints, p_hp),
+    true = val(is_alive, p_life),
+    undefined = val(attack, Player),
+    0 = val(hitpoints, z_hp),
+    false = val(is_alive, z_life),
+    undefined = val(attack, Zombie),
     ok.
 
 player_wield(Config) ->

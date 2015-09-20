@@ -76,30 +76,30 @@ handle_cast({old_log, Pid, Msg, Params}, State) ->
               [Pid, Id | Params]),
     {noreply, State};
 handle_cast(Args = {log, Level, Pid, Terms}, State) ->
-    ct:pal("handle_cast: Log with Level, Pid, Terms:~n\t~p~n", [Args]),
+    %ct:pal("handle_cast: Log with Level, Pid, Terms:~n\t~p~n", [Args]),
     Self = io(self()),
-    IoData = [Self, <<": ">>] ++ [[io(maybe_name(Term)), " "] || Term <- lists:flatten(Terms)],
-    ct:pal("~p: IoData:~n~p~n", [?MODULE, IoData]),
+    IoData = [Self, <<": ">>] ++ [[io(maybe_name(Term)), " "] || Term <- flatten(Terms)],
+    %ct:pal("~p: IoData:~n~p~n", [?MODULE, IoData]),
     Props = erlmud_object:props(Pid),
-    ct:pal("~p: Props:~n~p~n", [?MODULE, Props]),
+    %ct:pal("~p: Props:~n~p~n", [?MODULE, Props]),
     PropsWithNames = [{K, io(maybe_name(V))} || {K, V} <- Props],
-    ct:pal("~p: Props:~n~p~n", [?MODULE, PropsWithNames]),
+    %ct:pal("~p: Props:~n~p~n", [?MODULE, PropsWithNames]),
     ok = file:write(State#state.html_file,
                     spans(["log", Level, io(erlmud_index:get(Pid))],
                           [div_("log_message", IoData),
                            div_("log_props", io(PropsWithNames))])),
     {noreply, State};
 handle_cast(Args = {log, From, To, Stage, Action, Params, Room, Next, Done, Subs}, State) ->
-    ct:pal("handle_cast: Log with From, To, etc.~n\t~p~n", [Args]),
+    %ct:pal("handle_cast: Log with From, To, etc.~n\t~p~n", [Args]),
     FromName = erlmud_index:get(From),
-    ct:pal("FromName: ~p~n", [FromName]),
+    %ct:pal("FromName: ~p~n", [FromName]),
     erlmud_dbg:add(erlmud_object),
-    ct:pal("Added debug on erlmud_object~n", []),
+    %ct:pal("Added debug on erlmud_object~n", []),
     try
         FromProps = erlmud_object:props(From),
-        ct:pal("FromProps: ~p~n", [FromProps]),
-        FromPropsWithNames = [{K, maybe_name(V)} || {K, V} <- FromProps],
-        ct:pal("FromPropsWithNames: ~p~n", [FromPropsWithNames])
+        %ct:pal("FromProps: ~p~n", [FromProps]),
+        FromPropsWithNames = [{K, maybe_name(V)} || {K, V} <- FromProps]
+        %ct:pal("FromPropsWithNames: ~p~n", [FromPropsWithNames])
     catch
         Error ->
             ct:pal("FromProps Error: ~p~n", [Error])
@@ -107,9 +107,9 @@ handle_cast(Args = {log, From, To, Stage, Action, Params, Room, Next, Done, Subs
     dbg:stop_clear(),
 
     ToName = erlmud_index:get(To),
-    ct:pal("ToName: ~p~n", [ToName]),
+    %ct:pal("ToName: ~p~n", [ToName]),
     ToProps = erlmud_object:props(To),
-    ct:pal("ToProps: ~p~n", [ToProps]),
+    %ct:pal("ToProps: ~p~n", [ToProps]),
     ToPropsWithNames = [{K, maybe_name(V)} || {K, V} <- ToProps],
 
     ParamsWithNames = [{K, maybe_name(V)} || {K, V} <- Params],
@@ -118,7 +118,7 @@ handle_cast(Args = {log, From, To, Stage, Action, Params, Room, Next, Done, Subs
     DoneNames = names(Done),
     SubNames = names(Subs),
 
-    ct:pal("Creating spans.~n", []),
+    %ct:pal("Creating spans.~n", []),
     Spans = 
     %ok = file:write(State#state.html_file,
                     spans([Stage, Action, FromName, ToName],
@@ -141,7 +141,7 @@ handle_cast(Args = {log, From, To, Stage, Action, Params, Room, Next, Done, Subs
                            %div_("done", io(DoneNames))%,
                            %div_("subs", io(SubNames))
                           ]),
-    ct:pal("Spans:~n\t~p~n", [[Spans]]),
+    %ct:pal("Spans:~n\t~p~n", [[Spans]]),
     ok = file:write(State#state.html_file, [Spans]),
     %ok = file:write(State#state.html_file, ["</div>"]),
 %),
@@ -178,7 +178,7 @@ names(Pids) ->
     [erlmud_index:get(Pid) || Pid <- Pids].
 
 maybe_name(Pid) when is_pid(Pid) ->
-    erlmud_index:get(Pid);
+    {Pid, erlmud_index:get(Pid)};
 maybe_name(NotPid) ->
     NotPid.
 
@@ -222,3 +222,18 @@ span(Class, Content) ->
 
 millis_as_list() ->
     integer_to_list(element(3, os:timestamp()) rem 1000).
+
+flatten(L) when is_list(L) ->
+    lists:foldl(fun flatten/2, [], lists:reverse(L));
+flatten(NotList) ->
+    NotList.
+
+flatten(T, Acc) when is_tuple(T) ->
+    [H | TupleRest] = tuple_to_list(T),
+    FlattenedTupleElem1 = [<<"{">>, flatten(H)],
+    FlattenedTupleRest = lists:flatten([[<<",">>, flatten(X)] || X <- TupleRest]),
+    FlattenedTupleElem1 ++ FlattenedTupleRest ++ [<<"} ">> | Acc];
+flatten(L, Acc) when is_list(L) ->
+    flatten(L) ++ Acc;
+flatten(X, Acc) ->
+    [X | Acc].

@@ -43,8 +43,7 @@ attempt(Owner, Props, {Action, Self, Owner, Target})
        is_pid(Target) ->
     ShouldSubscribe = lists:member(Action, [attack, calc_hit, calc_damage, damage, killed]),
     {succeed, ShouldSubscribe, Props};
-attempt(Owner, Props, Msg = {stop_attack, Owner}) ->
-    log([<<"Attempt: ">>, Msg, <<" Props: ">>, Props]),
+attempt(Owner, Props, {stop_attack, Owner}) ->
     {succeed, _Subscribe = true, Props};
 attempt(_Owner, Props, Msg) ->
     attempt(Props, Msg).
@@ -56,8 +55,7 @@ attempt(Props, {calc_hit, Self, _, _}) when Self == self() ->
         _ ->
             {succeed, true, Props}
     end;
-attempt(Props, Msg) ->
-    log([<<"Attempt: ">>, Msg, <<" Props: ">>, Props]),
+attempt(Props, _) ->
     {succeed, false, Props}.
 
 succeed(Props, {Action, NotSelf, Owner, Target}) when Action == move orelse
@@ -119,7 +117,7 @@ succeed(Props, {stop_attack, Self}) when Self == self() ->
     {stop, stop_attack, Props};
 
 succeed(Props, Msg) ->
-    log([<<"saw ">>, Msg, <<" succeed with props ">>, Props]),
+    log([<<"saw ">>, Msg, <<" succeed">>]),
     Props.
 
 fail(Props, target_is_dead, _Message) ->

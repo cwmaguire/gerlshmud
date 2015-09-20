@@ -29,11 +29,9 @@ id(_Props, Owner, Pid) ->
 added(_, _) -> ok.
 removed(_, _) -> ok.
 
-attempt(Owner, Props, Msg = {damage, _Att, _Src, Owner, _Dmg}) ->
-    log([<<"subscribed attempt: ">>, Msg, <<", props: ">>, Props]),
+attempt(Owner, Props, {damage, _Att, _Src, Owner, _Dmg}) ->
     {succeed, true, Props};
-attempt(Owner, Props, Msg = {attack, _Att, Owner, _Target}) ->
-    log([<<"subscribed attempt: ">>, Msg, <<", props: ">>, Props]),
+attempt(Owner, Props, {attack, _Att, Owner, _Target}) ->
     {succeed, true, Props};
 attempt(Owner, Props, {stop_attack, Attack, Owner, _Target}) ->
     case [Pid || {attack, Pid, _} <- Props, Pid == Attack] of
@@ -42,8 +40,7 @@ attempt(Owner, Props, {stop_attack, Attack, Owner, _Target}) ->
         _ ->
             Props
     end;
-attempt(Owner, Props, Msg) ->
-    log([<<"ignoring attempt: ">>, Msg, <<", props: ">>, Props, <<" owner: ">>, Owner]),
+attempt(_, Props, _) ->
     {succeed, false, Props}.
 
 succeed(Props, {attack, Attack, Attacker, Target}) ->

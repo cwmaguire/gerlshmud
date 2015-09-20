@@ -82,7 +82,7 @@ attempt(Pid, Msg) ->
     attempt(Pid, Msg, _ShouldSubscribe = true).
 
 attempt(Pid, Msg, ShouldSubscribe) ->
-    log([<<"attempt Pid = ">>, Pid, <<": Msg = ">>, Msg]),
+    log([<<"attempt(Pid = ">>, Pid, <<", Msg = ">>, Msg, <<")">>]),
     Subs = case ShouldSubscribe of
                true ->
                    [self()];
@@ -171,7 +171,7 @@ handle_info({'EXIT', From, Reason}, State = #state{props = Props}) ->
     log([<<"Props with dead pid removed: ">>, Props2]),
     {noreply, State#state{props = Props2}};
 handle_info({Pid, Msg}, State) ->
-    log([<<"handle_info attempt Pid = ">>, Pid, <<" Msg = ">>, Msg]),
+    log([Pid, <<": handle_info attempt Msg = ">>, Msg]),
     attempt(Pid, Msg),
     {noreply, State};
 handle_info(Unknown, State) ->
@@ -209,13 +209,17 @@ attempt_(Msg,
          State = #state{type = Type,
                         props = Props}) ->
     Owner = proplists:get_value(owner, Props),
-    Results = {Result, Msg2, _, Props2} = ensure_message(Msg, Type:attempt(Owner, Props, Msg)),
+    Results = {Result, Msg2, ShouldSubscribe, Props2} = ensure_message(Msg, Type:attempt(Owner, Props, Msg)),
+    log([Type, <<" ">>, self(), <<" ">>, Owner,
+         <<"attempt: ">>, Msg, <<" -> ">>,
+         ShouldSubscribe, <<", ">>, Result]),
     _ = handle(Result, Msg2, merge(self(), Type, Results, Procs)),
     State#state{props = Props2}.
 
 ensure_message(Msg, {A, B, C}) ->
     {A, Msg, B, C};
-ensure_message(_, T) ->
+ensure_message(_, T = {_, NewMsg, _, _}) ->
+    log([<<"New message: ">>, NewMsg]),
     T.
 
 handle({resend, Target, Msg}, OrigMsg, _NoProcs) ->

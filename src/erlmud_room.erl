@@ -35,14 +35,11 @@ removed(_, _) -> ok.
 attempt(_Owner, Props, Msg) ->
     attempt(Props, Msg).
 
-attempt(Props, {move, Obj, Self, Target}) when Self == self() ->
-    log([Obj, <<" wants to go to ">>, Target, <<" from here">>]),
+attempt(Props, {move, _Obj, Self, _Target}) when Self == self() ->
     {succeed, true, Props};
-attempt(Props, {move, Obj, Source, Self}) when Self == self() ->
-    log([Obj, <<" wants to come here from ">>, Source]),
+attempt(Props, {move, _Obj, _Source, Self}) when Self == self() ->
     {succeed, true, Props};
 attempt(Props, {get, Obj, Pid}) when is_pid(Pid) ->
-    log([Obj, <<" wants to get ">>, Pid]),
     case has_pid(Props, Pid) of
         true ->
             log([Obj, <<" resending {get, ">>, Obj, <<", ">>, Pid, <<"} as {get, ">>, Obj, <<", ">>, Pid, <<", ">>, self(), <<"}">>]),
@@ -50,8 +47,7 @@ attempt(Props, {get, Obj, Pid}) when is_pid(Pid) ->
         _ ->
             {succeed, _Interested = false, Props}
     end;
-attempt(Props, Msg) ->
-    log([<<"ignoring attempt ">>, Msg]),
+attempt(Props, _Msg) ->
     {succeed, false, Props}.
 
 succeed(Props, {move, Obj, Self, Target}) when Self == self() ->
