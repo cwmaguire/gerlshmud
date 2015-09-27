@@ -4,28 +4,20 @@
 -include("erlmud_test_worlds.hrl").
 
 all() ->
-    %[player_move,
-     %player_move_fail,
-     %player_move_exit_locked,
-     %player_get_item,
-     %player_drop_item,
-     %player_attack,
-     %player_attack_wait,
-     %one_sided_fight,
-     %counterattack_behaviour,
-     %player_wield,
-     %player_wield_missing_body_part,
-     %player_wield_wrong_body_part,
-     %player_wield_body_part_is_full,
-     %player_remove].
-    %[player_remove].
-    %[player_wield].
-    %[player_wield_wrong_body_part].
-    %[player_attack].
-    %[player_attack_wait].
-    [counterattack_behaviour].
-    %[player_move_exit_locked].
-    %[player_move].
+    [player_move,
+     player_move_fail,
+     player_move_exit_locked,
+     player_get_item,
+     player_drop_item,
+     player_attack,
+     player_attack_wait,
+     one_sided_fight,
+     counterattack_behaviour,
+     player_wield,
+     player_wield_missing_body_part,
+     player_wield_wrong_body_part,
+     player_wield_body_part_is_full,
+     player_remove].
 
 init_per_testcase(_, Config) ->
     {ok, _Started} = application:ensure_all_started(erlmud),
@@ -96,21 +88,21 @@ player_get_item(Config) ->
     start(?WORLD_2),
     Player = erlmud_index:get(player),
     Item = erlmud_index:get(item),
-    attempt(Config, Player, {get, Player, "sword"}),
+    attempt(Config, Player, {get, Player, <<"sword">>}),
     receive after 100 -> ok end,
     has(Item, player).
 
 player_drop_item(Config) ->
     start(?WORLD_2),
     Player = erlmud_index:get(player),
-    attempt(Config, Player, {drop, Player, "helmet"}),
+    attempt(Config, Player, {drop, Player, <<"helmet">>}),
     receive after 100 -> ok end,
     [] = all(item, Player).
 
 player_attack(Config) ->
     start(?WORLD_3),
     Player = erlmud_index:get(player),
-    attempt(Config, Player, {attack, Player, "zombie"}),
+    attempt(Config, Player, {attack, Player, <<"zombie">>}),
     receive after 1000 -> ok end,
     false = val(is_alive, z_life),
     0 = val(hitpoints, z_hp).
@@ -119,7 +111,7 @@ player_attack_wait(Config) ->
     start(?WORLD_3),
     Player = erlmud_index:get(player),
     erlmud_object:set(Player, {attack_wait, 10000}),
-    attempt(Config, Player, {attack, Player, "zombie"}),
+    attempt(Config, Player, {attack, Player, <<"zombie">>}),
     receive after 100 -> ok end,
     5 = val(hitpoints, z_hp),
     true = val(is_alive, z_life),
@@ -129,7 +121,7 @@ one_sided_fight(Config) ->
     start(?WORLD_3),
     Player = erlmud_index:get(player),
     Zombie = erlmud_index:get(zombie),
-    attempt(Config, Player, {attack, Player, "zombie"}),
+    attempt(Config, Player, {attack, Player, <<"zombie">>}),
     receive after 100 -> ok end,
     1000 = val(hitpoints, p_hp),
     true = val(is_alive, p_life),
@@ -152,7 +144,7 @@ counterattack_behaviour(Config) ->
     ct:pal("Started behaviour pid: ~p~n", [Behaviour]),
     erlmud_object:set(Zombie, {behaviour, Behaviour}),
     attempt(Config, Player, {attack, Player, <<"zombie">>}),
-    receive after 2000 -> ok end,
+    receive after 200 -> ok end,
     HitPoints = val(hitpoints, p_hp),
     ct:pal("HitPoints: ~p~n", [HitPoints]),
     true = 1000 > val(hitpoints, p_hp),
@@ -167,7 +159,7 @@ player_wield(Config) ->
     start(?WORLD_4),
     Player = erlmud_index:get(player),
     Helmet = erlmud_index:get(helmet),
-    attempt(Config, Player, {add, Player, "helmet", "head"}),
+    attempt(Config, Player, {add, Player, <<"helmet">>, <<"head">>}),
     receive after 100 -> ok end,
     Helmet = val(item, head).
 
@@ -175,11 +167,11 @@ player_wield_missing_body_part(Config) ->
     start(?WORLD_4),
     Player = erlmud_index:get(player),
     Helmet = erlmud_index:get(helmet),
-    attempt(Config, Player, {add, Player, "helmet", "finger"}),
+    attempt(Config, Player, {add, Player, <<"helmet">>, <<"finger">>}),
     receive after 100 -> ok end,
     undefined = val(item, head),
     Helmet = val(item, player),
-    attempt(Config, Player, {add, Player, "helmet", "head"}),
+    attempt(Config, Player, {add, Player, <<"helmet">>, <<"head">>}),
     receive after 100 -> ok end,
     Helmet = val(item, head),
     undefined = val(item, player).
@@ -188,11 +180,11 @@ player_wield_wrong_body_part(Config) ->
     start(?WORLD_5),
     Player = erlmud_index:get(player),
     Helmet = erlmud_index:get(helmet),
-    attempt(Config, Player, {add, Player, "helmet", "finger"}),
+    attempt(Config, Player, {add, Player, <<"helmet">>, <<"finger">>}),
     receive after 100 -> ok end,
     undefined = val(item, head1),
     Helmet = val(item, player),
-    attempt(Config, Player, {add, Player, "helmet", "head"}),
+    attempt(Config, Player, {add, Player, <<"helmet">>, <<"head">>}),
     receive after 100 -> ok end,
     Helmet = val(item, head1),
     undefined = val(item, player).
@@ -205,17 +197,17 @@ player_wield_body_part_is_full(Config) ->
     [Ring1, Ring2] = all(item, player),
     [] = all(item, finger1),
     [] = all(item, finger2),
-    attempt(Config, Player, {add, Player, "ring1", "finger1"}),
+    attempt(Config, Player, {add, Player, <<"ring1">>, <<"finger1">>}),
     receive after 100 -> ok end,
     [Ring2] = all(item, player),
     [Ring1] = all(item, finger1),
     [] = all(item, finger2),
-    attempt(Config, Player, {add, Player, "ring2", "finger1"}),
+    attempt(Config, Player, {add, Player, <<"ring2">>, <<"finger1">>}),
     receive after 100 -> ok end,
     [Ring2] = all(item, player),
     [Ring1] = all(item, finger1),
     [] = all(item, finger2),
-    attempt(Config, Player, {add, Player, "ring2"}),
+    attempt(Config, Player, {add, Player, <<"ring2">>}),
     receive after 100 -> ok end,
     [] = all(item, player),
     [Ring1] = all(item, finger1),
@@ -225,19 +217,19 @@ player_remove(Config) ->
     start(?WORLD_4),
     Player = erlmud_index:get(player),
     Helmet = erlmud_index:get(helmet),
-    attempt(Config, Player, {add, Player, "helmet", "head"}),
+    attempt(Config, Player, {add, Player, <<"helmet">>, <<"head">>}),
     receive after 100 -> ok end,
     undefined = val(item, player),
     Helmet = val(item, head),
-    attempt(Config, Player, {remove, Player, "helmet", "head"}),
+    attempt(Config, Player, {remove, Player, <<"helmet">>, <<"head">>}),
     receive after 100 -> ok end,
     Helmet = val(item, player),
     undefined = val(item, head),
-    attempt(Config, Player, {add, Player, "helmet", "head"}),
+    attempt(Config, Player, {add, Player, <<"helmet">>, <<"head">>}),
     receive after 100 -> ok end,
     undefined = val(item, player),
     Helmet = val(item, head),
-    attempt(Config, Player, {remove, Player, "helmet"}),
+    attempt(Config, Player, {remove, Player, <<"helmet">>}),
     receive after 100 -> ok end,
     Helmet = val(item, player),
     undefined = val(item, head).

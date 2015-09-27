@@ -33,7 +33,7 @@ removed(_, _) -> ok.
 died(_, _, _) -> ok.
 
 is_match(Props, Name) ->
-    match == re:run(proplists:get_value(name, Props, ""), Name, [{capture, none}]).
+    match == re:run(proplists:get_value(name, Props, <<>>), Name, [{capture, none}]).
 
 can(add, Props, Item) ->
     can_add(Props, Item);
@@ -90,8 +90,9 @@ can_remove(_Props, _Item) ->
 has_owner(Item, Owner) when is_pid(Item) ->
     [Owner] == erlmud_object:get(Item, owner).
 
-attempt(Owner, Props, {Action, Owner, Item, [_ | _] = BodyPartName})
+attempt(Owner, Props, {Action, Owner, Item, BodyPartName})
   when is_pid(Item) andalso
+       is_binary(BodyPartName) andalso
        (Action == add orelse
         Action == remove) ->
     case is_match(Props, BodyPartName) of
@@ -134,17 +135,14 @@ attempt(Owner, Props, {remove, Owner, Item}) ->
             {succeed, _Subscribe = false, Props}
     end;
 attempt(_Owner, Props, _Msg) ->
-    %log("attempt ignored.~nProps = ~p~nMsg = ~p~n", [Props, Msg]),
     {succeed, _Subscribe = false, Props}.
 
 succeed(Props, {add, Item, Self}) when Self == self(), is_pid(Item) ->
-    %log("added ~p~n", [Item]),
     Owner = proplists:get_value(owner, Props),
     erlmud_object:remove(Owner, item, Item),
     erlmud_object:set(Item, {owner, self()}),
     [{item, Item} | Props];
 succeed(Props, {remove, Item, Self}) when Self == self(), is_pid(Item) ->
-    %log("removed ~p~n", [Item]),
     Owner = proplists:get_value(owner, Props),
     erlmud_object:add(Owner, item, Item),
     erlmud_object:set(Item, {owner, Owner}),
