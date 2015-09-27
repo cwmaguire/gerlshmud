@@ -112,13 +112,10 @@ set(Pid, Prop) ->
     send(Pid, {set, Prop}).
 
 props(Pid) ->
-    From = self(),
-    ct:pal("gen_server:props(~p) from ~p~n", [Pid, From]),
     case is_process_alive(Pid) of
         true ->
             gen_server:call(Pid, props);
         _ ->
-            ct:pal("gen_server:props(~p)\tPid is dead.~n", [Pid]),
             []
     end.
 
@@ -251,12 +248,9 @@ send(Pid, SendMsg = {attempt, Msg, Procs}) ->
     log(Pid, attempt, Msg, Procs),
     send_(Pid, SendMsg);
 send(Pid, Msg) ->
-    %ct:pal("sending non-attempt: ~p~n", [Msg]),
-    %log(Pid, not_attempt, Msg, Procs),
     send_(Pid, Msg).
 
 send_(Pid, Msg) ->
-    %log([Msg]),
     gen_server:cast(Pid, Msg).
 
 
@@ -342,7 +336,6 @@ log(To, Stage, Msg, Procs) when is_tuple(Msg) ->
                          Procs#procs.next,
                          Procs#procs.done,
                          Procs#procs.subs),
-    %timer:sleep(100),
     erlang:yield().
 
 log(Terms) ->

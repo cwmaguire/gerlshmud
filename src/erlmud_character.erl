@@ -56,12 +56,9 @@ attempt(Props, {enter_world, Self}) when Self == self() ->
             {succeed, true, Props}
     end;
 attempt(Props, {drop, Self, Pid}) when Self == self(), is_pid(Pid) ->
-    %log(debug, [Self, <<"attempting to drop ">>, Pid, <<"\n">>]),
     case has_pid(Props, Pid) of
         true ->
             {room, Room} = get_(room, Props),
-            %log(debug, [<<"resending {drop, ">>, Self, <<", ">>, Pid,
-                        %"} as {drop, ", Self, ", ", Pid, ", ", Room, "}\n"]),
             {{resend, Self, {drop, Self, Pid, Room}}, true, Props};
         _ ->
             {succeed, _Interested = false, Props}
@@ -71,9 +68,6 @@ attempt(Props, {attack, Attack, Attacker, TargetName}) when is_binary(TargetName
     SelfName = proplists:get_value(name, Props, <<>>),
     case re:run(SelfName, TargetName, [{capture, none}]) of
         match ->
-            %log(debug,
-                %[<<"resending {attack, ">>, Attacker, <<", ">>, list_to_binary(Name),
-                 %<<"} as {attack, ">>, Attacker, <<", ">>, self(), <<"}\n">>]),
             {{resend, Attack, {attack, Attack, Attacker, self()}}, true, Props};
         _ ->
             log(debug,

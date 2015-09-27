@@ -35,8 +35,6 @@ init_per_testcase(_, Config) ->
     [{test_object, TestObject} | Config].
 
 end_per_testcase(_, _Config) ->
-    %TestObject = proplists:get_values(test_object, Config),
-    %TestObject ! stop,
     application:stop(erlmud).
 
 val(Key, Obj) ->
@@ -56,8 +54,6 @@ get_props(Obj) when is_atom(Obj) ->
     ct:pal("Pid for ~p is ~p, props are ~p~n", [Obj, Pid, Props]),
     Props;
 get_props(Pid) ->
-    %ct:pal("get state for pid ~p~n", [Pid]),
-    %ct:pal("Pid ~p is alive? ~p~n", [Pid, is_process_alive(Pid)]),
     {_, _, Props} = sys:get_state(Pid),
     Props.
 
@@ -146,11 +142,9 @@ counterattack_behaviour(Config) ->
     start(?WORLD_3),
     Player = erlmud_index:get(player),
     ct:pal("Player is ~p~n", [Player]),
-    %erlmud_event_log:log(test, [<<"Player is ">>, Player]),
     erlmud_object:set(Player, {attack_wait, 20}),
     Zombie = erlmud_index:get(zombie),
     receive after 1000 -> ok end,
-    erlmud_dbg:add(erlmud_event_log),
     Behaviour = start_obj(behaviour,
                           erlmud_behaviour,
                           [{owner, Zombie},
@@ -262,23 +256,23 @@ attempt(Config, Target, Message) ->
     TestObject ! {attempt, Target, Message}.
 
 mock_object() ->
-    ct:pal("mock_object receiving~n", []),
+    ct:pal("mock_object ~p receiving~n", [self()]),
     receive
         X ->
-            ct:pal("mock_object received: ~p~n", [X]),
+            ct:pal("mock_object ~p received: ~p~n", [self(), X]),
             case X of
-        {'$gen_call', Msg = {From, MonitorRef}, props} ->
-            ct:pal("TestObject: gen_call: ~p ~n", [Msg]),
-            From ! {MonitorRef, _MockProps = []};
-        {attempt, Target, Message} ->
-            ct:pal("TestObject Sending {attempt, ~p, ~p}", [Target, Message]),
-            erlmud_object:attempt(Target, Message, false);
-        stop ->
-            ct:pal("TestObject stopping", []),
-            exit(normal);
-        Other ->
-            ct:pal("TestObject received other: ~p~n", [Other]),
-            ok
-    end
+                {'$gen_call', Msg = {From, MonitorRef}, props} ->
+                    ct:pal("mock_object ~p rec'd gen_call: ~p ~n", [self(), Msg]),
+                    From ! {MonitorRef, _MockProps = []};
+                {attempt, Target, Message} ->
+                    ct:pal("mock_object ~p Sending {attempt, ~p, ~p}", [self(), Target, Message]),
+                    erlmud_object:attempt(Target, Message, false);
+                stop ->
+                    ct:pal("mock_object ~p stopping", [self()]),
+                    exit(normal);
+                Other ->
+                    ct:pal("mock_object ~p received other:~n\t~p~n", [self(), Other]),
+                    ok
+            end
     end,
     mock_object().
