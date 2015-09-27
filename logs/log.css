@@ -1,8 +1,25 @@
 body {font-size: 8px;}
 
-#checkboxes {position: fixed; top: 10px; left: 10px;}
-#log {margin-left: 40px;}
-/*.log {float: right;}*/
+#checkboxes {
+  top: 10px;
+  left: 10px;
+  height: 20%;
+  width: 100%;
+}
+
+.checkbox {
+  width: 140px;
+  border: 1px solid black;
+  display: inline-block;
+}
+
+#log {
+  height: 80%;
+  margin-top: 20px;
+  margin-left: 40px;
+  overflow: scroll;
+}
+
 .col_from {display: none;}
 .col_millies {display: none;}
 .log_time {display: none; color: green;}

@@ -42,6 +42,7 @@ function checkbox(className){
   label.innerHTML = className;
   div.appendChild(cb);
   div.appendChild(label);
+  div.className = "checkbox";
   return div;
 }
 
