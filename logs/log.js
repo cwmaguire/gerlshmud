@@ -9,8 +9,9 @@ function createClassCheckboxes(){
 }
 
 function insert(elem){
-  var firstElem = document.body.firstChild;
-  document.body.insertBefore(elem, firstElem);
+  var firstElem = document.body.firstElementChild;
+  //document.body.insertBefore(elem, firstElem);
+  firstElem.appendChild(elem);
 }
 
 function nodeListToArray(nodelist){

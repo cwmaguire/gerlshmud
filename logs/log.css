@@ -1,5 +1,8 @@
 body {font-size: 8px;}
 
+#checkboxes {position: fixed; top: 10px; left: 10px;}
+#log {margin-left: 40px;}
+/*.log {float: right;}*/
 .col_from {display: none;}
 .col_millies {display: none;}
 .log_time {display: none; color: green;}
