@@ -34,7 +34,6 @@ function checkbox(className){
   cb.id = className + "_checkbox";
   cb.checked = true;
   cb.onchange = function(event){
-    //window.alert("Toggling visibility for " + className);
     var elems = nodeListToArray(document.getElementsByClassName(className));
     map(toggleVisibility, elems);
   }
@@ -46,9 +45,8 @@ function checkbox(className){
 }
 
 function toggleVisibility(elem){
-  //alert("elem: " + elem.className + " display is: " + elem.style.display);
   if(elem.style.display == "none"){
-    elem.style.display = "initial";
+    elem.style.display = "block";
   }else{
     elem.style.display = "none";
   }

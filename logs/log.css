@@ -2,4 +2,5 @@ body {font-size: 8px;}
 
 .col_from {display: none;}
 .col_millies {display: none;}
-.log_props {display: none;}
+.log_time {display: none; color: green;}
+.log_props {display: none; color: blue;}

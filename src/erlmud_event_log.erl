@@ -42,7 +42,6 @@ log(To, Stage, Msg, Room, Next, Done, Subs) ->
         Pid ->
             case is_process_alive(Pid) of
                 true ->
-                    %ct:pal("Logger process is alive~n"),
                     ok;
                 _ ->
                     exit("logger is dead")
@@ -52,8 +51,7 @@ log(To, Stage, Msg, Room, Next, Done, Subs) ->
                     {log, self(), To, Stage, Action, Params, Room, Next, Done, Subs}).
 
 start_link() ->
-    %_ = ets:new(?MODULE, [public, named_table]),
-    gen_server:start_link({local, ?MODULE}, ?MODULE, [], [{debug, [trace]}]).
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 init([]) ->
     process_flag(priority, max),
@@ -75,31 +73,21 @@ handle_cast({old_log, Pid, Msg, Params}, State) ->
     io:format(State#state.log_file, "~p (~p):~n" ++ Msg ++ "~n",
               [Pid, Id | Params]),
     {noreply, State};
-handle_cast(Args = {log, Level, Pid, Terms}, State) ->
-    %ct:pal("handle_cast: Log with Level, Pid, Terms:~n\t~p~n", [Args]),
-    Self = io(self()),
-    IoData = [Self, <<": ">>] ++ [[io(maybe_name(Term)), " "] || Term <- flatten(Terms)],
-    %ct:pal("~p: IoData:~n~p~n", [?MODULE, IoData]),
+handle_cast({log, Level, Pid, Terms}, State) ->
+    IoData = [[io(maybe_name(Term)), " "] || Term <- flatten(Terms)],
     Props = erlmud_object:props(Pid),
-    %ct:pal("~p: Props:~n~p~n", [?MODULE, Props]),
     PropsWithNames = [{K, io(maybe_name(V))} || {K, V} <- Props],
-    %ct:pal("~p: Props:~n~p~n", [?MODULE, PropsWithNames]),
     ok = file:write(State#state.html_file,
                     spans(["log", Level, io(erlmud_index:get(Pid))],
-                          [div_("log_message", IoData),
+                          [div_("log_time", io(os:timestamp())),
+                           div_("log_message", IoData),
                            div_("log_props", io(PropsWithNames))])),
     {noreply, State};
-handle_cast(Args = {log, From, To, Stage, Action, Params, Room, Next, Done, Subs}, State) ->
-    %ct:pal("handle_cast: Log with From, To, etc.~n\t~p~n", [Args]),
+handle_cast({log, From, To, Stage, Action, Params, Room, Next, Done, Subs}, State) ->
     FromName = erlmud_index:get(From),
-    %ct:pal("FromName: ~p~n", [FromName]),
-    erlmud_dbg:add(erlmud_object),
-    %ct:pal("Added debug on erlmud_object~n", []),
     try
         FromProps = erlmud_object:props(From),
-        %ct:pal("FromProps: ~p~n", [FromProps]),
         FromPropsWithNames = [{K, maybe_name(V)} || {K, V} <- FromProps]
-        %ct:pal("FromPropsWithNames: ~p~n", [FromPropsWithNames])
     catch
         Error ->
             ct:pal("FromProps Error: ~p~n", [Error])
@@ -107,9 +95,7 @@ handle_cast(Args = {log, From, To, Stage, Action, Params, Room, Next, Done, Subs
     dbg:stop_clear(),
 
     ToName = erlmud_index:get(To),
-    %ct:pal("ToName: ~p~n", [ToName]),
     ToProps = erlmud_object:props(To),
-    %ct:pal("ToProps: ~p~n", [ToProps]),
     ToPropsWithNames = [{K, maybe_name(V)} || {K, V} <- ToProps],
 
     ParamsWithNames = [{K, maybe_name(V)} || {K, V} <- Params],
@@ -118,9 +104,7 @@ handle_cast(Args = {log, From, To, Stage, Action, Params, Room, Next, Done, Subs
     DoneNames = names(Done),
     SubNames = names(Subs),
 
-    %ct:pal("Creating spans.~n", []),
-    Spans = 
-    %ok = file:write(State#state.html_file,
+    Spans =
                     spans([Stage, Action, FromName, ToName],
                           [div_("columns",
                                 [%span("col_count", State#state.count)])
@@ -141,10 +125,7 @@ handle_cast(Args = {log, From, To, Stage, Action, Params, Room, Next, Done, Subs
                            %div_("done", io(DoneNames))%,
                            %div_("subs", io(SubNames))
                           ]),
-    %ct:pal("Spans:~n\t~p~n", [[Spans]]),
     ok = file:write(State#state.html_file, [Spans]),
-    %ok = file:write(State#state.html_file, ["</div>"]),
-%),
     {noreply, State};
 handle_cast(Msg, State) ->
     ct:pal("Unrecognized cast: ~p~n", [Msg]),
@@ -188,7 +169,8 @@ io(X) ->
     Io = case is_string(X) of
         true ->
             X;
-        _ -> io_lib:format("~p", [X])
+        _ ->
+            io_lib:format("~p", [X])
     end,
     html_escape(Io).
 
@@ -210,7 +192,7 @@ html_escape($<, Acc) -> [$&, $l, $t, $; | Acc];
 html_escape(X, Acc) -> [X | Acc].
 
 div_(Class, Content) ->
-    ["<div class=\"", Class, "\">\n", Content, "</div>\n"].
+    ["<div class=\"", Class, "\">\n", Content, "\n</div>\n"].
 
 spans(Classes, Content) ->
     lists:foldl(fun span/2, Content, lists:reverse(Classes)).
