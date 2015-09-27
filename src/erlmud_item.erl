@@ -36,7 +36,7 @@ is_name(Props, Name) ->
     match == re:run(proplists:get_value(name, Props, ""), Name, [{capture, none}]).
 
 attempt(_Owner, Props, {Action, Obj, ItemName, BodyPart})
-  when is_list(ItemName) andalso
+  when is_binary(ItemName) andalso
        (Action == add orelse
         Action == remove) ->
     case is_name(Props, ItemName) of
@@ -47,7 +47,7 @@ attempt(_Owner, Props, {Action, Obj, ItemName, BodyPart})
         _ ->
             {succeed, _Subscribe = false, Props}
     end;
-attempt(_Owner, Props, {Action, Owner, ItemName}) when is_list(ItemName) ->
+attempt(_Owner, Props, {Action, Owner, ItemName}) when is_binary(ItemName) ->
     case is_name(Props, ItemName) of
         true ->
             NewMessage = {Action, Owner, self()},
@@ -56,9 +56,10 @@ attempt(_Owner, Props, {Action, Owner, ItemName}) when is_list(ItemName) ->
         _ ->
             {succeed, _Subscribe = false, Props}
     end;
-attempt(_Owner, Props, {Action, Obj, [_ | _] = ItemName})
-  when Action == get;
-       Action == drop ->
+attempt(_Owner, Props, {Action, Obj, ItemName})
+  when is_binary(ItemName) andalso
+       (Action == get orelse
+        Action == drop) ->
     case is_name(Props, ItemName) of
         true ->
             NewMessage = {Action, Obj, self()},

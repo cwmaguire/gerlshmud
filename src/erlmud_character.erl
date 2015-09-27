@@ -66,16 +66,22 @@ attempt(Props, {drop, Self, Pid}) when Self == self(), is_pid(Pid) ->
         _ ->
             {succeed, _Interested = false, Props}
     end;
-attempt(Props, {attack, Attack, Attacker, Name}) when is_list(Name) ->
-    log(debug, [<<"Checking if name ">>, list_to_binary(Name), <<" matches">>]),
-    case re:run(proplists:get_value(name, Props, ""), Name, [{capture, none}]) of
+attempt(Props, {attack, Attack, Attacker, TargetName}) when is_binary(TargetName) ->
+    log(debug, [<<"Checking if name ">>, TargetName, <<" matches">>]),
+    SelfName = proplists:get_value(name, Props, <<>>),
+    case re:run(SelfName, TargetName, [{capture, none}]) of
         match ->
             %log(debug,
                 %[<<"resending {attack, ">>, Attacker, <<", ">>, list_to_binary(Name),
                  %<<"} as {attack, ">>, Attacker, <<", ">>, self(), <<"}\n">>]),
             {{resend, Attack, {attack, Attack, Attacker, self()}}, true, Props};
         _ ->
-            log(debug, [<<"Name ">>, list_to_binary(Name), <<" did not match.\n">>]),
+            log(debug,
+                [<<"Name ">>,
+                 TargetName,
+                 <<" did not match this character's name: ">>,
+                 SelfName,
+                 <<".\n">>]),
             {succeed, false, Props}
     end;
 attempt(Props, {calc_next_attack_wait, Attack, Self, Target, Sent, Wait})
@@ -96,7 +102,7 @@ attempt(Props, {stop_attack, Attack}) ->
     {succeed, _IsCurrAttack = lists:member({attack, Attack}, Props), Props};
 attempt(Props, {die, Self}) when Self == self() ->
     {succeed, true, Props};
-attempt(Props, Msg) ->
+attempt(Props, _Msg) ->
     {succeed, false, Props}.
 
 succeed(Props, {move, Self, Source, Target, _Exit}) when Self == self() ->
@@ -122,8 +128,8 @@ succeed(Props, {get, Self, Source, Item}) when Self == self() ->
 succeed(Props, {attack, Self, Target}) when Self == self() ->
     log(debug, [<<"{attack, self(), ">>,
                 case Target of
-                    T when is_pid(T) -> Target;
-                    T when is_list(T)-> list_to_binary(T)
+                    TPid when is_pid(TPid) -> TPid;
+                    TBin -> TBin
                 end,
                 <<"} succeeded. Starting attack process">>]),
     %attack(Target, stop_attack(Props));

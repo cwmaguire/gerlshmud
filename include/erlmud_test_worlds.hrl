@@ -7,9 +7,9 @@
 
 -define(WORLD_2, [{erlmud_room, room, [{player, player}, {item, sword}, {item, apple}]},
                   {erlmud_character, player, [{room, room}, {item, helmet}]},
-                  {erlmud_item, sword, [{owner, room}, {name, "sword"}]},
-                  {erlmud_item, helmet, [{owner, player}, {name, "helmet"}]},
-                  {erlmud_item, apple, [{owner, room}, {name, "apple"}]}]).
+                  {erlmud_item, sword, [{owner, room}, {name, <<"sword">>}]},
+                  {erlmud_item, helmet, [{owner, player}, {name, <<"helmet">>}]},
+                  {erlmud_item, apple, [{owner, room}, {name, <<"apple">>}]}]).
 
 -define(WORLD_3, [{erlmud_room, room, [{character, player},
                                        {character, zombie}]},
@@ -29,7 +29,7 @@
                   {erlmud_character, zombie, [{room, room},
                                               {attack_wait, 10},
                                               {item, sword},
-                                              {name, "zombie"},
+                                              {name, <<"zombie">>},
                                               {hitpoints, z_hp},
                                               {life, z_life}]},
                   {erlmud_hitpoints, z_hp, [{hitpoints, 10},
@@ -43,38 +43,38 @@
                   {erlmud_character, player, [{room, room},
                                            {item, helmet},
                                            {body_part, head}]},
-                  {erlmud_body_part, head, [{name, "head"}, {owner, player}]},
-                  {erlmud_item, helmet, [{name, "helmet"}, {owner, player}]}]).
+                  {erlmud_body_part, head, [{name, <<"head">>}, {owner, player}]},
+                  {erlmud_item, helmet, [{name, <<"helmet">>}, {owner, player}]}]).
 
 -define(WORLD_5, [{erlmud_character, player, [{item, helmet},
                                            {body_part, head1},
                                            {body_part, finger1}]},
-                  {erlmud_body_part, head1, [{name, "head"},
+                  {erlmud_body_part, head1, [{name, <<"head">>},
                                              {owner, player},
                                              {body_part, head}]},
-                  {erlmud_body_part, finger1, [{name, "finger"},
+                  {erlmud_body_part, finger1, [{name, <<"finger">>},
                                                {owner, player},
                                                {body_part, finger}]},
                   {erlmud_item, helmet, [{owner, player},
-                                         {name, "helmet"},
+                                         {name, <<"helmet">>},
                                          {body_parts, [head, hand]}]}]).
 
 -define(WORLD_6, [{erlmud_character, player, [{body_part, finger1},
                                            {body_part, finger2},
                                            {item, ring1},
                                            {item, ring2}]},
-                  {erlmud_body_part, finger1, [{name, "finger1"},
+                  {erlmud_body_part, finger1, [{name, <<"finger1">>},
                                                {owner, player},
                                                {max_items, 1},
                                                {body_part, finger}]},
-                  {erlmud_body_part, finger2, [{name, "finger2"},
+                  {erlmud_body_part, finger2, [{name, <<"finger2">>},
                                                {owner, player},
                                                {max_items, 1},
                                                {body_part, finger}]},
                   {erlmud_item, ring1, [{owner, player},
-                                        {name, "ring1"},
+                                        {name, <<"ring1">>},
                                         {body_parts, [finger]}]},
                   {erlmud_item, ring2, [{owner, player},
-                                        {name, "ring2"},
+                                        {name, <<"ring2">>},
                                         {body_parts, [finger]}]}]).
 

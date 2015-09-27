@@ -157,7 +157,7 @@ counterattack_behaviour(Config) ->
                            {attack_wait, 10}]),
     ct:pal("Started behaviour pid: ~p~n", [Behaviour]),
     erlmud_object:set(Zombie, {behaviour, Behaviour}),
-    attempt(Config, Player, {attack, Player, "zombie"}),
+    attempt(Config, Player, {attack, Player, <<"zombie">>}),
     receive after 2000 -> ok end,
     HitPoints = val(hitpoints, p_hp),
     ct:pal("HitPoints: ~p~n", [HitPoints]),

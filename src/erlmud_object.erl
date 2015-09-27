@@ -67,7 +67,11 @@ id(_Id = undefined, Type, Props) ->
                     pid_to_list(Pid);
                 Atom when is_atom(Atom) ->
                     atom_to_list(Atom);
+                Binary when is_binary(Binary) ->
+                    Binary;
                 List when is_list(List) ->
+                    error_logger:info_msg("Parent property of ~p is a list: ~p; all text should be binary.~n",
+                           [self(), List]),
                     List
             end,
     PidString = pid_to_list(self()),
