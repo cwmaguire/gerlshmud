@@ -46,3 +46,5 @@ Running Tests:
 make ct
 -or-
 rm -rf logs/*<hostname>*; rm -rf logs/erlmud.log; ERLMUD_LOG_PATH=$(pwd)/logs make ct
+-or-
+./t
