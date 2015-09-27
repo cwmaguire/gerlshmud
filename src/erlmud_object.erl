@@ -271,7 +271,14 @@ proc(Value, _) ->
     Value.
 
 procs(Props) ->
-    [Pid || {_, Pid} <- Props, is_pid(Pid)].
+    lists:foldl(fun procs/2, [], Props).
+
+procs({_, Pid}, Pids) when is_pid(Pid) ->
+    [Pid | Pids];
+procs({_, MaybePids}, Pids) when is_list(MaybePids) ->
+    Pids ++ [Pid || Pid <- MaybePids, is_pid(Pid)];
+procs(_, Pids) ->
+    Pids.
 
 merge(_, _, {{resend, _, _, _}, _, _, _}, _) ->
     undefined;
