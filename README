@@ -29,6 +29,7 @@ Jun 20, 2015 - attacks, logging
 Jun 24, 2015 - wielding/wearing items on body parts
 Jun 26, 2015 - remove items from body, body part compatibility
 Jun 28, 2015 - add item to first available body part
+Sep 26, 2015 - life, hp and behaviour processes, counterattacks, CSS logging
 
 How to run it:
 (I haven't been running this lately, just running tests)
