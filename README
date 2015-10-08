@@ -48,3 +48,19 @@ make ct
 rm -rf logs/*<hostname>*; rm -rf logs/erlmud.log; ERLMUD_LOG_PATH=$(pwd)/logs make ct
 -or-
 ./t
+
+Commit Explanation Videos:
+Why commit comment videos: https://www.youtube.com/watch?v=oHRU1Y8mlJ4
+F7189F17 - https://www.youtube.com/watch?v=GBPLuBVrRLU
+B85C17EA - https://www.youtube.com/watch?v=e4KM6ZsjpHY
+B2DD547D - https://www.youtube.com/watch?v=FDSkNMZH4F8
+B0E8CF51 - https://www.youtube.com/watch?v=yBXYhUIn3LY
+B0D1674F - https://www.youtube.com/watch?v=66uW0ZKnN9M
+61004150 - https://www.youtube.com/watch?v=1ssN0qco6cA
+467370DD - https://www.youtube.com/watch?v=0mqmXECU_AE
+49228CCA - https://www.youtube.com/watch?v=ku80MOJa4VY
+885DD677 - https://www.youtube.com/watch?v=hq3jnJVtcHY
+69D41114 - https://www.youtube.com/watch?v=d2dropirT-w
+6F744FCC - https://www.youtube.com/watch?v=oYasq4W2ZdQ
+4FF59B65 - https://www.youtube.com/watch?v=_AhT2kaBrGc
+3F73000B - https://www.youtube.com/watch?v=jQwwuLxEjIQ
