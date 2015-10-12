@@ -37,7 +37,8 @@
 -record(state, {type :: atom(),
                 props :: list(tuple())}).
 
--record(procs, {room = undefined :: undefined | pid(),
+-record(procs, {limit = undefined :: undefined | {atom(), integer(), atom()},
+                paths = [] :: list(),
                 done = [] :: ordsets:ordset(pid()),
                 next = [] :: ordsets:ordset(pid()),
                 subs = [] :: ordsets:ordset(pid())}).
@@ -191,19 +192,24 @@ code_change(_OldVsn, State, _Extra) ->
 
 %% internal
 
-maybe_attempt(Msg,
-              Procs = #procs{room = Room},
-              State = #state{type = erlmud_exit, props = Props})
-    when Room /= undefined->
-    _ = case erlmud_exit:is_attached_to_room(Props, Room) of
+maybe_attempt(Msg, Procs = #procs{limit = undefined}, State) ->
+    attempt_(Msg, Procs, State);
+maybe_attempt(Msg, Procs, State) ->
+    case is_reachable(State, Procs) of
         true ->
             attempt_(Msg, Procs, State);
         false ->
             _ = handle(succeed, Msg, done(self(), Procs)),
             State
-    end;
-maybe_attempt(Msg, Procs, State) ->
-    attempt_(Msg, Procs, State).
+    end.
+
+is_reachable(#state{type = erlmud_exit},
+             #procs{limit = {rooms, Max}, paths = Paths}) ->
+    erlmud_exit:is_reachable(Paths, Max);
+is_reachable(#state{props = Props},
+             #procs{limit = children, paths = Paths}) ->
+    Owner = proplists:get_value(owner, Props),
+    Owner =/= undefined andalso lists:member(Owner, Paths).
 
 attempt_(Msg,
          Procs,
