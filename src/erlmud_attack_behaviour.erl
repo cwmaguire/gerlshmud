@@ -40,6 +40,8 @@ attempt(Owner, Props, {stop_attack, Attack, Owner, _Target}) ->
         _ ->
             Props
     end;
+attempt(Owner, Props, {search_fail, _Searcher, Owner}) ->
+    {succeed, true, Props};
 attempt(_, Props, _) ->
     {succeed, false, Props}.
 
@@ -80,6 +82,13 @@ succeed(Props, {stop_attack, AttackPid}) ->
             lists:keydelete(attack, 1, Props);
         _ ->
             Props
+    end;
+succeed(Props, {search_fail, Searcher, Owner}) ->
+    case proplists:get_value(attack_on_search, Props, false) of
+        true ->
+            erlmud_object:attempt({attack, Owner, Searcher});
+        _ ->
+            ok
     end;
 succeed(Props, Msg) ->
     log([<<"saw ">>, Msg, <<" succeed with props ">>, Props]),

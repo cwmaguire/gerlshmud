@@ -78,3 +78,27 @@
                                         {name, <<"ring2">>},
                                         {body_parts, [finger]}]}]).
 
+-define(WORLD_7, [{erlmud_room, room, [{character, player},
+                                       {character, giant}]},
+
+                  {erlmud_character, player, [{room, room},
+                                              {item, fist},
+                                              {hitpoints, p_hp},
+                                              {life, p_life}]},
+                  {erlmud_hitpoints, p_hp, [{hitpoints, 1},
+                                            {owner, player}]},
+                  {erlmud_life, p_life, [{is_alive, true},
+                                         {owner, player}]},
+
+                  {erlmud_character, zombie, [{room, room},
+                                              {attack_wait, 10},
+                                              {item, sword},
+                                              {name, <<"zombie">>},
+                                              {hitpoints, z_hp},
+                                              {life, z_life}]},
+                  {erlmud_hitpoints, z_hp, [{hitpoints, 10},
+                                            {owner, zombie}]},
+                  {erlmud_life, z_life, [{is_alive, true},
+                                         {owner, zombie}]},
+                  {erlmud_item, sword, [{dmg, 5},
+                                        {owner, zombie}]}]).

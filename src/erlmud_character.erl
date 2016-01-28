@@ -96,6 +96,32 @@ attempt(Props, {stop_attack, Attack}) ->
     {succeed, _IsCurrAttack = lists:member({attack, Attack}, Props), Props};
 attempt(Props, {die, Self}) when Self == self() ->
     {succeed, true, Props};
+attempt(Props, {search, Source, TargetName}) when Source =/= self(),
+                                                  is_binary(TargetName) ->
+    log(debug, [<<"Checking if name ">>, TargetName, <<" matches">>]),
+    SelfName = proplists:get_value(name, Props, <<>>),
+    case re:run(SelfName, TargetName, [{capture, none}]) of
+        match ->
+            SearchOrigin = {self(), search_difficulty()},
+            NewMessage = {search, Source, self(), [SearchOrigin], erlmud_hierarchy:new(self())},
+            {{resend, Source, NewMessage}, _ShouldSubscribe = false, Props};
+        _ ->
+            log(debug,
+                [<<"Name ">>,
+                 TargetName,
+                 <<" did not match this character's name: ">>,
+                 SelfName,
+                 <<".\n">>]),
+            {succeed, false, Props}
+    end;
+attempt(Props, {search, Self, Target, _Difficulties, _Hierarchy})
+  when Self == self(), is_pid(Target) ->
+    {succeed, true, Props};
+% I don't need to know when I'm being searched because I've already added my
+% search difficulty when I swapped my name for my PID
+%attempt(Props, {search, Self, Target}) when Target == self() ->
+    %Message2 = {search, Self, Target, [{self(), SearchDifficulty}]},
+    %{succeed, Message2, true, Props};
 attempt(Props, _Msg) ->
     {succeed, false, Props}.
 
@@ -132,11 +158,15 @@ succeed(Props, {stop_attack, AttackPid}) ->
     log(debug, [<<"Character ">>, self(), <<" attack ">>, AttackPid, <<" stopped; remove (if applicable) from props:\n\t">>, Props, <<"\n">>]),
     lists:filter(fun({attack, Pid}) when Pid == AttackPid -> false; (_) -> true end, Props);
 succeed(Props, {die, Self}) when Self == self() ->
-    %% TODO: kill/disconnect all connected processes
     lists:keydelete(attack, 1, Props);
 succeed(Props, {cleanup, Self}) when Self == self() ->
+    %% TODO: kill/disconnect all connected processes
     %% TODO: drop all objects
     {stop, cleanup_succeeded, Props};
+succeed(Props, {search, Self, Target, Results}) when Self == self() ->
+    %erlmud_object:send(self(), {search, Self, Target}),
+    search(Target, Results),
+    Props;
 succeed(Props, Msg) ->
     log(debug, [<<"saw ">>, Msg, <<" succeed with props\n">>]),
     Props.
@@ -155,6 +185,19 @@ attack(Target, Props) ->
     log(debug, [<<"Attack ">>, Attack, <<" started, sending attempt\n">>]),
     erlmud_object:attempt(Attack, {attack, Attack, self(), Target}),
     [{attack, Attack} | Props].
+
+search(Target, Results) ->
+    Args = [_Id = undefined,
+            _Type = erlmud_search,
+            _Props = [{owner, self()}, {target, Target}, {results, Results}]],
+    {ok, Search} = supervisor:start_child(erlmud_object_sup, Args),
+    log(debug, [<<"Search ">>, Search, <<" started, sending attempt\n">>]),
+    erlmud_object:attempt(Search, {search_results, Search, self(), Target}),
+    [{search, Search} | Props].
+
+search_difficulty() ->
+    %% TODO: add some logic here
+    1.
 
 %% handle_cast({log, From, To, Props, Stage, {Action, Params}, Room, Next, Done, Subs}, State) ->
 log(Level, IoData) ->

@@ -134,6 +134,17 @@ attempt(Owner, Props, {remove, Owner, Item}) ->
         _ ->
             {succeed, _Subscribe = false, Props}
     end;
+attempt(Owner, Props, {search, Source, Target, ObjDifficulties}) ->
+    %% if we have an owner difficulty then we know we're in the character hierarchy
+    OwnerDifficulty = proplists:get_value(Owner, ObjDifficulties, undefined),
+    case OwnerDifficulty of
+        undefined ->
+            {succeed, _Subscribe = false, Props};
+        _ ->
+            SearchDifficulty = proplists:get_value(search_difficulty, Props, 1),
+            Message2 = {search, Source, Target, [{self(), OwnerDifficulty + SearchDifficulty} | ObjDifficulties]},
+            {succeed, Message2, true, Props}
+    end;
 attempt(_Owner, Props, _Msg) ->
     {succeed, _Subscribe = false, Props}.
 
