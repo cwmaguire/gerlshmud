@@ -83,7 +83,7 @@ handle_cast({log, Level, Pid, Terms}, State) ->
                            div_("log_message", IoData),
                            div_("log_props", io(PropsWithNames))])),
     {noreply, State};
-handle_cast({log, From, To, Stage, Action, Params, Room, Next, Done, Subs}, State) ->
+handle_cast({log, From, To, Stage, Action, _Params, _Room, _Next, _Done, _Subs}, State) ->
     FromName = erlmud_index:get(From),
     try
         FromProps = erlmud_object:props(From),
@@ -95,14 +95,14 @@ handle_cast({log, From, To, Stage, Action, Params, Room, Next, Done, Subs}, Stat
     dbg:stop_clear(),
 
     ToName = erlmud_index:get(To),
-    ToProps = erlmud_object:props(To),
-    ToPropsWithNames = [{K, maybe_name(V)} || {K, V} <- ToProps],
+    %ToProps = erlmud_object:props(To),
+    %ToPropsWithNames = [{K, maybe_name(V)} || {K, V} <- ToProps],
 
-    ParamsWithNames = [{K, maybe_name(V)} || {K, V} <- Params],
-    [RoomName] = names([Room]),
-    NextNames = names(Next),
-    DoneNames = names(Done),
-    SubNames = names(Subs),
+    %ParamsWithNames = [{K, maybe_name(V)} || {K, V} <- Params],
+    %[RoomName] = names([Room]),
+    %NextNames = names(Next),
+    %DoneNames = names(Done),
+    %SubNames = names(Subs),
 
     Spans =
                     spans([Stage, Action, FromName, ToName],
@@ -155,8 +155,8 @@ get_log_path() ->
             Path
     end.
 
-names(Pids) ->
-    [erlmud_index:get(Pid) || Pid <- Pids].
+%names(Pids) ->
+    %[erlmud_index:get(Pid) || Pid <- Pids].
 
 maybe_name(Pid) when is_pid(Pid) ->
     {Pid, erlmud_index:get(Pid)};
