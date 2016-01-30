@@ -31,9 +31,9 @@ id(_Props, Owner, Pid) ->
 added(_, _) -> ok.
 removed(_, _) -> ok.
 
-attempt(Owner, Props, {search_results, Self, _Src, _Target}) when Self == self() ->
-    {{resend, Source, NewMessage}, _ShouldSubscribe = false, Props};
-    {succeed, true, Props}.
+attempt(_Owner, Props, {search, Src, _Hierarchy}) ->
+    NewMessage = {{resend, Src, _NewMessage = dunno_yet}, _ShouldSubscribe = false, Props},
+    {succeed, NewMessage, true, Props}.
 
 succeed(Props, _Msg) ->
     Props.
@@ -41,5 +41,5 @@ succeed(Props, _Msg) ->
 fail(Props, _Reason, _Message) ->
     Props.
 
-log(Terms) ->
-    erlmud_event_log:log(debug, [?MODULE | Terms]).
+%log(Terms) ->
+    %erlmud_event_log:log(debug, [?MODULE | Terms]).

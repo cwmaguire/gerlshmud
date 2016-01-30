@@ -38,7 +38,7 @@
                 props :: list(tuple())}).
 
 -record(procs, {limit = undefined :: undefined | {atom(), integer(), atom()},
-                paths = [] :: list(),
+                room = undefined :: pid(),
                 done = [] :: ordsets:ordset(pid()),
                 next = [] :: ordsets:ordset(pid()),
                 subs = [] :: ordsets:ordset(pid())}).
@@ -192,24 +192,19 @@ code_change(_OldVsn, State, _Extra) ->
 
 %% internal
 
-maybe_attempt(Msg, Procs = #procs{limit = undefined}, State) ->
-    attempt_(Msg, Procs, State);
+maybe_attempt(Msg,
+              Procs = #procs{room = Room},
+              State = #state{type = erlmud_exit, props = Props})
+        when Room  /= undefined ->
+    _ = case erlmud_exit:is_attached_to_room(Props, Room) of
+            true ->
+                attempt_(Msg, Procs, State);
+            false ->
+                _ = handle(succeed, Msg, done(self(), Procs)),
+                State
+        end;
 maybe_attempt(Msg, Procs, State) ->
-    case is_reachable(State, Procs) of
-        true ->
-            attempt_(Msg, Procs, State);
-        false ->
-            _ = handle(succeed, Msg, done(self(), Procs)),
-            State
-    end.
-
-is_reachable(#state{type = erlmud_exit},
-             #procs{limit = {rooms, Max}, paths = Paths}) ->
-    erlmud_exit:is_reachable(Paths, Max);
-is_reachable(#state{props = Props},
-             #procs{limit = children, paths = Paths}) ->
-    Owner = proplists:get_value(owner, Props),
-    Owner =/= undefined andalso lists:member(Owner, Paths).
+    attempt_(Msg, Procs, State).
 
 attempt_(Msg,
          Procs,
@@ -277,14 +272,7 @@ proc(Value, _) ->
     Value.
 
 procs(Props) ->
-    lists:foldl(fun procs/2, [], Props).
-
-procs({_, Pid}, Pids) when is_pid(Pid) ->
-    [Pid | Pids];
-procs({_, MaybePids}, Pids) when is_list(MaybePids) ->
-    Pids ++ [Pid || Pid <- MaybePids, is_pid(Pid)];
-procs(_, Pids) ->
-    Pids.
+    [Pid || {_, Pid} <- Props, is_pid(Pid)].
 
 merge(_, _, {{resend, _, _, _}, _, _, _}, _) ->
     undefined;

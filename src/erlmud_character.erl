@@ -38,24 +38,24 @@ set(Type, Obj, Props) ->
 get_(Type, Props) ->
     lists:keyfind(Type, 1, Props).
 
-attempt(_Owner, Props, Msg) ->
-    attempt(Props, Msg).
+%attempt(_Owner, Props, Msg) ->
+    %attempt(Props, Msg).
 
-attempt(Props, {move, Self, Direction}) when Self == self() ->
+attempt(_Owner, Props, {move, Self, Direction}) when Self == self() ->
     case proplists:get_value(room, Props) of
         undefined ->
             {{fail, "Character doesn't have room"}, false, Props};
         Room ->
             {{resend, Self, {move, Self, Room, Direction}}, false, Props}
     end;
-attempt(Props, {enter_world, Self}) when Self == self() ->
+attempt(_Owner, Props, {enter_world, Self}) when Self == self() ->
     case proplists:get_value(room, Props) of
         undefined ->
             {{fail, "Character doesn't have room"}, false, Props};
         Room when is_pid(Room) ->
             {succeed, true, Props}
     end;
-attempt(Props, {drop, Self, Pid}) when Self == self(), is_pid(Pid) ->
+attempt(_Owner, Props, {drop, Self, Pid}) when Self == self(), is_pid(Pid) ->
     case has_pid(Props, Pid) of
         true ->
             {room, Room} = get_(room, Props),
@@ -63,7 +63,7 @@ attempt(Props, {drop, Self, Pid}) when Self == self(), is_pid(Pid) ->
         _ ->
             {succeed, _Interested = false, Props}
     end;
-attempt(Props, {attack, Attack, Attacker, TargetName}) when is_binary(TargetName) ->
+attempt(_Owner, Props, {attack, Attack, Attacker, TargetName}) when is_binary(TargetName) ->
     log(debug, [<<"Checking if name ">>, TargetName, <<" matches">>]),
     SelfName = proplists:get_value(name, Props, <<>>),
     case re:run(SelfName, TargetName, [{capture, none}]) of
@@ -78,7 +78,7 @@ attempt(Props, {attack, Attack, Attacker, TargetName}) when is_binary(TargetName
                  <<".\n">>]),
             {succeed, false, Props}
     end;
-attempt(Props, {calc_next_attack_wait, Attack, Self, Target, Sent, Wait})
+attempt(_Owner, Props, {calc_next_attack_wait, Attack, Self, Target, Sent, Wait})
     when Self == self() ->
     CharacterWait = proplists:get_value(attack_wait, Props, 0),
     log(debug, [<<"Character attack wait is ">>, CharacterWait, <<"\n">>]),
@@ -86,24 +86,23 @@ attempt(Props, {calc_next_attack_wait, Attack, Self, Target, Sent, Wait})
      {calc_next_attack_wait, Attack, Self, Target, Sent, Wait + CharacterWait},
      false,
      Props};
-attempt(Props, {move, Self, _, _}) when Self == self() ->
+attempt(_Owner, Props, {move, Self, _, _}) when Self == self() ->
     {succeed, true, Props};
-attempt(Props, {move, Self, _, _, _}) when Self == self() ->
+attempt(_Owner, Props, {move, Self, _, _, _}) when Self == self() ->
     {succeed, true, Props};
-attempt(Props, {attack, Self, _}) when Self == self() ->
+attempt(_Owner, Props, {attack, Self, _}) when Self == self() ->
     {succeed, true, Props};
-attempt(Props, {stop_attack, Attack}) ->
+attempt(_Owner, Props, {stop_attack, Attack}) ->
     {succeed, _IsCurrAttack = lists:member({attack, Attack}, Props), Props};
-attempt(Props, {die, Self}) when Self == self() ->
+attempt(_Owner, Props, {die, Self}) when Self == self() ->
     {succeed, true, Props};
-attempt(Props, {search, Source, TargetName}) when Source =/= self(),
+attempt(_Owner, Props, {search, Source, TargetName}) when Source =/= self(),
                                                   is_binary(TargetName) ->
     log(debug, [<<"Checking if name ">>, TargetName, <<" matches">>]),
     SelfName = proplists:get_value(name, Props, <<>>),
     case re:run(SelfName, TargetName, [{capture, none}]) of
         match ->
-            SearchOrigin = {self(), search_difficulty()},
-            NewMessage = {search, Source, self(), [SearchOrigin], erlmud_hierarchy:new(self())},
+            NewMessage = {search, Source, self(), erlmud_hierarchy:new(self())},
             {{resend, Source, NewMessage}, _ShouldSubscribe = false, Props};
         _ ->
             log(debug,
@@ -114,15 +113,22 @@ attempt(Props, {search, Source, TargetName}) when Source =/= self(),
                  <<".\n">>]),
             {succeed, false, Props}
     end;
-attempt(Props, {search, Self, Target, _Difficulties, _Hierarchy})
+attempt(Owner, Props, {search, _Source, _Target, Hierarchy}) ->
+    %% TODO: check if character is searchable; e.g. unconcious, bound, dead, etc.
+    %% In other words, an immobile character.
+    %% Players that are alive and unbound (i.e. mobile) are not searchable.
+    %% (This is not a pickpocketing simulator ... yet ... so I'm not going
+    %%  to get into how much you can search an mobile player).
+    case erlmud_hierarchy:is_descendent(Hierarchy, Owner) of
+        true ->
+            {succeed, true, Props};
+        _ ->
+            {succeed, false, Props}
+    end;
+attempt(_Owner, Props, {search, Self, Target, _Difficulties, _Hierarchy})
   when Self == self(), is_pid(Target) ->
     {succeed, true, Props};
-% I don't need to know when I'm being searched because I've already added my
-% search difficulty when I swapped my name for my PID
-%attempt(Props, {search, Self, Target}) when Target == self() ->
-    %Message2 = {search, Self, Target, [{self(), SearchDifficulty}]},
-    %{succeed, Message2, true, Props};
-attempt(Props, _Msg) ->
+attempt(_Owner, Props, _Msg) ->
     {succeed, false, Props}.
 
 succeed(Props, {move, Self, Source, Target, _Exit}) when Self == self() ->
@@ -163,9 +169,13 @@ succeed(Props, {cleanup, Self}) when Self == self() ->
     %% TODO: kill/disconnect all connected processes
     %% TODO: drop all objects
     {stop, cleanup_succeeded, Props};
-succeed(Props, {search, Self, Target, Results}) when Self == self() ->
-    %erlmud_object:send(self(), {search, Self, Target}),
-    search(Target, Results),
+succeed(Props, {search, Src, TargetRoom, Hierarchy}) ->
+    _ = case erlmud_hierarchy:is_descendant(Hierarchy, self()) of
+            true ->
+                send_desc(Src, TargetRoom, Props);
+            _ ->
+                ok
+        end,
     Props;
 succeed(Props, Msg) ->
     log(debug, [<<"saw ">>, Msg, <<" succeed with props\n">>]),
@@ -186,18 +196,10 @@ attack(Target, Props) ->
     erlmud_object:attempt(Attack, {attack, Attack, self(), Target}),
     [{attack, Attack} | Props].
 
-search(Target, Results) ->
-    Args = [_Id = undefined,
-            _Type = erlmud_search,
-            _Props = [{owner, self()}, {target, Target}, {results, Results}]],
-    {ok, Search} = supervisor:start_child(erlmud_object_sup, Args),
-    log(debug, [<<"Search ">>, Search, <<" started, sending attempt\n">>]),
-    erlmud_object:attempt(Search, {search_results, Search, self(), Target}),
-    [{search, Search} | Props].
-
-search_difficulty() ->
-    %% TODO: add some logic here
-    1.
+send_desc(Src, Room, Props) ->
+    %% TODO: actually start a describe message with the source as the target
+    %% "Dear Src, In the <room> you see <description>."
+    {Src, Room, Props}.
 
 %% handle_cast({log, From, To, Props, Stage, {Action, Params}, Room, Next, Done, Subs}, State) ->
 log(Level, IoData) ->
