@@ -272,7 +272,13 @@ proc(Value, _) ->
     Value.
 
 procs(Props) ->
-    [Pid || {_, Pid} <- Props, is_pid(Pid)].
+    lists:foldl(fun({_, Pid}, Acc) when is_pid(Pid) ->
+                    [Pid | Acc];
+                   ({_, Pids = [Pid | _]}, Acc) when is_pid(Pid) ->
+                    Acc ++ Pids;
+                   (_, Acc) ->
+                    Acc
+                end, [], Props).
 
 merge(_, _, {{resend, _, _, _}, _, _, _}, _) ->
     undefined;
