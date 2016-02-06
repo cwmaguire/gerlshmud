@@ -199,6 +199,7 @@ attack(Target, Props) ->
 send_desc(Src, Room, Props) ->
     %% TODO: actually start a describe message with the source as the target
     %% "Dear Src, In the <room> you see <description>."
+    erlmud_object:attempt(self(), {describe, self(), Src}),
     {Src, Room, Props}.
 
 %% handle_cast({log, From, To, Props, Stage, {Action, Params}, Room, Next, Done, Subs}, State) ->
