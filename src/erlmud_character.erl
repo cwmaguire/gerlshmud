@@ -96,13 +96,13 @@ attempt(_Owner, Props, {stop_attack, Attack}) ->
     {succeed, _IsCurrAttack = lists:member({attack, Attack}, Props), Props};
 attempt(_Owner, Props, {die, Self}) when Self == self() ->
     {succeed, true, Props};
-attempt(_Owner, Props, {search, Source, TargetName}) when Source =/= self(),
+attempt(_Owner, Props, {look, Source, TargetName}) when Source =/= self(),
                                                   is_binary(TargetName) ->
     log(debug, [<<"Checking if name ">>, TargetName, <<" matches">>]),
     SelfName = proplists:get_value(name, Props, <<>>),
     case re:run(SelfName, TargetName, [{capture, none}]) of
         match ->
-            NewMessage = {search, Source, self(), erlmud_hierarchy:new(self())},
+            NewMessage = {look, Source, self(), erlmud_hierarchy:new(self())},
             {{resend, Source, NewMessage}, _ShouldSubscribe = false, Props};
         _ ->
             log(debug,
@@ -113,15 +113,15 @@ attempt(_Owner, Props, {search, Source, TargetName}) when Source =/= self(),
                  <<".\n">>]),
             {succeed, false, Props}
     end;
-attempt(_Owner, Props, {search, _Source, Self}) ->
+attempt(_Owner, Props, {look, _Source, Self}) ->
     {succeed, true, Props};
-attempt(Owner, Props, {search, _Source, Owner}) ->
+attempt(Owner, Props, {look, _Source, Owner}) ->
     {succeed, true, Props};
 attempt(Owner, Props, {describe, _Source, Owner}) ->
     {succeed, true, Props};
 % I don't think I need this until the character can keep the room
 % from being searchable
-%attempt(Owner, Props, {search, _Source, Owner, Hierarchy}) ->
+%attempt(Owner, Props, {look, _Source, Owner, Hierarchy}) ->
     %% TODO: check if character is searchable; e.g. unconcious, bound, dead, etc.
     %% In other words, an immobile character.
     %% Players that are alive and unbound (i.e. mobile) are not searchable.
@@ -133,7 +133,7 @@ attempt(Owner, Props, {describe, _Source, Owner}) ->
         %_ ->
             %{succeed, false, Props}
     %end;
-attempt(_Owner, Props, {search, Self, Target, _Difficulties, _Hierarchy})
+attempt(_Owner, Props, {look, Self, Target, _Difficulties, _Hierarchy})
   when Self == self(), is_pid(Target) ->
     {succeed, true, Props};
 attempt(_Owner, Props, _Msg) ->
@@ -177,7 +177,7 @@ succeed(Props, {cleanup, Self}) when Self == self() ->
     %% TODO: kill/disconnect all connected processes
     %% TODO: drop all objects
     {stop, cleanup_succeeded, Props};
-succeed(Props, {search, Source, Owner}) ->
+succeed(Props, {look, Source, Owner}) ->
     _ = case is_owner(Owner, self()) of
             true ->
                 describe(Source, Owner, Props);
@@ -185,7 +185,7 @@ succeed(Props, {search, Source, Owner}) ->
                 ok
         end,
     Props;
-succeed(Props, {search, Source, Self) when Self == self() ->
+succeed(Props, {look, Source, Self) when Self == self() ->
     describe(Source, Self, Props),
     Props;
 succeed(Props, Msg) ->
@@ -207,34 +207,22 @@ attack(Target, Props) ->
     erlmud_object:attempt(Attack, {attack, Attack, self(), Target}),
     [{attack, Attack} | Props].
 
-%% If we're describing ourself on our own (e.g. look at Bob) then
-%% we can just send "Bob is a human <description of non-process properites>;
-%% however, if we're seen in the context of a room then we need to send our description
-%% back to the room so the room can modify the description with something
-%% like "In <room name> you see <character description".
+%% We'll need to frame a look response:
+%% > look sword
+%% > steel sword with a wire-bound handle     <-- no framing
+%% > look bob
+%% > Human male, four feet tall, pudgy
+%% > Bob is carrying a sword        <-- "Bob is carrying a" is the framing
 %%
-%% You have to look at something to get it's child property descriptions. That is,
-%% when you look directly at something you'll get a description of all it's children one
-%% level deep.
-%%
-%% e.g. look at the room:
-%% > look
-%% > You are in a featureless box.
-%% > In the featureless box you see a human male
-%% > In the featureless box you see a sword.
-%% > In the featureless box you see a loaf of bread.
-%% > look human male
-%% > The human male is blah blah blah
-%% > The human male is carrying/wearing/holding a hammer <-- hammer in context
-%% > The human male is carrying/wearing/holding a funny hat
-%% > look funny hat ... etc. etc.
+%% We could have a "You see a ..." framing for objects, but I don't think it's
+%% necessary.
 describe(Source, Context, Props) when Context == self() ->
-
+    erlmud_object:attempt(Source, {send, description(Props)});
 desbribe(Source, Context, Props) ->
-    %% TODO: actually start a describe message with the source as the target
-    %% "Dear Src, In the <room> you see <description>."
-    erlmud_object:attempt(Source, {send, "
-    {Src, Room, Props}.
+    %% Bob should be able to tell what the framing is from the
+    %% source of the description (not to be confused with the "source"
+    %% of the look command)
+    erlmud_object:attempt(Context, {describe, Source, self(), description(Props)}).
 
 is_owner(MaybeOwner, Props) when is_pid(MaybeOwner) ->
     MaybeOwner == proplists:get_value(owner, Props);
