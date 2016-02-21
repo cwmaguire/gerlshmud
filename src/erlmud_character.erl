@@ -113,18 +113,26 @@ attempt(_Owner, Props, {search, Source, TargetName}) when Source =/= self(),
                  <<".\n">>]),
             {succeed, false, Props}
     end;
-attempt(Owner, Props, {search, _Source, _Target, Hierarchy}) ->
+attempt(_Owner, Props, {search, _Source, Self}) ->
+    {succeed, true, Props};
+attempt(Owner, Props, {search, _Source, Owner}) ->
+    {succeed, true, Props};
+attempt(Owner, Props, {describe, _Source, Owner}) ->
+    {succeed, true, Props};
+% I don't think I need this until the character can keep the room
+% from being searchable
+%attempt(Owner, Props, {search, _Source, Owner, Hierarchy}) ->
     %% TODO: check if character is searchable; e.g. unconcious, bound, dead, etc.
     %% In other words, an immobile character.
     %% Players that are alive and unbound (i.e. mobile) are not searchable.
     %% (This is not a pickpocketing simulator ... yet ... so I'm not going
     %%  to get into how much you can search an mobile player).
-    case erlmud_hierarchy:is_descendent(Hierarchy, Owner) of
-        true ->
-            {succeed, true, Props};
-        _ ->
-            {succeed, false, Props}
-    end;
+    %case is_searchable() of
+        %true ->
+            %{succeed, true, Props};
+        %_ ->
+            %{succeed, false, Props}
+    %end;
 attempt(_Owner, Props, {search, Self, Target, _Difficulties, _Hierarchy})
   when Self == self(), is_pid(Target) ->
     {succeed, true, Props};
@@ -169,13 +177,16 @@ succeed(Props, {cleanup, Self}) when Self == self() ->
     %% TODO: kill/disconnect all connected processes
     %% TODO: drop all objects
     {stop, cleanup_succeeded, Props};
-succeed(Props, {search, Src, TargetRoom, Hierarchy}) ->
-    _ = case erlmud_hierarchy:is_descendant(Hierarchy, self()) of
+succeed(Props, {search, Source, Owner}) ->
+    _ = case is_owner(Owner, self()) of
             true ->
-                send_desc(Src, TargetRoom, Props);
+                describe(Source, Owner, Props);
             _ ->
                 ok
         end,
+    Props;
+succeed(Props, {search, Source, Self) when Self == self() ->
+    describe(Source, Self, Props),
     Props;
 succeed(Props, Msg) ->
     log(debug, [<<"saw ">>, Msg, <<" succeed with props\n">>]),
@@ -196,10 +207,40 @@ attack(Target, Props) ->
     erlmud_object:attempt(Attack, {attack, Attack, self(), Target}),
     [{attack, Attack} | Props].
 
-send_desc(Src, Room, Props) ->
+%% If we're describing ourself on our own (e.g. look at Bob) then
+%% we can just send "Bob is a human <description of non-process properites>;
+%% however, if we're seen in the context of a room then we need to send our description
+%% back to the room so the room can modify the description with something
+%% like "In <room name> you see <character description".
+%%
+%% You have to look at something to get it's child property descriptions. That is,
+%% when you look directly at something you'll get a description of all it's children one
+%% level deep.
+%%
+%% e.g. look at the room:
+%% > look
+%% > You are in a featureless box.
+%% > In the featureless box you see a human male
+%% > In the featureless box you see a sword.
+%% > In the featureless box you see a loaf of bread.
+%% > look human male
+%% > The human male is blah blah blah
+%% > The human male is carrying/wearing/holding a hammer <-- hammer in context
+%% > The human male is carrying/wearing/holding a funny hat
+%% > look funny hat ... etc. etc.
+describe(Source, Context, Props) when Context == self() ->
+
+desbribe(Source, Context, Props) ->
     %% TODO: actually start a describe message with the source as the target
     %% "Dear Src, In the <room> you see <description>."
+    erlmud_object:attempt(Source, {send, "
     {Src, Room, Props}.
+
+is_owner(MaybeOwner, Props) when is_pid(MaybeOwner) ->
+    MaybeOwner == proplists:get_value(owner, Props);
+is_owner(_, _) ->
+    false.
+
 
 %% handle_cast({log, From, To, Props, Stage, {Action, Params}, Room, Next, Done, Subs}, State) ->
 log(Level, IoData) ->
