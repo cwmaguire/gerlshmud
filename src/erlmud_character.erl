@@ -177,6 +177,9 @@ succeed(Props, {cleanup, Self}) when Self == self() ->
     %% TODO: kill/disconnect all connected processes
     %% TODO: drop all objects
     {stop, cleanup_succeeded, Props};
+succeed(Props, {look, Source, Self}) when Self == self() ->
+    describe(Source, Self, Props),
+    Props;
 succeed(Props, {look, Source, Owner}) ->
     _ = case is_owner(Owner, self()) of
             true ->
@@ -184,9 +187,6 @@ succeed(Props, {look, Source, Owner}) ->
             _ ->
                 ok
         end,
-    Props;
-succeed(Props, {look, Source, Self) when Self == self() ->
-    describe(Source, Self, Props),
     Props;
 succeed(Props, Msg) ->
     log(debug, [<<"saw ">>, Msg, <<" succeed with props\n">>]),
@@ -207,21 +207,9 @@ attack(Target, Props) ->
     erlmud_object:attempt(Attack, {attack, Attack, self(), Target}),
     [{attack, Attack} | Props].
 
-%% We'll need to frame a look response:
-%% > look sword
-%% > steel sword with a wire-bound handle     <-- no framing
-%% > look bob
-%% > Human male, four feet tall, pudgy
-%% > Bob is carrying a sword        <-- "Bob is carrying a" is the framing
-%%
-%% We could have a "You see a ..." framing for objects, but I don't think it's
-%% necessary.
 describe(Source, Context, Props) when Context == self() ->
     erlmud_object:attempt(Source, {send, description(Props)});
-desbribe(Source, Context, Props) ->
-    %% Bob should be able to tell what the framing is from the
-    %% source of the description (not to be confused with the "source"
-    %% of the look command)
+describe(Source, Context, Props) ->
     erlmud_object:attempt(Context, {describe, Source, self(), description(Props)}).
 
 is_owner(MaybeOwner, Props) when is_pid(MaybeOwner) ->
@@ -229,7 +217,16 @@ is_owner(MaybeOwner, Props) when is_pid(MaybeOwner) ->
 is_owner(_, _) ->
     false.
 
+description(Props) when is_list(Props) ->
+    DescProps = application:get_env(erlmud, character_desc_props, []),
+    [[<<", ">>, description(Props, P)] || P <- DescProps];
+description(undefined) ->
+    [];
+description({_, Value}) when not is_pid(Value) ->
+    Value.
 
-%% handle_cast({log, From, To, Props, Stage, {Action, Params}, Room, Next, Done, Subs}, State) ->
+description(Props, DescProp) ->
+    description(proplists:get_value(DescProp, Props)).
+
 log(Level, IoData) ->
     erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).
