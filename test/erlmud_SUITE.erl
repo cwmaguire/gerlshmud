@@ -5,21 +5,22 @@
 
 -define(WAIT100, receive after 100 -> ok end).
 
-all() ->
-    [player_move,
-     player_move_fail,
-     player_move_exit_locked,
-     player_get_item,
-     player_drop_item,
-     player_attack,
-     player_attack_wait,
-     one_sided_fight,
-     counterattack_behaviour,
-     player_wield,
-     player_wield_missing_body_part,
-     player_wield_wrong_body_part,
-     player_wield_body_part_is_full,
-     player_remove].
+all() -> [look].
+%all() ->
+    %[player_move,
+     %player_move_fail,
+     %player_move_exit_locked,
+     %player_get_item,
+     %player_drop_item,
+     %player_attack,
+     %player_attack_wait,
+     %one_sided_fight,
+     %counterattack_behaviour,
+     %player_wield,
+     %player_wield_missing_body_part,
+     %player_wield_wrong_body_part,
+     %player_wield_body_part_is_full,
+     %player_remove].
 
 init_per_testcase(_, Config) ->
     {ok, _Started} = application:ensure_all_started(erlmud),
@@ -231,6 +232,17 @@ player_remove(Config) ->
     ?WAIT100,
     Helmet = val(item, player),
     undefined = val(item, head).
+
+look(_Config) ->
+    start(?WORLD_7),
+    ok = application:start(erlmud),
+    _TestSocket = erlmud_test_socket:start(),
+    erlmud_test_socket:send(<<"AnyLoginWillDo">>),
+    erlmud_test_socket:send(<<"AnyPasswordWillDo">>),
+    erlmud_test_socket:send(<<"look giant">>),
+    ?WAIT100,
+    Descriptions = erlmud_test_socket:messages(),
+    ct:pal("Socket messages:~n\t~p~n", [Descriptions]).
 
 start(Objects) ->
     IdPids = [{Id, start_obj(Id, Type, Props)} || {Type, Id, Props} <- Objects],

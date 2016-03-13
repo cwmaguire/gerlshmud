@@ -113,28 +113,11 @@ attempt(_Owner, Props, {look, Source, TargetName}) when Source =/= self(),
                  <<".\n">>]),
             {succeed, false, Props}
     end;
-attempt(_Owner, Props, {look, _Source, Self}) ->
+attempt(_Owner, Props, {look, _Source, Self}) when Self == self() ->
     {succeed, true, Props};
 attempt(Owner, Props, {look, _Source, Owner}) ->
     {succeed, true, Props};
-attempt(Owner, Props, {describe, _Source, Owner}) ->
-    {succeed, true, Props};
-% I don't think I need this until the character can keep the room
-% from being searchable
-%attempt(Owner, Props, {look, _Source, Owner, Hierarchy}) ->
-    %% TODO: check if character is searchable; e.g. unconcious, bound, dead, etc.
-    %% In other words, an immobile character.
-    %% Players that are alive and unbound (i.e. mobile) are not searchable.
-    %% (This is not a pickpocketing simulator ... yet ... so I'm not going
-    %%  to get into how much you can search an mobile player).
-    %case is_searchable() of
-        %true ->
-            %{succeed, true, Props};
-        %_ ->
-            %{succeed, false, Props}
-    %end;
-attempt(_Owner, Props, {look, Self, Target, _Difficulties, _Hierarchy})
-  when Self == self(), is_pid(Target) ->
+attempt(_Owner, Props, {describe, _Source, Child, _Desc}) ->
     {succeed, true, Props};
 attempt(_Owner, Props, _Msg) ->
     {succeed, false, Props}.
@@ -153,6 +136,7 @@ succeed(Props, {enter_world, Self})
     Room = proplists:get_value(room, Props),
     log(debug, [<<"entering ">>, Room, <<"\n">>]),
     erlmud_object:add(Room, character, self()),
+    erlmud_object:add(self(), room, Room),
     Props;
 succeed(Props, {get, Self, Source, Item}) when Self == self() ->
     log(debug, [<<"getting ">>, Item, <<" from ">>, Source, <<"\n\tProps: ">>, Props, <<"\n">>]),
@@ -188,6 +172,12 @@ succeed(Props, {look, Source, Owner}) ->
                 ok
         end,
     Props;
+%% TODO use Child to determine the preposition (In/on/at, etc.)
+%% e.g. "in the crater", "on the dock", "at the back of the bus"
+succeed(Props, {describe, Source, _Child, Desc}) ->
+    Name = proplists:get_value(name, Props, <<"I-don't-have-a-name">>),
+    FramedDesc = <<"In/on/at ", Name/binary, " you see ", Desc/binary>>,
+    erlmud_object:attempt(Source, {send, FramedDesc});
 succeed(Props, Msg) ->
     log(debug, [<<"saw ">>, Msg, <<" succeed with props\n">>]),
     Props.
@@ -219,12 +209,14 @@ is_owner(_, _) ->
 
 description(Props) when is_list(Props) ->
     DescProps = application:get_env(erlmud, character_desc_props, []),
-    [[<<", ">>, description(Props, P)] || P <- DescProps];
+    [[description(Props, P)] || P <- DescProps];
 description(undefined) ->
     [];
 description({_, Value}) when not is_pid(Value) ->
     Value.
 
+description(_, Text) when is_binary(Text) ->
+    Text;
 description(Props, DescProp) ->
     description(proplists:get_value(DescProp, Props)).
 

@@ -29,6 +29,9 @@ parse(Player, <<"get ", Item/binary>>) ->
 parse(Player, <<"drop ", Item/binary>>) ->
     log([<<"Dropping ">>, Item]),
     {drop, Player, binary_to_list(Item)};
+parse(Player, <<"look ", Object/binary>>) ->
+    log([<<"Looking ">>, Object]),
+    {look, Player, binary_to_list(Object)};
 parse(_, _) ->
     {error, "Huh?"}.
 

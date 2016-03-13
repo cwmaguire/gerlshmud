@@ -12,6 +12,8 @@
 %% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 -module(erlmud_conn).
+%-behaviour(erlmud_connection).
+-behaviour(erlmud_object).
 -behaviour(gen_fsm).
 
 -export([start_link/1]).
@@ -53,7 +55,9 @@ password(Event, StateData = #state{login = Login,
                                    socket = _Socket}) ->
     case is_valid_creds(Login, Event) of
         {true, Player} ->
-            erlmud_object:attempt(Player, {enter_world, Player}),
+            %% start player
+            %% start connection object
+            erlmud_object_sup:start_child(erlmud_object_sup, [Id, erlmud_conn_obj, Props]),
             {next_state, live, StateData#state{login = undefined, player = Player}};
         false ->
             get_failed_auth_state(StateData#state{login = undefined, attempts = Attempts + 1})
@@ -68,14 +72,14 @@ dead(_, StateData = #state{socket = Socket}) ->
     Socket ! {send, "Connection Refused"},
     {next_state, dead, StateData}.
 
-live(Event, StateData) ->
+live(Event, StateData = #state{player = Player}) ->
     io:format("erlmud_conn got event ~p in state 'live' with state data ~p~n",
               [Event, StateData]),
-    _ = case erlmud_parse:parse(StateData#state.player, Event) of
+    _ = case erlmud_parse:parse(Player, Event) of
         {error, Error} ->
             StateData#state.socket ! {send, Error};
         Message ->
-            erlmud_object:attempt(StateData#state.player, Message)
+            erlmud_object:attempt(Player, Message)
     end,
     {next_state, live, StateData}.
 
@@ -98,6 +102,7 @@ handle_info({'$gen_cast', {fail, Reason, {enter_world, Player}}},
 handle_info({'$gen_cast', {succeed, {enter_world, Player}}},
             StateName,
             StateData = #state{player = Player, socket = Socket}) ->
+    erlmud_object:add(Player, conn, self()),
     Socket ! {send, "Login succeeded"},
     {next_state, StateName, StateData};
 handle_info({'$gen_cast', {fail, Reason, {logout, Player}}},
@@ -109,6 +114,16 @@ handle_info({'$gen_cast', {succeed, {logout, Player}}},
             _StateName,
             StateData = #state{player = Player, socket = Socket}) ->
     Socket ! {send, "Logout successful"},
+    {next_state, dead, StateData};
+handle_info({'$gen_cast', {succeed, {send, Player, Msg}}},
+            _StateName,
+            StateData = #state{player = Player, socket = Socket}) ->
+    Socket ! {send, Msg},
+    {next_state, dead, StateData};
+handle_info({'$gen_cast', {succeed, {send, Player, Msg}}},
+            _StateName,
+            StateData = #state{player = Player, socket = Socket}) ->
+    Socket ! {send, Msg},
     {next_state, dead, StateData};
 handle_info(Info, StateName, StateData = #state{player = Player}) ->
     io:format("Connection for player ~p received unrecognized message:~n\t~p~n",
@@ -124,4 +139,4 @@ code_change(_OldVsn, StateName, StateData, _Extra) ->
 is_valid_creds(_String, never_fails) ->
     false;
 is_valid_creds(_Login, _Password) ->
-    {true, erlmud_index:get(player1)}.
+    {true, erlmud_index:get(player)}.
