@@ -56,9 +56,25 @@ password(Event, StateData = #state{login = Login,
     case is_valid_creds(Login, Event) of
         {true, Player} ->
             %% start player
+            %%   The player will need to know what room they're in; either the
+            %%   last room they were in or a starting room.
             %% start connection object
-            erlmud_object_sup:start_child(erlmud_object_sup, [Id, erlmud_conn_obj, Props]),
-            {next_state, live, StateData#state{login = undefined, player = Player}};
+            %RoomPid = erlmud_index:get(room),
+            %PlayerProps = [{room, RoomPid}],
+            %PlayerPid = erlmud_object_sup:start_child(erlmud_object_sup,
+                                                      %[undefined, erlmud_player, PlayerProps]),
+
+            %All players can be live processes at MUD startup; processes are almost free
+
+            RoomPid = erlmud_index:get(room),
+            PlayerPid = erlmud_index:get(player),
+            ConnProps = [{owner, PlayerPid}, {conn, self()}],
+            ConnPid = erlmud_object_sup:start_child(erlmud_object_sup,
+                                                    [undefined, erlmud_conn_obj, ConnProps]),
+            %erlmud_object:add(PlayerPid, erlmud_room, RoomPid),
+            %erlmud_object:add(PlayerPid, erlmud_conn_obj, ConnPid),
+            erlmud_object:add(RoomPid, erlmud_character, PlayerPid),
+            {next_state, live, StateData#state{login = undefined, player = PlayerPid}};
         false ->
             get_failed_auth_state(StateData#state{login = undefined, attempts = Attempts + 1})
     end.
@@ -94,11 +110,12 @@ handle_sync_event(_Event, _From, StateName, StateData) ->
 handle_event(_Info, StateName, StateData) ->
     {next_state, StateName, StateData}.
 
-handle_info({'$gen_cast', {fail, Reason, {enter_world, Player}}},
-            _StateName,
-            StateData = #state{player = Player, socket = Socket}) ->
-    Socket ! {send, Reason},
-    {next_state, dead, StateData};
+handle_info({send, Message}, _StateName, StateData = #state{socket = Socket}) ->
+    Socket ! {send, Message},
+    {next_state, live, StateData};
+%
+%
+% These can be moved to erlmud_conn_obj
 handle_info({'$gen_cast', {succeed, {enter_world, Player}}},
             StateName,
             StateData = #state{player = Player, socket = Socket}) ->
@@ -114,11 +131,6 @@ handle_info({'$gen_cast', {succeed, {logout, Player}}},
             _StateName,
             StateData = #state{player = Player, socket = Socket}) ->
     Socket ! {send, "Logout successful"},
-    {next_state, dead, StateData};
-handle_info({'$gen_cast', {succeed, {send, Player, Msg}}},
-            _StateName,
-            StateData = #state{player = Player, socket = Socket}) ->
-    Socket ! {send, Msg},
     {next_state, dead, StateData};
 handle_info({'$gen_cast', {succeed, {send, Player, Msg}}},
             _StateName,
