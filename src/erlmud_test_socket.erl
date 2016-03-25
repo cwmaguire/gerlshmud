@@ -50,12 +50,12 @@ handle_call(_Req = Text, _From, State = #state{conn = Conn}) ->
 
 handle_cast(_Req = Text, State = #state{conn = Conn}) ->
     erlmud_conn:handle(Conn, Text),
-    {noreply, ok, State}.
+    {noreply, State}.
 
 handle_info({send, Msg}, State = #state{messages = Messages}) ->
-    {noreply, ok, State#state{messages = [Msg | Messages]}};
+    {noreply, State#state{messages = [Msg | Messages]}};
 handle_info(_Req, State) ->
-    {noreply, ok, State}.
+    {noreply, State}.
 
 terminate(_Reason, _State) ->
     ok.

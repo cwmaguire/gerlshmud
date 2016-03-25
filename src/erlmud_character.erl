@@ -117,7 +117,7 @@ attempt(_Owner, Props, {look, _Source, Self}) when Self == self() ->
     {succeed, true, Props};
 attempt(Owner, Props, {look, _Source, Owner}) ->
     {succeed, true, Props};
-attempt(_Owner, Props, {describe, _Source, Child, _Desc}) ->
+attempt(_Owner, Props, {describe, _Source, _Child, _Desc}) ->
     {succeed, true, Props};
 attempt(_Owner, Props, _Msg) ->
     {succeed, false, Props}.

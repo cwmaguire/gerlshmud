@@ -235,7 +235,7 @@ player_remove(Config) ->
 
 look(_Config) ->
     start(?WORLD_7),
-    ok = application:start(erlmud),
+    %ok = application:start(erlmud),
     _TestSocket = erlmud_test_socket:start(),
     erlmud_test_socket:send(<<"AnyLoginWillDo">>),
     erlmud_test_socket:send(<<"AnyPasswordWillDo">>),

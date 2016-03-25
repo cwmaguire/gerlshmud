@@ -12,8 +12,6 @@
 %% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 -module(erlmud_conn).
-%-behaviour(erlmud_connection).
--behaviour(erlmud_object).
 -behaviour(gen_fsm).
 
 -export([start_link/1]).
@@ -54,7 +52,7 @@ password(Event, StateData = #state{login = Login,
                                    attempts = Attempts,
                                    socket = _Socket}) ->
     case is_valid_creds(Login, Event) of
-        {true, Player} ->
+        {true, _Player} ->
             %% start player
             %%   The player will need to know what room they're in; either the
             %%   last room they were in or a starting room.
@@ -69,8 +67,8 @@ password(Event, StateData = #state{login = Login,
             RoomPid = erlmud_index:get(room),
             PlayerPid = erlmud_index:get(player),
             ConnProps = [{owner, PlayerPid}, {conn, self()}],
-            ConnPid = erlmud_object_sup:start_child(erlmud_object_sup,
-                                                    [undefined, erlmud_conn_obj, ConnProps]),
+            _ConnPid = supervisor:start_child(erlmud_object_sup,
+                                              [undefined, erlmud_conn_obj, ConnProps]),
             %erlmud_object:add(PlayerPid, erlmud_room, RoomPid),
             %erlmud_object:add(PlayerPid, erlmud_conn_obj, ConnPid),
             erlmud_object:add(RoomPid, erlmud_character, PlayerPid),

@@ -55,12 +55,15 @@ start_link() ->
 
 init([]) ->
     process_flag(priority, max),
+    io:format("Starting logger~n"),
     LogPath = get_log_path(),
     {ok, LogFile} = file:open(LogPath ++ "/erlmud.log", [append]),
     {ok, HtmlFile} = file:open(LogPath ++ "/log.html", [append]),
 
     Line = lists:duplicate(80, $=),
     io:format(LogFile, "~n~n~s~n~p~n~s~n~n", [Line, os:timestamp(), Line]),
+    io:format(user, "Starting logger.~n\tLog file: ~p~n\tHTML File: ~p~n",
+              [LogFile, HtmlFile]),
 
     {ok, #state{log_file = LogFile,
                 html_file = HtmlFile}}.
@@ -150,7 +153,8 @@ code_change(_OldVsn, State, _Extra) ->
 get_log_path() ->
     case os:getenv("ERLMUD_LOG_PATH") of
         false ->
-            file:get_cwd();
+            {ok, CWD} = file:get_cwd(),
+            CWD;
         Path ->
             Path
     end.
