@@ -48,11 +48,13 @@ handle(Pid, Msg) ->
 login(Event, StateData) ->
     {next_state, password, StateData#state{login = Event}}.
 
-password(Event, StateData = #state{login = Login,
-                                   attempts = Attempts,
-                                   socket = _Socket}) ->
-    case is_valid_creds(Login, Event) of
+password(_Event = Password, StateData = #state{login = Login,
+                                               attempts = Attempts,
+                                               socket = _Socket}) ->
+    ct:pal("~p:password ... check is_valid_creds(~p, ~p)~n", [?MODULE, Login, Password]),
+    case is_valid_creds(Login, Password) of
         {true, _Player} ->
+            ct:pal("erlmud_conn:password -> player validated~n", []),
             %% start player
             %%   The player will need to know what room they're in; either the
             %%   last room they were in or a starting room.
@@ -66,12 +68,21 @@ password(Event, StateData = #state{login = Login,
 
             RoomPid = erlmud_index:get(room),
             PlayerPid = erlmud_index:get(player),
-            ConnProps = [{owner, PlayerPid}, {conn, self()}],
-            _ConnPid = supervisor:start_child(erlmud_object_sup,
-                                              [undefined, erlmud_conn_obj, ConnProps]),
+            ConnProps = [{owner, PlayerPid}, {room, RoomPid}, {conn, {self()}}],
+
+            % The conn object can add the player to the room and if that fails
+            % then the conn object can tell the conn to disconnect.
+            {ok, ConnObjPid} = supervisor:start_child(erlmud_object_sup,
+                                                      [undefined, erlmud_conn_obj, ConnProps]),
+            ct:pal("erlmud_conn:password -> started ConnObj ~p with props ~p~n", [ConnObjPid, ConnProps]),
+
+            Message = {move, PlayerPid, _From = undefined, RoomPid, _Target = undefined},
+            ConnObjPid ! {ConnObjPid, Message},
+            %erlmud_object:attempt(ConnObjPid, {move, PlayerPid, _From = undefined, RoomPid, _Target = undefined}),
+
             %erlmud_object:add(PlayerPid, erlmud_room, RoomPid),
             %erlmud_object:add(PlayerPid, erlmud_conn_obj, ConnPid),
-            erlmud_object:add(RoomPid, erlmud_character, PlayerPid),
+            %erlmud_object:add(RoomPid, erlmud_character, PlayerPid),
             {next_state, live, StateData#state{login = undefined, player = PlayerPid}};
         false ->
             get_failed_auth_state(StateData#state{login = undefined, attempts = Attempts + 1})
@@ -87,10 +98,13 @@ dead(_, StateData = #state{socket = Socket}) ->
     {next_state, dead, StateData}.
 
 live(Event, StateData = #state{player = Player}) ->
-    io:format("erlmud_conn got event ~p in state 'live' with state data ~p~n",
-              [Event, StateData]),
+    %io:format("erlmud_conn got event ~p in state 'live' with state data ~p~n",
+              %[Event, StateData]),
+    log(["erlmud_conn got event ", Event, " in state 'live' with state data ", StateData]),
+
     _ = case erlmud_parse:parse(Player, Event) of
         {error, Error} ->
+            %ct:pal("~p parse error: ~p~n", [?MODULE, Error]),
             StateData#state.socket ! {send, Error};
         Message ->
             erlmud_object:attempt(Player, Message)
@@ -136,8 +150,8 @@ handle_info({'$gen_cast', {succeed, {send, Player, Msg}}},
     Socket ! {send, Msg},
     {next_state, dead, StateData};
 handle_info(Info, StateName, StateData = #state{player = Player}) ->
-    io:format("Connection for player ~p received unrecognized message:~n\t~p~n",
-              [Player, Info]),
+    io:format("Connection ~p for player ~p received unrecognized message:~n\t~p~n",
+              [self(), Player, Info]),
     {next_state, StateName, StateData}.
 
 terminate(_Reason, _StateName, _StateData) -> ok.
@@ -150,3 +164,7 @@ is_valid_creds(_String, never_fails) ->
     false;
 is_valid_creds(_Login, _Password) ->
     {true, erlmud_index:get(player)}.
+
+log(_Terms) ->
+    %erlmud_event_log:log(debug, [list_to_binary(atom_to_list(?MODULE)) | Terms]).
+    ok.

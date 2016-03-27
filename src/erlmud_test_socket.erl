@@ -49,6 +49,7 @@ handle_call(_Req = Text, _From, State = #state{conn = Conn}) ->
     {reply, ok, State}.
 
 handle_cast(_Req = Text, State = #state{conn = Conn}) ->
+    ct:pal("~p passing ~p on to conn ~p~n", [?MODULE, Text, Conn]),
     erlmud_conn:handle(Conn, Text),
     {noreply, State}.
 

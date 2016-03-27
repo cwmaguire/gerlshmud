@@ -78,8 +78,7 @@
                                         {name, <<"ring2">>},
                                         {body_parts, [finger]}]}]).
 
--define(WORLD_7, [{erlmud_room, room, [{character, player},
-                                       {character, giant},
+-define(WORLD_7, [{erlmud_room, room, [{character, giant},
                                        {name, <<"room">>}]},
 
                   {erlmud_character, player, [{room, room},

@@ -35,10 +35,13 @@ removed(_, _) -> ok.
 attempt(_Owner, Props, Msg) ->
     attempt(Props, Msg).
 
-attempt(Props, {move, _Obj, Self, _Target}) when Self == self() ->
+attempt(Props, {move, _Obj, Source, Target, _Exit}) when Source == self(); Target == self() ->
     {succeed, true, Props};
-attempt(Props, {move, _Obj, _Source, Self}) when Self == self() ->
-    {succeed, true, Props};
+% I don't think this ever happens: the character object only moves on {move, Player, From, To, Exit}
+%attempt(Props, {move, _Obj, Self, _Target}) when Self == self() ->
+    %{succeed, true, Props};
+%attempt(Props, {move, _Obj, _Source, Self}) when Self == self() ->
+    %{succeed, true, Props};
 attempt(Props, {get, Obj, Pid}) when is_pid(Pid) ->
     case has_pid(Props, Pid) of
         true ->
@@ -47,6 +50,8 @@ attempt(Props, {get, Obj, Pid}) when is_pid(Pid) ->
         _ ->
             {succeed, _Interested = false, Props}
     end;
+attempt(Props, {add, Self, _Player}) when Self == self() ->
+    {succeed, true, Props};
 attempt(Props, _Msg) ->
     {succeed, false, Props}.
 
@@ -61,6 +66,9 @@ succeed(Props, {move, Obj, Source, Target}) ->
     Props;
 succeed(Props, {get, Obj, Item, Self}) when Self == self() ->
     log([<<"Process ">>, Obj, <<" got ">>, Item, <<" from me">>]),
+    Props;
+succeed(Props, {add, Self, Player}) when Self == self() ->
+    log([<<"Process ">>, Player, <<" added to me">>]),
     Props;
 succeed(Props, Msg) ->
     log([<<"saw ">>, Msg, <<" succeed with props ">>, Props]),

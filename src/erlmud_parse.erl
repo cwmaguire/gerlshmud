@@ -35,5 +35,6 @@ parse(Player, <<"look ", Object/binary>>) ->
 parse(_, _) ->
     {error, "Huh?"}.
 
-log(Terms) ->
-    erlmud_event_log:log(debug, [atom_to_list(?MODULE) | Terms]).
+log(_Terms) ->
+    ok.
+    %erlmud_event_log:log(debug, [list_to_binary(atom_to_list(?MODULE)) | Terms]).
