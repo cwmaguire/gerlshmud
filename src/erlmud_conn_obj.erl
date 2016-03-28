@@ -1,5 +1,4 @@
-%% Copyright (c) 2015, Chris Maguire <cwmaguire@gmail.com>
-%%
+%% Copyright (c) 2015, Chris Maguire <cwmaguire@gmail.com> %%
 %% Permission to use, copy, modify, and/or distribute this software for any
 %% purpose with or without fee is hereby granted, provided that the above
 %% copyright notice and this permission notice appear in all copies.
@@ -43,15 +42,17 @@ attempt(_OtherPlayer, Props, _Msg) ->
 
 
 succeed(Props, {send, _Player, Message}) ->
-    io:format("Saw send ~p ~p~n", [_Player, Message]),
+    %io:format("Saw send ~p ~p~n", [_Player, Message]),
     %log(debug, [<<"saw ">>, Message, <<" succeed with props\n">>]),
     %% Send the message to the connected socket
-    Conn = prolists:get_value(conn, Props),
-    Conn ! {send, Message},
+    {Conn} = proplists:get_value(conn, Props),
+    %Conn ! {send, Message},
+    erlmud_conn:handle(Conn, {send, Message}),
     Props;
-succeed(Props, {move, _Player, _TheVoid = undefined, _From, _NoExit = undefined}) ->
-    io:format("Saw move player into world succeed~n", []),
-    ct:pal("Saw move player into world succeed~n", []),
+succeed(Props, {move, Player, _TheVoid = undefined, _From, _NoExit = undefined}) ->
+    %io:format("Saw move player into world succeed~n", []),
+    %ct:pal("Saw move player into world succeed~n", []),
+    erlmud_object:add(Player, conn_object, self()),
     %log(debug, [<<"Player ">>, Player, <<" succeed with props\n">>]),
     Props;
 succeed(Props, Other) ->
@@ -68,8 +69,8 @@ fail(Props, Reason, {move, _Player, _From, _To, _Exit}) ->
     Conn ! {disconnect, Reason},
     Props;
 fail(Props, _Reason, _Message) ->
-    ct:pal("erlmud_conn_obj saw fail with:~n\tProps: ~p~n\tMessage: ~p~n\t~p~n",
-           [Props, _Message, _Reason]),
+    %ct:pal("erlmud_conn_obj saw fail with:~n\tProps: ~p~n\tMessage: ~p~n\t~p~n",
+           %[Props, _Message, _Reason]),
     Props.
 
 log(Level, IoData) ->

@@ -58,7 +58,7 @@
 
 -spec start_link(any(), atom(), proplist()) -> {ok, pid()}.
 start_link(Id, Type, Props) ->
-    ct:pal("erlmud_obj:start_link(~p, ~p, ~p)~n", [Id, Type, Props]),
+    %ct:pal("erlmud_obj:start_link(~p, ~p, ~p)~n", [Id, Type, Props]),
     {ok, Pid} = gen_server:start_link(?MODULE, {Type, Props}, []),
     erlmud_index:put(id(Id, Type, Props), Pid),
     {ok, Pid}.
@@ -155,7 +155,7 @@ handle_cast_({set, Prop = {K, _}}, State = #state{props = Props}) ->
 handle_cast_({attempt, Msg, Procs}, State) ->
     {noreply, maybe_attempt(Msg, Procs, State)};
 handle_cast_({fail, Reason, Msg}, State) ->
-    io:format("erlmud_object saw ~p fail because ~p with state ~p~n", [Msg, Reason, State]),
+    %io:format("erlmud_object saw ~p fail because ~p with state ~p~n", [Msg, Reason, State]),
     case fail(Reason, Msg, State) of
         {stop, Props} ->
             %% TODO: remove from index
@@ -164,11 +164,13 @@ handle_cast_({fail, Reason, Msg}, State) ->
             {noreply, State#state{props = Props}}
     end;
 handle_cast_({succeed, Msg}, State) ->
-    io:format("erlmud_object saw ~p succeed with state ~p~n", [Msg, State]),
+    %io:format("erlmud_object saw ~p succeed~nwith state ~p~n", [Msg, State]),
     case succeed(Msg, State) of
         {stop, Reason, Props} ->
+            %ct:pal("erlmud_object succeed resulted in stop with reason ~p~n", [Reason]),
             {stop, {shutdown, Reason}, State#state{props = Props}};
         Props ->
+            %ct:pal("erlmud_object succeed resulted in ~p~n", [Props]),
             {noreply, State#state{props = Props}}
      end.
 
@@ -179,19 +181,19 @@ handle_info({'EXIT', From, Reason}, State = #state{props = Props}) ->
     {noreply, State#state{props = Props2}};
 handle_info({Pid, Msg}, State) ->
     log([Pid, <<": handle_info attempt Msg = ">>, Msg]),
-    io:format("erlmud_object picked up raw message: {~p, ~p}~nwith state:~n\t~p~n", [Pid, Msg, State]),
+    %io:format("erlmud_object picked up raw message: {~p, ~p}~nwith state:~n\t~p~n", [Pid, Msg, State]),
     attempt(Pid, Msg),
     {noreply, State};
 handle_info(Unknown, State) ->
-    io:format("erlmud_object picked up raw message: ~p~nwith state:~n\t~p~n", [Unknown, State]),
+    %io:format("erlmud_object picked up raw message: ~p~nwith state:~n\t~p~n", [Unknown, State]),
     log([<<"Unknown Message: ">>, Unknown]),
     {noreply, State}.
 
 terminate(Reason, State) ->
     log([<<"erlmud_object ">>, self(), <<" shutting down Reason: ">>, Reason, <<" State: ">>, State]),
     erlmud_index:del(self()),
-    ct:pal("erlmud_object ~p shutting down~nReason: ~p~nState:~n\t~p~n",
-           [self(), Reason, State]),
+    %ct:pal("erlmud_object ~p shutting down~nReason: ~p~nState:~n\t~p~n",
+           %[self(), Reason, State]),
     ok.
 
 code_change(_OldVsn, State, _Extra) ->
@@ -219,7 +221,7 @@ attempt_(Msg,
                         props = Props}) ->
     Owner = proplists:get_value(owner, Props),
     Results = {Result, Msg2, ShouldSubscribe, Props2} = ensure_message(Msg, Type:attempt(Owner, Props, Msg)),
-    io:format("erlmud_object results from ~p:~n\t~p~nwith state:~n\t~p~n~n", [Msg, Results, State]),
+    %io:format("erlmud_object results from ~p:~n\t~p~nwith state:~n\t~p~n~n", [Msg, Results, State]),
     log([Type, <<" ">>, self(), <<" ">>, Owner,
          <<"attempt: ">>, Msg, <<" -> ">>,
          ShouldSubscribe, <<", ">>, Result]),

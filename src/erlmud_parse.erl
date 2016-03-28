@@ -25,13 +25,13 @@ parse(Player, <<"n">>) ->
     {move, Player, n};
 parse(Player, <<"get ", Item/binary>>) ->
     log([<<"Getting ">>, Item]),
-    {get, Player, binary_to_list(Item)};
+    {get, Player, Item};
 parse(Player, <<"drop ", Item/binary>>) ->
     log([<<"Dropping ">>, Item]),
-    {drop, Player, binary_to_list(Item)};
+    {drop, Player, Item};
 parse(Player, <<"look ", Object/binary>>) ->
     log([<<"Looking ">>, Object]),
-    {look, Player, binary_to_list(Object)};
+    {look, Player, Object};
 parse(_, _) ->
     {error, "Huh?"}.
 

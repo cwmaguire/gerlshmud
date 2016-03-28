@@ -260,7 +260,7 @@ look(_Config) ->
     ?WAIT100,
     ?WAIT100,
     ?WAIT100,
-    erlmud_test_socket:send(<<"look giant">>),
+    erlmud_test_socket:send(<<"look Pete">>),
     ?WAIT100,
     ?WAIT100,
     Descriptions = erlmud_test_socket:messages(),

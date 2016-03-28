@@ -49,12 +49,12 @@ handle_call(_Req = Text, _From, State = #state{conn = Conn}) ->
     {reply, ok, State}.
 
 handle_cast(_Req = Text, State = #state{conn = Conn}) ->
-    ct:pal("~p passing ~p on to conn ~p~n", [?MODULE, Text, Conn]),
+    %ct:pal("~p passing ~p on to conn ~p~n", [?MODULE, Text, Conn]),
     erlmud_conn:handle(Conn, Text),
     {noreply, State}.
 
 handle_info({send, Msg}, State = #state{messages = Messages}) ->
-    {noreply, State#state{messages = [Msg | Messages]}};
+    {noreply, State#state{messages = [flatten(Msg) | Messages]}};
 handle_info(_Req, State) ->
     {noreply, State}.
 
@@ -63,3 +63,7 @@ terminate(_Reason, _State) ->
 
 code_change(_, _, _) ->
     {error, not_implemented}.
+
+flatten(Output) ->
+    ListOfBins = lists:flatten(Output),
+    lists:foldl(fun(Bin, Acc) -> <<Acc/binary, Bin/binary>> end, <<>>, ListOfBins).

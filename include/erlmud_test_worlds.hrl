@@ -88,7 +88,10 @@
 
                   {erlmud_character, giant, [{room, room},
                                              {name, <<"Pete">>},
-                                             {species, <<"Giant">>}]},
+                                             {species, <<"Giant">>},
+                                             {gender, <<"male">>},
+                                             {height, <<"4">>},
+                                             {weight, <<"400">>}]},
 
                   {erlmud_item, pants, [{owner, player}]},
 

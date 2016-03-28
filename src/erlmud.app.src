@@ -14,8 +14,8 @@
   ]},
   {mod, {erlmud_app, []}},
   {env, [{coprse_cleanup_milis, 120000}, %% 2 minutes
-         {character_desc_props, [{name, <<", a ">>, species, <<" ">>, gender,
-                                  <<", ">>, height, <<"m tall and ">>,
-                                  <<"around ">>, weight, <<"kg.">>}]}
+    {character_desc_template, [name, <<", a ">>, gender, <<" ">>, species,
+                               <<", ">>, height, <<"m tall and ">>,
+                               <<"around ">>, weight, <<"kg.">>]}
         ]}
 ]}.

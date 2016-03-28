@@ -99,12 +99,14 @@ attempt(_Owner, Props, {die, Self}) when Self == self() ->
 attempt(_Owner, Props, {look, Source, TargetName}) when Source =/= self(),
                                                   is_binary(TargetName) ->
     log(debug, [<<"Checking if name ">>, TargetName, <<" matches">>]),
+    %ct:pal("Checking if name ~p matches", [TargetName]),
     SelfName = proplists:get_value(name, Props, <<>>),
     case re:run(SelfName, TargetName, [{capture, none}]) of
         match ->
-            NewMessage = {look, Source, self(), erlmud_hierarchy:new(self())},
+            NewMessage = {look, Source, self()},
             {{resend, Source, NewMessage}, _ShouldSubscribe = false, Props};
         _ ->
+            ct:pal("Name ~p did not match this character's name ~p~n", [TargetName, SelfName]),
             log(debug,
                 [<<"Name ">>,
                  TargetName,
@@ -161,8 +163,8 @@ succeed(Props, {cleanup, Self}) when Self == self() ->
     %% TODO: kill/disconnect all connected processes
     %% TODO: drop all objects
     {stop, cleanup_succeeded, Props};
-succeed(Props, {look, Source, Self}) when Self == self() ->
-    describe(Source, Self, Props),
+succeed(Props, {look, Source, Target}) when Target == self() ->
+    describe(Source, Target, Props),
     Props;
 succeed(Props, {look, Source, Owner}) ->
     _ = case is_owner(Owner, self()) of
@@ -198,7 +200,8 @@ attack(Target, Props) ->
     [{attack, Attack} | Props].
 
 describe(Source, Context, Props) when Context == self() ->
-    erlmud_object:attempt(Source, {send, description(Props)});
+    %ct:pal("Attempting to send description of self: ~p~n", [self()]),
+    erlmud_object:attempt(Source, {send, Source, description(Props)});
 describe(Source, Context, Props) ->
     erlmud_object:attempt(Context, {describe, Source, self(), description(Props)}).
 
@@ -208,17 +211,18 @@ is_owner(_, _) ->
     false.
 
 description(Props) when is_list(Props) ->
-    DescProps = application:get_env(erlmud, character_desc_props, []),
-    [[description(Props, P)] || P <- DescProps];
+    DescTemplate = application:get_env(erlmud, character_desc_template, []),
+    %ct:pal("Template: ~p~n", [DescTemplate]),
+    [[description(Props, Part)] || Part <- DescTemplate];
 description(undefined) ->
     [];
-description({_, Value}) when not is_pid(Value) ->
+description(Value) when not is_pid(Value) ->
     Value.
 
-description(_, Text) when is_binary(Text) ->
-    Text;
+description(_, RawText) when is_binary(RawText) ->
+    RawText;
 description(Props, DescProp) ->
-    description(proplists:get_value(DescProp, Props)).
+    description(proplists:get_value(DescProp, Props, <<"??">>)).
 
 log(Level, IoData) ->
     erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).
