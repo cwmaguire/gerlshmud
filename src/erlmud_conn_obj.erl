@@ -33,7 +33,7 @@ attempt(Player, Props, {send, Player, _Message}) ->
     {succeed, true, Props};
 attempt(Player, Props, {move, Player, _TheVoid = undefined, _To, _NoExit = undefined}) ->
     %io:format("~p, Attempt move player into world~n", [?MODULE]),
-    ct:pal("~p, see attempt to move player into world~n", [?MODULE]),
+    %ct:pal("~p, see attempt to move player into world~n", [?MODULE]),
     {succeed, true, Props};
 %attempt(Player, Props, {enter_world, Player}) ->
     %{succeed, true, Props};
@@ -43,7 +43,7 @@ attempt(_OtherPlayer, Props, _Msg) ->
 
 succeed(Props, {send, _Player, Message}) ->
     %io:format("Saw send ~p ~p~n", [_Player, Message]),
-    %log(debug, [<<"saw ">>, Message, <<" succeed with props\n">>]),
+    log(debug, [<<"saw ">>, Message, <<" succeed with props\n">>]),
     %% Send the message to the connected socket
     {Conn} = proplists:get_value(conn, Props),
     %Conn ! {send, Message},
@@ -53,10 +53,10 @@ succeed(Props, {move, Player, _TheVoid = undefined, _From, _NoExit = undefined})
     %io:format("Saw move player into world succeed~n", []),
     %ct:pal("Saw move player into world succeed~n", []),
     erlmud_object:add(Player, conn_object, self()),
-    %log(debug, [<<"Player ">>, Player, <<" succeed with props\n">>]),
+    log(debug, [<<"Player ">>, Player, <<" successfully entered the world\n">>]),
     Props;
-succeed(Props, Other) ->
-    ct:pal("erlmud_conn_obj saw succeed with:~n\tProps: ~p~n\tMessage: ~p~n", [Props, Other]),
+succeed(Props, _Other) ->
+    %ct:pal("erlmud_conn_obj saw succeed with:~n\tProps: ~p~n\tMessage: ~p~n", [Props, Other]),
     Props.
 
 fail(Props, Reason, {enter_world, _Player}) ->

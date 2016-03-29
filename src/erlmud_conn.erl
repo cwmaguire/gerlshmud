@@ -104,7 +104,7 @@ live({send, Message}, StateData = #state{socket = Socket}) ->
 live(Event, StateData = #state{player = PlayerPid, conn_obj = ConnObjPid}) ->
     %io:format("erlmud_conn got event ~p in state 'live' with state data ~p~n",
               %[Event, StateData]),
-    log(["erlmud_conn got event ", Event, " in state 'live' with state data ", StateData]),
+    log([<<"erlmud_conn got event ">>, Event, <<" in state 'live' with state data ">>, StateData]),
 
     _ = case erlmud_parse:parse(PlayerPid, Event) of
         {error, Error} ->
@@ -154,6 +154,9 @@ handle_info({'$gen_cast', {succeed, {send, Player, Msg}}},
             StateData = #state{player = Player, socket = Socket}) ->
     Socket ! {send, Msg},
     {next_state, dead, StateData};
+handle_info({'$gen_call', {Caller, Ref}, props}, StateName, StateData) ->
+    Caller ! {Ref, _Props = []},
+    {next_state, StateName, StateData};
 handle_info(Info, StateName, StateData = #state{player = Player}) ->
     io:format("Connection ~p for player ~p received unrecognized message:~n\t~p~n",
               [self(), Player, Info]),
@@ -170,6 +173,5 @@ is_valid_creds(_String, never_fails) ->
 is_valid_creds(_Login, _Password) ->
     {true, erlmud_index:get(player)}.
 
-log(_Terms) ->
-    %erlmud_event_log:log(debug, [list_to_binary(atom_to_list(?MODULE)) | Terms]).
-    ok.
+log(Terms) ->
+    erlmud_event_log:log(debug, [list_to_binary(atom_to_list(?MODULE)) | Terms]).

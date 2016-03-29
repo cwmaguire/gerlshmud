@@ -239,19 +239,21 @@ player_remove(Config) ->
     undefined = val(item, head).
 
 look(_Config) ->
-    %application:start(sasl),
-    %dbg:tracer(),
-    %dbg:p(all, call),
+    application:start(sasl),
+    dbg:tracer(),
+    dbg:p(all, call),
     %dbg:tpl(erlmud_object, [{'_',[],[{return_trace}, {exception_trace}]}]),
     %dbg:tpl(file, write, [{'_',[],[{return_trace}, {exception_trace}]}]),
+    dbg:tpl(erlmud_event_log, handle_cast, [{'_',[],[{return_trace}, {exception_trace}]}]),
+    %dbg:tpl(erlmud_event_log, log, [{'_',[],[{return_trace}, {exception_trace}]}]),
 
     start(?WORLD_7),
     %ok = application:start(erlmud),
 
     %spawn(fun() -> monitor(process, whereis(erlmud_event_log)), loop() end),
 
-    {ok, TestSocket} = erlmud_test_socket:start(),
-    ct:pal("~p test socket started: ~p~n", [?MODULE, TestSocket]),
+    {ok, _TestSocket} = erlmud_test_socket:start(),
+    %ct:pal("~p test socket started: ~p~n", [?MODULE, TestSocket]),
     erlmud_test_socket:send(<<"AnyLoginWillDo">>),
     erlmud_test_socket:send(<<"AnyPasswordWillDo">>),
     ?WAIT100,
@@ -263,21 +265,27 @@ look(_Config) ->
     erlmud_test_socket:send(<<"look Pete">>),
     ?WAIT100,
     ?WAIT100,
+    ?WAIT100,
+    ?WAIT100,
+    ?WAIT100,
+    ?WAIT100,
+    ?WAIT100,
+    ?WAIT100,
     Descriptions = erlmud_test_socket:messages(),
     ct:pal("Socket messages:~n\t~p~n", [Descriptions]),
     ?WAIT100,
     ?WAIT100.
 
 loop() ->
-    ct:pal("Monitoring erlmud_event_log~n", []),
-    io:format("Monitoring erlmud_event_log~n", []),
+    %ct:pal("Monitoring erlmud_event_log~n", []),
+    %io:format("Monitoring erlmud_event_log~n", []),
     receive
         {'DOWN', _MonitorRef, _Type, Object, Info} ->
-            ct:pal("Monitored process ~p triggered ~p~n", [Object, Info]),
-            io:format("Monitored process ~p triggered ~p~n", [Object, Info])
+            ct:pal("Monitored process ~p triggered ~p~n", [Object, Info])
+            %io:format("Monitored process ~p triggered ~p~n", [Object, Info])
         after 200 ->
-            ct:pal("Monitored process erlmud_event_log hasn't triggered anything~n", []),
-            io:format("Monitored process erlmud_event_log hasn't triggered anything~n", []),
+            %ct:pal("Monitored process erlmud_event_log hasn't triggered anything~n", []),
+            %io:format("Monitored process erlmud_event_log hasn't triggered anything~n", []),
             loop()
     end.
 

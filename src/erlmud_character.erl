@@ -99,7 +99,7 @@ attempt(_Owner, Props, {die, Self}) when Self == self() ->
 attempt(_Owner, Props, {look, Source, TargetName}) when Source =/= self(),
                                                   is_binary(TargetName) ->
     log(debug, [<<"Checking if name ">>, TargetName, <<" matches">>]),
-    %ct:pal("Checking if name ~p matches", [TargetName]),
+    ct:pal("Checking if name ~p matches", [TargetName]),
     SelfName = proplists:get_value(name, Props, <<>>),
     case re:run(SelfName, TargetName, [{capture, none}]) of
         match ->

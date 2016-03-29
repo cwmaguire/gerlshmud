@@ -74,8 +74,8 @@ handle_call(_Request, _From, State) ->
     ct:pal("~p:handle_call(...)~n", [?MODULE]),
     {reply, ignored, State}.
 
-handle_cast(_, State) ->
-    {noreply, State};
+%handle_cast(_, State) ->
+    %{noreply, State};
 handle_cast({old_log, Pid, Msg, Params}, State) ->
     ct:pal("~p:handle_cast({old_log, ...}, ...)~n", [?MODULE]),
     Id = erlmud_index:get(Pid),
@@ -104,7 +104,7 @@ handle_cast({log, Level, Pid, Terms}, State) ->
     %ct:pal("~p:handle_cast({4}, ...) succeeded~n", [?MODULE]),
     {noreply, State};
 handle_cast({log, From, To, Stage, Action, _Params, _Room, _Next, _Done, _Subs}, State) ->
-    ct:pal("~p:handle_cast({10}, ...)~n", [?MODULE]),
+    %ct:pal("~p:handle_cast({10}, ...)~n", [?MODULE]),
     ct:pal("~p:handle_cast({log, ~p, ~p, ~p, ~p, _, _, _, _, _}, State)~n",
            [?MODULE, From, To, Stage, Action]),
     FromName = erlmud_index:get(From),
@@ -117,7 +117,7 @@ handle_cast({log, From, To, Stage, Action, _Params, _Room, _Next, _Done, _Subs},
     end,
     %dbg:stop_clear(),
 
-    {ok, ToName} = erlmud_index:get(To),
+    ToName = erlmud_index:get(To),
     %ToProps = erlmud_object:props(To),
     %ToPropsWithNames = [{K, maybe_name(V)} || {K, V} <- ToProps],
 
@@ -149,7 +149,7 @@ handle_cast({log, From, To, Stage, Action, _Params, _Room, _Next, _Done, _Subs},
                            %div_("done", io(DoneNames))%,
                            %div_("subs", io(SubNames))
                           ]),
-    ct:pal("~p:spans(...) succeeded~n", [?MODULE]),
+    %ct:pal("~p:spans(...) succeeded~n", [?MODULE]),
     ok = file:write(State#state.html_file, [Spans])
     catch
         Error2 ->
