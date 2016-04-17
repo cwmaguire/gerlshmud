@@ -25,12 +25,16 @@ parse(Player, <<"n">>) ->
     {move, Player, n};
 parse(Player, <<"get ", Item/binary>>) ->
     log([<<"Getting ">>, Item]),
-    {get, Player, binary_to_list(Item)};
+    {get, Player, Item};
 parse(Player, <<"drop ", Item/binary>>) ->
     log([<<"Dropping ">>, Item]),
-    {drop, Player, binary_to_list(Item)};
+    {drop, Player, Item};
+parse(Player, <<"look ", Object/binary>>) ->
+    log([<<"Looking ">>, Object]),
+    {look, Player, Object};
 parse(_, _) ->
     {error, "Huh?"}.
 
-log(Terms) ->
-    erlmud_event_log:log(debug, [atom_to_list(?MODULE) | Terms]).
+log(_Terms) ->
+    ok.
+    %erlmud_event_log:log(debug, [list_to_binary(atom_to_list(?MODULE)) | Terms]).

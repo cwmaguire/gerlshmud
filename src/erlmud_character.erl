@@ -38,9 +38,6 @@ set(Type, Obj, Props) ->
 get_(Type, Props) ->
     lists:keyfind(Type, 1, Props).
 
-%attempt(_Owner, Props, Msg) ->
-    %attempt(Props, Msg).
-
 attempt(_Owner, Props, {move, Self, Direction}) when Self == self() ->
     case proplists:get_value(room, Props) of
         undefined ->
@@ -96,15 +93,18 @@ attempt(_Owner, Props, {stop_attack, Attack}) ->
     {succeed, _IsCurrAttack = lists:member({attack, Attack}, Props), Props};
 attempt(_Owner, Props, {die, Self}) when Self == self() ->
     {succeed, true, Props};
-attempt(_Owner, Props, {search, Source, TargetName}) when Source =/= self(),
+attempt(_Owner, Props, {look, Source, TargetName}) when Source =/= self(),
                                                   is_binary(TargetName) ->
     log(debug, [<<"Checking if name ">>, TargetName, <<" matches">>]),
     SelfName = proplists:get_value(name, Props, <<>>),
-    case re:run(SelfName, TargetName, [{capture, none}]) of
+    SelfSpecies = proplists:get_value(species, Props, <<>>),
+    case re:run(SelfName, TargetName, [{capture, none}, caseless]) of
         match ->
-            NewMessage = {search, Source, self(), erlmud_hierarchy:new(self())},
-            {{resend, Source, NewMessage}, _ShouldSubscribe = false, Props};
+            Context = <<SelfSpecies/binary, " ", SelfName/binary, " -> ">>,
+            NewMessage = {look, Source, self(), Context},
+            {{resend, Source, NewMessage}, _ShouldSubscribe = true, Props};
         _ ->
+            ct:pal("Name ~p did not match this character's name ~p~n", [TargetName, SelfName]),
             log(debug,
                 [<<"Name ">>,
                  TargetName,
@@ -113,20 +113,11 @@ attempt(_Owner, Props, {search, Source, TargetName}) when Source =/= self(),
                  <<".\n">>]),
             {succeed, false, Props}
     end;
-attempt(Owner, Props, {search, _Source, _Target, Hierarchy}) ->
-    %% TODO: check if character is searchable; e.g. unconcious, bound, dead, etc.
-    %% In other words, an immobile character.
-    %% Players that are alive and unbound (i.e. mobile) are not searchable.
-    %% (This is not a pickpocketing simulator ... yet ... so I'm not going
-    %%  to get into how much you can search an mobile player).
-    case erlmud_hierarchy:is_descendent(Hierarchy, Owner) of
-        true ->
-            {succeed, true, Props};
-        _ ->
-            {succeed, false, Props}
-    end;
-attempt(_Owner, Props, {search, Self, Target, _Difficulties, _Hierarchy})
-  when Self == self(), is_pid(Target) ->
+attempt(_Owner, Props, {look, _Source, Self, _Context}) when Self == self() ->
+    {succeed, true, Props};
+attempt(_Owner, Props, {look, _Source, _Target, _Context}) ->
+    {succeed, false, Props};
+attempt(_Owner, Props, {describe, _Source, _Child, _Desc}) ->
     {succeed, true, Props};
 attempt(_Owner, Props, _Msg) ->
     {succeed, false, Props}.
@@ -145,6 +136,7 @@ succeed(Props, {enter_world, Self})
     Room = proplists:get_value(room, Props),
     log(debug, [<<"entering ">>, Room, <<"\n">>]),
     erlmud_object:add(Room, character, self()),
+    erlmud_object:add(self(), room, Room),
     Props;
 succeed(Props, {get, Self, Source, Item}) when Self == self() ->
     log(debug, [<<"getting ">>, Item, <<" from ">>, Source, <<"\n\tProps: ">>, Props, <<"\n">>]),
@@ -169,16 +161,26 @@ succeed(Props, {cleanup, Self}) when Self == self() ->
     %% TODO: kill/disconnect all connected processes
     %% TODO: drop all objects
     {stop, cleanup_succeeded, Props};
-succeed(Props, {search, Src, TargetRoom, Hierarchy}) ->
-    _ = case erlmud_hierarchy:is_descendant(Hierarchy, self()) of
+succeed(Props, {look, Source, SelfTarget, _NoContext})
+    when SelfTarget == self() ->
+    describe(Source, Props, _Context = <<>>),
+    Props;
+succeed(Props, {look, Source, Target, Context}) ->
+    _ = case is_owner(Target, Props) of
             true ->
-                send_desc(Src, TargetRoom, Props);
+                describe(Source, Props, Context);
             _ ->
                 ok
         end,
     Props;
+%% TODO use Child to determine the preposition (In/on/at, etc.)
+%% e.g. "in the crater", "on the dock", "at the back of the bus"
+succeed(Props, {describe, Source, _Child, Desc}) ->
+    Name = proplists:get_value(name, Props, <<"I-don't-have-a-name">>),
+    FramedDesc = <<"In/on/at ", Name/binary, " you see ", Desc/binary>>,
+    erlmud_object:attempt(Source, {send, FramedDesc});
 succeed(Props, Msg) ->
-    log(debug, [<<"saw ">>, Msg, <<" succeed with props\n">>]),
+    log(debug, [<<"saw ">>, Msg, <<" succeed\n">>]),
     Props.
 
 fail(Props, target_is_dead, _Message) ->
@@ -196,11 +198,36 @@ attack(Target, Props) ->
     erlmud_object:attempt(Attack, {attack, Attack, self(), Target}),
     [{attack, Attack} | Props].
 
-send_desc(Src, Room, Props) ->
-    %% TODO: actually start a describe message with the source as the target
-    %% "Dear Src, In the <room> you see <description>."
-    {Src, Room, Props}.
+describe(Source, Props, Context) ->
+    log(debug, [<<"calling description(">>, Props, <<")">>]),
+    Description = description(Props),
+    log(debug, [<<"returned from Description: ">>, Description]),
+    io:format(user, "(io:format) returned from description: ~p~n", [Description]),
+    erlmud_object:attempt(Source, {send, Source, [<<Context/binary>>, Description]}).
 
-%% handle_cast({log, From, To, Props, Stage, {Action, Params}, Room, Next, Done, Subs}, State) ->
+is_owner(MaybeOwner, Props) when is_pid(MaybeOwner) ->
+    MaybeOwner == proplists:get_value(owner, Props);
+is_owner(_, _) ->
+    false.
+
+description(Props) when is_list(Props) ->
+    DescTemplate = application:get_env(erlmud, character_desc_template, []),
+    log(debug, [<<"description template: ">>, DescTemplate]),
+    Description = [[description_part(Props, Part)] || Part <- DescTemplate],
+    log(debug, [<<"Description: ">>, Description]),
+    Description.
+
+description_part(_, RawText) when is_binary(RawText) ->
+    log(debug, [<<"description_part with unknown Props and RawText: ">>, RawText]),
+    RawText;
+description_part(Props, DescProp) ->
+    log(debug, [<<"description_part with Props: ">>, Props, <<", DescProp: ">>, DescProp]),
+    prop_description(proplists:get_value(DescProp, Props, <<"??">>)).
+
+prop_description(undefined) ->
+    [];
+prop_description(Value) when not is_pid(Value) ->
+    Value.
+
 log(Level, IoData) ->
     erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).

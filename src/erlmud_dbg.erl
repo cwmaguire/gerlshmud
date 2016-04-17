@@ -2,6 +2,8 @@
 
 %-export([start/0]).
 -export([add/1]).
+-export([add/2]).
+-export([add/3]).
 -export([stop/0]).
 
 %start() ->

@@ -56,6 +56,8 @@ can_add([Fun | Funs], Props, Item, true) ->
 
 has_matching_body_part(Props, Item) ->
     BodyPart = proplists:get_value(body_part, Props, any),
+    %% TODO Remove synchronous gen_server call: have the item send it's
+    %% body parts when it sees it's name and replaces it with it's PID.
     ItemBodyParts = lists:flatten(erlmud_object:get(Item, body_parts)),
     log([<<"has_matching_body_part(">>, BodyPart,
          ", ", ItemBodyParts, "):",
@@ -134,17 +136,10 @@ attempt(Owner, Props, {remove, Owner, Item}) ->
         _ ->
             {succeed, _Subscribe = false, Props}
     end;
-attempt(Owner, Props, {search, Source, Target, ObjDifficulties}) ->
-    %% if we have an owner difficulty then we know we're in the character hierarchy
-    OwnerDifficulty = proplists:get_value(Owner, ObjDifficulties, undefined),
-    case OwnerDifficulty of
-        undefined ->
-            {succeed, _Subscribe = false, Props};
-        _ ->
-            SearchDifficulty = proplists:get_value(search_difficulty, Props, 1),
-            Message2 = {search, Source, Target, [{self(), OwnerDifficulty + SearchDifficulty} | ObjDifficulties]},
-            {succeed, Message2, true, Props}
-    end;
+attempt(Owner, Props, {look, _Source, Owner, _Context}) ->
+    {succeed, true, Props};
+attempt(_Owner, Props, {look, _Source, _Target, _Context}) ->
+    {succeed, false, Props};
 attempt(_Owner, Props, _Msg) ->
     {succeed, _Subscribe = false, Props}.
 
@@ -158,12 +153,50 @@ succeed(Props, {remove, Item, Self}) when Self == self(), is_pid(Item) ->
     erlmud_object:add(Owner, item, Item),
     erlmud_object:set(Item, {owner, Owner}),
     lists:keydelete(Item, 2, Props);
+succeed(Props, {look, Source, Target, AncestorsContext}) ->
+    _ = case is_owner(Target, Props) of
+            true ->
+                describe(Source, Props, AncestorsContext),
+                Name = proplists:get_value(name, Props, undefined),
+                BodyPartContext = <<Name/binary, " -> ">>,
+                NewMessage = {look, Source, self(), <<AncestorsContext/binary, BodyPartContext/binary>>},
+                erlmud_object:attempt(Source, NewMessage);
+            _ ->
+                ok
+        end,
+    Props;
 succeed(Props, Msg) ->
     log([<<"saw ">>, Msg, <<" succeed with props ">>, Props]),
     Props.
+
+is_owner(MaybeOwner, Props) when is_pid(MaybeOwner) ->
+    MaybeOwner == proplists:get_value(owner, Props);
+is_owner(_, _) ->
+    false.
+
+describe(Source, Props, Context) ->
+    Description = description(Props),
+    erlmud_object:attempt(Source, {send, Source, [<<Context/binary>>, Description]}).
+
+description(Props) when is_list(Props) ->
+    DescTemplate = application:get_env(erlmud, body_part_desc_template, []),
+    log([<<"body part desc template: ">>, DescTemplate]),
+    [[description_part(Props, Part)] || Part <- DescTemplate].
+
+description_part(_, RawText) when is_binary(RawText) ->
+    log([<<"body part description_part RawText: ">>, RawText]),
+    RawText;
+description_part(Props, DescProp) ->
+    log([<<"body part description_part DescProp: ">>, DescProp, <<" from Props: ">>, Props]),
+    prop_description(proplists:get_value(DescProp, Props, <<"??">>)).
+
+prop_description(undefined) ->
+    [];
+prop_description(Value) when not is_pid(Value) ->
+    Value.
 
 fail(Props, _Message, _Reason) ->
     Props.
 
 log(Terms) ->
-    erlmud_event_log:log(debug, [atom_to_list(?MODULE) | Terms]).
+    erlmud_event_log:log(debug, [list_to_binary(atom_to_list(?MODULE)) | Terms]).

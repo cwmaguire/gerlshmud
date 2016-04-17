@@ -35,9 +35,7 @@ removed(_, _) -> ok.
 attempt(_Owner, Props, Msg) ->
     attempt(Props, Msg).
 
-attempt(Props, {move, _Obj, Self, _Target}) when Self == self() ->
-    {succeed, true, Props};
-attempt(Props, {move, _Obj, _Source, Self}) when Self == self() ->
+attempt(Props, {move, _Obj, Source, Target, _Exit}) when Source == self(); Target == self() ->
     {succeed, true, Props};
 attempt(Props, {get, Obj, Pid}) when is_pid(Pid) ->
     case has_pid(Props, Pid) of
@@ -47,6 +45,8 @@ attempt(Props, {get, Obj, Pid}) when is_pid(Pid) ->
         _ ->
             {succeed, _Interested = false, Props}
     end;
+attempt(Props, {add, Self, _Player}) when Self == self() ->
+    {succeed, true, Props};
 attempt(Props, _Msg) ->
     {succeed, false, Props}.
 
@@ -62,15 +62,23 @@ succeed(Props, {move, Obj, Source, Target}) ->
 succeed(Props, {get, Obj, Item, Self}) when Self == self() ->
     log([<<"Process ">>, Obj, <<" got ">>, Item, <<" from me">>]),
     Props;
+succeed(Props, {add, Self, Player}) when Self == self() ->
+    log([<<"Process ">>, Player, <<" added to me">>]),
+    Props;
 succeed(Props, Msg) ->
     log([<<"saw ">>, Msg, <<" succeed with props ">>, Props]),
     Props.
 
+% TODO Not sure if this is used.
 fail(Props, Reason, {move, Obj, Self, Target}) when Self == self() ->
     log([Obj, <<" couldn't go from here to ">>, Target, <<" ">>, Reason]),
     Props;
-fail(Props, Reason, {move, Obj, Source, Self}) when Self == self() ->
-    log([<<"Room ">>, Self, <<": ">>, Obj, <<" couldn't come here from ">>, Source, <<"Reason: ">>, Reason, <<", Props: ">>, Props]),
+fail(Props, Reason, {move, Obj, Source, Target, Exit}) when Source == self(); Target == self() ->
+    log([Obj, <<" couldn't move from ">>,
+         <<" room ">>, Source, <<" to room ">>, Target,
+         <<" via ">>, Exit,
+         <<" because ">>, Reason,
+         <<", Props: ">>, Props]),
     Props.
 
 log(Terms) ->

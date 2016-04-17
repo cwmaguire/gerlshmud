@@ -30,9 +30,9 @@
 -export([code_change/4]).
 
 -record(state, {socket :: pid(),
+                conn_obj :: pid(),
                 player :: pid(),
                 login :: string(),
-                room :: pid(),
                 attempts = 0 :: integer()}).
 
 %% api
@@ -48,13 +48,42 @@ handle(Pid, Msg) ->
 login(Event, StateData) ->
     {next_state, password, StateData#state{login = Event}}.
 
-password(Event, StateData = #state{login = Login,
-                                   attempts = Attempts,
-                                   socket = _Socket}) ->
-    case is_valid_creds(Login, Event) of
-        {true, Player} ->
-            erlmud_object:attempt(Player, {enter_world, Player}),
-            {next_state, live, StateData#state{login = undefined, player = Player}};
+password(_Event = Password, StateData = #state{login = Login,
+                                               attempts = Attempts,
+                                               socket = _Socket}) ->
+    %ct:pal("~p:password ... check is_valid_creds(~p, ~p)~n", [?MODULE, Login, Password]),
+    case is_valid_creds(Login, Password) of
+        {true, _Player} ->
+            %ct:pal("erlmud_conn:password -> player validated~n", []),
+            %% start player
+            %%   The player will need to know what room they're in; either the
+            %%   last room they were in or a starting room.
+            %% start connection object
+            %RoomPid = erlmud_index:get(room),
+            %PlayerProps = [{room, RoomPid}],
+            %PlayerPid = erlmud_object_sup:start_child(erlmud_object_sup,
+                                                      %[undefined, erlmud_player, PlayerProps]),
+
+            %All players can be live processes at MUD startup; processes are almost free
+
+            RoomPid = erlmud_index:get(room),
+            PlayerPid = erlmud_index:get(player),
+            ConnProps = [{owner, PlayerPid}, {room, RoomPid}, {conn, {self()}}],
+
+            % The conn object can add the player to the room and if that fails
+            % then the conn object can tell the conn to disconnect.
+            {ok, ConnObjPid} = supervisor:start_child(erlmud_object_sup,
+                                                      [undefined, erlmud_conn_obj, ConnProps]),
+            %ct:pal("erlmud_conn:password -> started ConnObj ~p with props ~p~n", [ConnObjPid, ConnProps]),
+
+            Message = {move, PlayerPid, _From = undefined, RoomPid, _Target = undefined},
+            ConnObjPid ! {ConnObjPid, Message},
+            %erlmud_object:attempt(ConnObjPid, {move, PlayerPid, _From = undefined, RoomPid, _Target = undefined}),
+
+            %erlmud_object:add(PlayerPid, erlmud_room, RoomPid),
+            %erlmud_object:add(PlayerPid, erlmud_conn_obj, ConnPid),
+            %erlmud_object:add(RoomPid, erlmud_character, PlayerPid),
+            {next_state, live, StateData#state{login = undefined, player = PlayerPid, conn_obj = ConnObjPid}};
         false ->
             get_failed_auth_state(StateData#state{login = undefined, attempts = Attempts + 1})
     end.
@@ -68,14 +97,17 @@ dead(_, StateData = #state{socket = Socket}) ->
     Socket ! {send, "Connection Refused"},
     {next_state, dead, StateData}.
 
-live(Event, StateData) ->
-    io:format("erlmud_conn got event ~p in state 'live' with state data ~p~n",
-              [Event, StateData]),
-    _ = case erlmud_parse:parse(StateData#state.player, Event) of
+live({send, Message}, StateData = #state{socket = Socket}) ->
+    Socket ! {send, Message},
+    {next_state, live, StateData};
+live(Event, StateData = #state{player = PlayerPid, conn_obj = ConnObjPid}) ->
+    log([<<"got event \"">>, Event, <<"\" in state 'live' with state data ">>, StateData]),
+
+    _ = case erlmud_parse:parse(PlayerPid, Event) of
         {error, Error} ->
             StateData#state.socket ! {send, Error};
         Message ->
-            erlmud_object:attempt(StateData#state.player, Message)
+            ConnObjPid ! {ConnObjPid, Message}
     end,
     {next_state, live, StateData}.
 
@@ -90,29 +122,12 @@ handle_sync_event(_Event, _From, StateName, StateData) ->
 handle_event(_Info, StateName, StateData) ->
     {next_state, StateName, StateData}.
 
-handle_info({'$gen_cast', {fail, Reason, {enter_world, Player}}},
-            _StateName,
-            StateData = #state{player = Player, socket = Socket}) ->
-    Socket ! {send, Reason},
-    {next_state, dead, StateData};
-handle_info({'$gen_cast', {succeed, {enter_world, Player}}},
-            StateName,
-            StateData = #state{player = Player, socket = Socket}) ->
-    Socket ! {send, "Login succeeded"},
+handle_info({'$gen_call', {From, Ref}, props}, StateName, StateData) ->
+    From ! {Ref, _Props = []},
     {next_state, StateName, StateData};
-handle_info({'$gen_cast', {fail, Reason, {logout, Player}}},
-            StateName,
-            StateData = #state{player = Player, socket = Socket}) ->
-    Socket ! {send, Reason},
-    {next_state, StateName, StateData};
-handle_info({'$gen_cast', {succeed, {logout, Player}}},
-            _StateName,
-            StateData = #state{player = Player, socket = Socket}) ->
-    Socket ! {send, "Logout successful"},
-    {next_state, dead, StateData};
 handle_info(Info, StateName, StateData = #state{player = Player}) ->
-    io:format("Connection for player ~p received unrecognized message:~n\t~p~n",
-              [Player, Info]),
+    io:format("Connection ~p for player ~p received unrecognized message:~n\t~p~n",
+              [self(), Player, Info]),
     {next_state, StateName, StateData}.
 
 terminate(_Reason, _StateName, _StateData) -> ok.
@@ -124,4 +139,7 @@ code_change(_OldVsn, StateName, StateData, _Extra) ->
 is_valid_creds(_String, never_fails) ->
     false;
 is_valid_creds(_Login, _Password) ->
-    {true, erlmud_index:get(player1)}.
+    {true, erlmud_index:get(player)}.
+
+log(Terms) ->
+    erlmud_event_log:log(debug, [list_to_binary(atom_to_list(?MODULE)) | Terms]).

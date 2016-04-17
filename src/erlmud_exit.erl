@@ -52,7 +52,6 @@ attempt(Props, {move, Obj, FromRoom, Exit}) when is_atom(Exit) ->
     move(Props, Obj, Rooms, Exit);
 attempt(Props, {move, Mover, Source, Target, Self}) when Self == self() ->
     log([<<"Process ">>, Mover, <<" wants to leave room ">>, Source, <<" for ">>, Target, <<"\n">>]),
-    %case has_rooms(Props, Source, Target) andalso
     case blocked_reason(Props) of
         {blocked_because, Reason} ->
             {{fail, Reason}, false, Props};

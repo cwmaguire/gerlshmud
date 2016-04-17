@@ -24,9 +24,11 @@
 -define(SPAN, ?SPAN("~p")).
 
 log(Level, Terms) when is_atom(Level) ->
-    case whereis(erlmud_event_log) of
+    case whereis(?MODULE) of
         undefined ->
-            exit("logger died");
+            io:format("No ~p logger process found~nLevel: ~p~nTerms: ~p~n",
+                      [?MODULE, Level, Terms]);
+            %exit("no logger process found");
         _ ->
             ok
     end,
@@ -55,12 +57,15 @@ start_link() ->
 
 init([]) ->
     process_flag(priority, max),
+    io:format("Starting logger (~p)~n", [self()]),
     LogPath = get_log_path(),
     {ok, LogFile} = file:open(LogPath ++ "/erlmud.log", [append]),
     {ok, HtmlFile} = file:open(LogPath ++ "/log.html", [append]),
 
     Line = lists:duplicate(80, $=),
     io:format(LogFile, "~n~n~s~n~p~n~s~n~n", [Line, os:timestamp(), Line]),
+    io:format(user, "Logger:~n\tLog file: ~p~n\tHTML File: ~p~n",
+              [LogFile, HtmlFile]),
 
     {ok, #state{log_file = LogFile,
                 html_file = HtmlFile}}.
@@ -74,6 +79,7 @@ handle_cast({old_log, Pid, Msg, Params}, State) ->
               [Pid, Id | Params]),
     {noreply, State};
 handle_cast({log, Level, Pid, Terms}, State) ->
+    try
     IoData = [[io(maybe_name(Term)), " "] || Term <- flatten(Terms)],
     Props = erlmud_object:props(Pid),
     PropsWithNames = [{K, io(maybe_name(V))} || {K, V} <- Props],
@@ -81,7 +87,11 @@ handle_cast({log, Level, Pid, Terms}, State) ->
                     spans(["log", Level, io(erlmud_index:get(Pid))],
                           [div_("log_time", io(os:timestamp())),
                            div_("log_message", IoData),
-                           div_("log_props", io(PropsWithNames))])),
+                           div_("log_props", io(PropsWithNames))]))
+    catch
+        Error ->
+            ct:pal("~p caught error:~n\t~p~n", [?MODULE, Error])
+    end,
     {noreply, State};
 handle_cast({log, From, To, Stage, Action, _Params, _Room, _Next, _Done, _Subs}, State) ->
     FromName = erlmud_index:get(From),
@@ -92,7 +102,6 @@ handle_cast({log, From, To, Stage, Action, _Params, _Room, _Next, _Done, _Subs},
         Error ->
             ct:pal("FromProps Error: ~p~n", [Error])
     end,
-    dbg:stop_clear(),
 
     ToName = erlmud_index:get(To),
     %ToProps = erlmud_object:props(To),
@@ -104,6 +113,7 @@ handle_cast({log, From, To, Stage, Action, _Params, _Room, _Next, _Done, _Subs},
     %DoneNames = names(Done),
     %SubNames = names(Subs),
 
+    try
     Spans =
                     spans([Stage, Action, FromName, ToName],
                           [div_("columns",
@@ -125,24 +135,33 @@ handle_cast({log, From, To, Stage, Action, _Params, _Room, _Next, _Done, _Subs},
                            %div_("done", io(DoneNames))%,
                            %div_("subs", io(SubNames))
                           ]),
-    ok = file:write(State#state.html_file, [Spans]),
+    %ct:pal("~p:spans(...) succeeded~n", [?MODULE]),
+    ok = file:write(State#state.html_file, [Spans])
+    catch
+        Error2 ->
+            ct:pal("spans(...) or file:write(...) error: ~p~n", [?MODULE, Error2])
+    end,
     {noreply, State};
 handle_cast(Msg, State) ->
     ct:pal("Unrecognized cast: ~p~n", [Msg]),
     {noreply, State}.
 
-handle_info(_Info, State) ->
+handle_info(Info, State) ->
+    ct:pal("~p:handle_info(~p, State)~n", [?MODULE, Info]),
     {noreply, State}.
 
 terminate(Reason, #state{html_file = HtmlFile}) ->
     ct:pal("Terminating erlmud_event_log: ~p~n", [Reason]),
+    io:format("Terminating erlmud_event_log: ~p~n", [Reason]),
     io:format(HtmlFile,
               "<script language=\"JavaScript\">"
               "createClassCheckboxes();"
               "</script>\n"
               "</body>\n</html>\n",
               []),
-    ok.
+    ok;
+terminate(Reason, State) ->
+    ct:pal("Terminating erlmud_event_log: ~p~n", [Reason, State]).
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
@@ -150,7 +169,8 @@ code_change(_OldVsn, State, _Extra) ->
 get_log_path() ->
     case os:getenv("ERLMUD_LOG_PATH") of
         false ->
-            file:get_cwd();
+            {ok, CWD} = file:get_cwd(),
+            CWD;
         Path ->
             Path
     end.

@@ -86,6 +86,28 @@ attempt(Owner, Props, {search, Source, Target, ObjDifficulties}) ->
             Message2 = {search, Source, Target, [{self(), OwnerDifficulty + SearchDifficulty} | ObjDifficulties]},
             {succeed, Message2, true, Props}
     end;
+attempt(_Owner, Props, {look, Source, TargetName}) when Source =/= self(),
+                                                  is_binary(TargetName) ->
+    log(debug, [<<"Checking if name ">>, TargetName, <<" matches">>]),
+    SelfName = proplists:get_value(name, Props, <<>>),
+    case re:run(SelfName, TargetName, [{capture, none}, caseless]) of
+        match ->
+            Type = proplists:get_value(type, Props, <<"<notype>">>),
+            Context = <<Type/binary, " ", SelfName/binary, " -> ">>,
+            NewMessage = {look, Source, self(), Context},
+            {{resend, Source, NewMessage}, _ShouldSubscribe = true, Props};
+        _ ->
+            ct:pal("Name ~p did not match this character's name ~p~n", [TargetName, SelfName]),
+            log(debug,
+                [<<"Name ">>,
+                 TargetName,
+                 <<" did not match this character's name: ">>,
+                 SelfName,
+                 <<".\n">>]),
+            {succeed, false, Props}
+    end;
+attempt(Owner, Props, {look, _Source, Owner, _Context}) ->
+    {succeed, true, Props};
 attempt(_Owner, Props, _Msg) ->
     {succeed, false, Props}.
 
@@ -93,6 +115,17 @@ succeed(Props, {get, Receiver, Self, Owner}) when Self == self() ->
     move(Props, Owner, Receiver);
 succeed(Props, {drop, Owner, Self, Receiver}) when Self == self() ->
     move(Props, Owner, Receiver);
+succeed(Props, {look, Source, Self, Context}) when Self == self() ->
+    describe(Source, Props, Context),
+    Props;
+succeed(Props, {look, Source, Target, Context}) ->
+    _ = case is_owner(Target, Props) of
+            true ->
+                describe(Source, Props, Context);
+            _ ->
+                ok
+        end,
+    Props;
 succeed(Props, Msg) ->
     log([<<"saw ">>, Msg, <<" succeed with props ">>, Props]),
     Props.
@@ -101,11 +134,38 @@ fail(Props, Result, Msg) ->
     log([<<"result: ">>, Result, <<" message: ">>, Msg]),
     Props.
 
+is_owner(MaybeOwner, Props) when is_pid(MaybeOwner) ->
+    MaybeOwner == proplists:get_value(owner, Props);
+is_owner(_, _) ->
+    false.
+
 move(Props, Owner, Receiver) ->
-    %log("moving from ~p to ~p~n", [Owner, Receiver]),
     gen_server:cast(Owner, {remove, item, self()}),
     gen_server:cast(Receiver, {add, item, self()}),
     set(owner, Receiver, Props).
 
+describe(Source, Props, Context) ->
+    Description = description(Props),
+    erlmud_object:attempt(Source, {send, Source, [<<Context/binary>>, Description]}).
+
+description(Props) when is_list(Props) ->
+    DescTemplate = application:get_env(erlmud, item_desc_template, []),
+    log([<<"item desc template: ">>, DescTemplate]),
+    [[description_part(Props, Part)] || Part <- DescTemplate].
+
+description_part(_, RawText) when is_binary(RawText) ->
+    RawText;
+description_part(Props, DescProp) ->
+    log([<<"body part description_part DescProp: ">>, DescProp, <<" from Props: ">>, Props]),
+    prop_description(proplists:get_value(DescProp, Props, <<"??">>)).
+
+prop_description(undefined) ->
+    [];
+prop_description(Value) when not is_pid(Value) ->
+    Value.
+
 log(Terms) ->
-    erlmud_event_log:log(debug, [?MODULE | Terms]).
+    log(debug, Terms).
+
+log(Level, Terms) ->
+    erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | Terms]).

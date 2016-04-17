@@ -25,7 +25,11 @@ function class_(elem){
 }
 
 function classes(elems){
-  return unique(map(class_, elems));
+  return unique(filter(not_empty, map(class_, elems)));
+}
+
+function not_empty(str){
+  return !str.trim().length == 0;
 }
 
 function checkbox(className){

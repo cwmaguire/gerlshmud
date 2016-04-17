@@ -60,9 +60,9 @@
                                          {body_parts, [head, hand]}]}]).
 
 -define(WORLD_6, [{erlmud_character, player, [{body_part, finger1},
-                                           {body_part, finger2},
-                                           {item, ring1},
-                                           {item, ring2}]},
+                                              {body_part, finger2},
+                                              {item, ring1},
+                                              {item, ring2}]},
                   {erlmud_body_part, finger1, [{name, <<"finger1">>},
                                                {owner, player},
                                                {max_items, 1},
@@ -78,27 +78,50 @@
                                         {name, <<"ring2">>},
                                         {body_parts, [finger]}]}]).
 
--define(WORLD_7, [{erlmud_room, room, [{character, player},
-                                       {character, giant}]},
+-define(WORLD_7, [{erlmud_room, room, [{character, giant},
+                                       {name, <<"room">>}]},
 
                   {erlmud_character, player, [{room, room},
-                                              {item, fist},
-                                              {hitpoints, p_hp},
-                                              {life, p_life}]},
-                  {erlmud_hitpoints, p_hp, [{hitpoints, 1},
-                                            {owner, player}]},
-                  {erlmud_life, p_life, [{is_alive, true},
-                                         {owner, player}]},
+                                              {name, <<"Bob">>},
+                                              {species, <<"human">>}
+                                              ]},
 
-                  {erlmud_character, zombie, [{room, room},
-                                              {attack_wait, 10},
-                                              {item, sword},
-                                              {name, <<"zombie">>},
-                                              {hitpoints, z_hp},
-                                              {life, z_life}]},
-                  {erlmud_hitpoints, z_hp, [{hitpoints, 10},
-                                            {owner, zombie}]},
-                  {erlmud_life, z_life, [{is_alive, true},
-                                         {owner, zombie}]},
-                  {erlmud_item, sword, [{dmg, 5},
-                                        {owner, zombie}]}]).
+                  {erlmud_character, giant, [{room, room},
+                                             {name, <<"Pete">>},
+                                             {species, <<"Giant">>},
+                                             {gender, <<"male">>},
+                                             {height, <<"4">>},
+                                             {weight, <<"400">>},
+                                             {item, pants},
+                                             {item, sword},
+                                             {item, scroll},
+                                             {body_part, legs0},
+                                             {body_part, hands0}
+                                            ]},
+
+                  {erlmud_body_part, legs0, %% if we name this 'legs' then 'legs' will be known as
+                                            %% as an object ID. If 'legs' is an object identifier
+                                            %% then a {body_part, legs} property on a body_part,
+                                            %% i.e. the type of the body part, will be changed
+                                            %% into {body_part, <PID OF LEGS OBJECT>}
+                                              [{name, <<"legs">>},
+                                               {owner, giant},
+                                               {max_items, 1},
+                                               {body_part, legs}]},
+                  {erlmud_body_part, hands0,   [{name, <<"hands">>},
+                                                {owner, giant},
+                                                {max_items, 1},
+                                                {body_part, hands}]},
+
+                  {erlmud_item, pants, [{owner, giant},
+                                        {body_parts, [legs]},
+                                        {name, <<"pants_">>}]},
+                  {erlmud_item, sword, [{owner, giant},
+                                        {body_parts, [hands]},
+                                        {name, <<"sword_">>}]},
+                  {erlmud_item, scroll, [{owner, giant},
+                                         {body_parts, []},
+                                         {name, <<"scroll_">>}]},
+                  {erlmud_item, shoes, [{owner, giant},
+                                        {body_parts, [feet]},
+                                        {name, <<"shoes_">>}]}]).
