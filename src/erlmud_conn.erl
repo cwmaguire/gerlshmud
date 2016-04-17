@@ -41,7 +41,6 @@ start_link(Socket) ->
     gen_fsm:start_link(?MODULE, Socket, []).
 
 handle(Pid, Msg) ->
-    %ct:pal("erlmud_conn:handle(~p, ~p)~n", [Pid, Msg]),
     gen_fsm:send_event(Pid, Msg).
 
 %% states
@@ -102,13 +101,10 @@ live({send, Message}, StateData = #state{socket = Socket}) ->
     Socket ! {send, Message},
     {next_state, live, StateData};
 live(Event, StateData = #state{player = PlayerPid, conn_obj = ConnObjPid}) ->
-    %io:format("erlmud_conn got event ~p in state 'live' with state data ~p~n",
-              %[Event, StateData]),
-    log([<<"erlmud_conn got event ">>, Event, <<" in state 'live' with state data ">>, StateData]),
+    log([<<"got event \"">>, Event, <<"\" in state 'live' with state data ">>, StateData]),
 
     _ = case erlmud_parse:parse(PlayerPid, Event) of
         {error, Error} ->
-            %ct:pal("~p parse error: ~p~n", [?MODULE, Error]),
             StateData#state.socket ! {send, Error};
         Message ->
             ConnObjPid ! {ConnObjPid, Message}
@@ -126,36 +122,8 @@ handle_sync_event(_Event, _From, StateName, StateData) ->
 handle_event(_Info, StateName, StateData) ->
     {next_state, StateName, StateData}.
 
-handle_info({send, Message}, _StateName, StateData = #state{socket = Socket}) ->
-    %ct:pal("Conn ~p saw {send, ~p}~nwith state:~n\t~p~n", [self(), Message, StateData]),
-    Socket ! {send, Message},
-    {next_state, live, StateData};
-%
-%
-% These can be moved to erlmud_conn_obj
-handle_info({'$gen_cast', {succeed, {enter_world, Player}}},
-            StateName,
-            StateData = #state{player = Player, socket = Socket}) ->
-    erlmud_object:add(Player, conn, self()),
-    Socket ! {send, "Login succeeded"},
-    {next_state, StateName, StateData};
-handle_info({'$gen_cast', {fail, Reason, {logout, Player}}},
-            StateName,
-            StateData = #state{player = Player, socket = Socket}) ->
-    Socket ! {send, Reason},
-    {next_state, StateName, StateData};
-handle_info({'$gen_cast', {succeed, {logout, Player}}},
-            _StateName,
-            StateData = #state{player = Player, socket = Socket}) ->
-    Socket ! {send, "Logout successful"},
-    {next_state, dead, StateData};
-handle_info({'$gen_cast', {succeed, {send, Player, Msg}}},
-            _StateName,
-            StateData = #state{player = Player, socket = Socket}) ->
-    Socket ! {send, Msg},
-    {next_state, dead, StateData};
-handle_info({'$gen_call', {Caller, Ref}, props}, StateName, StateData) ->
-    Caller ! {Ref, _Props = []},
+handle_info({'$gen_call', {From, Ref}, props}, StateName, StateData) ->
+    From ! {Ref, _Props = []},
     {next_state, StateName, StateData};
 handle_info(Info, StateName, StateData = #state{player = Player}) ->
     io:format("Connection ~p for player ~p received unrecognized message:~n\t~p~n",

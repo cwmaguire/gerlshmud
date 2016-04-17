@@ -221,11 +221,11 @@ attempt_(Msg,
                         props = Props}) ->
     Owner = proplists:get_value(owner, Props),
     Results = {Result, Msg2, ShouldSubscribe, Props2} = ensure_message(Msg, Type:attempt(Owner, Props, Msg)),
-    %io:format("erlmud_object results from ~p:~n\t~p~nwith state:~n\t~p~n~n", [Msg, Results, State]),
     log([Type, <<" ">>, self(), <<" ">>, Owner,
          <<"attempt: ">>, Msg, <<" -> ">>,
          ShouldSubscribe, <<", ">>, Result]),
-    _ = handle(Result, Msg2, merge(self(), Type, Results, Procs)),
+    MergedProcs = merge(self(), Type, Results, Procs),
+    _ = handle(Result, Msg2, MergedProcs),
     State#state{props = Props2}.
 
 ensure_message(Msg, {A, B, C}) ->

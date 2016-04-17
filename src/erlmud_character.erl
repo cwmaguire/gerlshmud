@@ -38,9 +38,6 @@ set(Type, Obj, Props) ->
 get_(Type, Props) ->
     lists:keyfind(Type, 1, Props).
 
-%attempt(_Owner, Props, Msg) ->
-    %attempt(Props, Msg).
-
 attempt(_Owner, Props, {move, Self, Direction}) when Self == self() ->
     case proplists:get_value(room, Props) of
         undefined ->
@@ -99,12 +96,13 @@ attempt(_Owner, Props, {die, Self}) when Self == self() ->
 attempt(_Owner, Props, {look, Source, TargetName}) when Source =/= self(),
                                                   is_binary(TargetName) ->
     log(debug, [<<"Checking if name ">>, TargetName, <<" matches">>]),
-    ct:pal("Checking if name ~p matches", [TargetName]),
     SelfName = proplists:get_value(name, Props, <<>>),
-    case re:run(SelfName, TargetName, [{capture, none}]) of
+    SelfSpecies = proplists:get_value(species, Props, <<>>),
+    case re:run(SelfName, TargetName, [{capture, none}, caseless]) of
         match ->
-            NewMessage = {look, Source, self()},
-            {{resend, Source, NewMessage}, _ShouldSubscribe = false, Props};
+            Context = <<SelfSpecies/binary, " ", SelfName/binary, " -> ">>,
+            NewMessage = {look, Source, self(), Context},
+            {{resend, Source, NewMessage}, _ShouldSubscribe = true, Props};
         _ ->
             ct:pal("Name ~p did not match this character's name ~p~n", [TargetName, SelfName]),
             log(debug,
@@ -115,10 +113,10 @@ attempt(_Owner, Props, {look, Source, TargetName}) when Source =/= self(),
                  <<".\n">>]),
             {succeed, false, Props}
     end;
-attempt(_Owner, Props, {look, _Source, Self}) when Self == self() ->
+attempt(_Owner, Props, {look, _Source, Self, _Context}) when Self == self() ->
     {succeed, true, Props};
-attempt(Owner, Props, {look, _Source, Owner}) ->
-    {succeed, true, Props};
+attempt(_Owner, Props, {look, _Source, _Target, _Context}) ->
+    {succeed, false, Props};
 attempt(_Owner, Props, {describe, _Source, _Child, _Desc}) ->
     {succeed, true, Props};
 attempt(_Owner, Props, _Msg) ->
@@ -163,13 +161,14 @@ succeed(Props, {cleanup, Self}) when Self == self() ->
     %% TODO: kill/disconnect all connected processes
     %% TODO: drop all objects
     {stop, cleanup_succeeded, Props};
-succeed(Props, {look, Source, Target}) when Target == self() ->
-    describe(Source, Target, Props),
+succeed(Props, {look, Source, SelfTarget, _NoContext})
+    when SelfTarget == self() ->
+    describe(Source, Props, _Context = <<>>),
     Props;
-succeed(Props, {look, Source, Owner}) ->
-    _ = case is_owner(Owner, self()) of
+succeed(Props, {look, Source, Target, Context}) ->
+    _ = case is_owner(Target, Props) of
             true ->
-                describe(Source, Owner, Props);
+                describe(Source, Props, Context);
             _ ->
                 ok
         end,
@@ -181,7 +180,7 @@ succeed(Props, {describe, Source, _Child, Desc}) ->
     FramedDesc = <<"In/on/at ", Name/binary, " you see ", Desc/binary>>,
     erlmud_object:attempt(Source, {send, FramedDesc});
 succeed(Props, Msg) ->
-    log(debug, [<<"saw ">>, Msg, <<" succeed with props\n">>]),
+    log(debug, [<<"saw ">>, Msg, <<" succeed\n">>]),
     Props.
 
 fail(Props, target_is_dead, _Message) ->
@@ -199,11 +198,12 @@ attack(Target, Props) ->
     erlmud_object:attempt(Attack, {attack, Attack, self(), Target}),
     [{attack, Attack} | Props].
 
-describe(Source, Context, Props) when Context == self() ->
-    %ct:pal("Attempting to send description of self: ~p~n", [self()]),
-    erlmud_object:attempt(Source, {send, Source, description(Props)});
-describe(Source, Context, Props) ->
-    erlmud_object:attempt(Context, {describe, Source, self(), description(Props)}).
+describe(Source, Props, Context) ->
+    log(debug, [<<"calling description(">>, Props, <<")">>]),
+    Description = description(Props),
+    log(debug, [<<"returned from Description: ">>, Description]),
+    io:format(user, "(io:format) returned from description: ~p~n", [Description]),
+    erlmud_object:attempt(Source, {send, Source, [<<Context/binary>>, Description]}).
 
 is_owner(MaybeOwner, Props) when is_pid(MaybeOwner) ->
     MaybeOwner == proplists:get_value(owner, Props);
@@ -212,17 +212,22 @@ is_owner(_, _) ->
 
 description(Props) when is_list(Props) ->
     DescTemplate = application:get_env(erlmud, character_desc_template, []),
-    %ct:pal("Template: ~p~n", [DescTemplate]),
-    [[description(Props, Part)] || Part <- DescTemplate];
-description(undefined) ->
-    [];
-description(Value) when not is_pid(Value) ->
-    Value.
+    log(debug, [<<"description template: ">>, DescTemplate]),
+    Description = [[description_part(Props, Part)] || Part <- DescTemplate],
+    log(debug, [<<"Description: ">>, Description]),
+    Description.
 
-description(_, RawText) when is_binary(RawText) ->
+description_part(_, RawText) when is_binary(RawText) ->
+    log(debug, [<<"description_part with unknown Props and RawText: ">>, RawText]),
     RawText;
-description(Props, DescProp) ->
-    description(proplists:get_value(DescProp, Props, <<"??">>)).
+description_part(Props, DescProp) ->
+    log(debug, [<<"description_part with Props: ">>, Props, <<", DescProp: ">>, DescProp]),
+    prop_description(proplists:get_value(DescProp, Props, <<"??">>)).
+
+prop_description(undefined) ->
+    [];
+prop_description(Value) when not is_pid(Value) ->
+    Value.
 
 log(Level, IoData) ->
     erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).

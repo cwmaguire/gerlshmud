@@ -37,11 +37,6 @@ attempt(_Owner, Props, Msg) ->
 
 attempt(Props, {move, _Obj, Source, Target, _Exit}) when Source == self(); Target == self() ->
     {succeed, true, Props};
-% I don't think this ever happens: the character object only moves on {move, Player, From, To, Exit}
-%attempt(Props, {move, _Obj, Self, _Target}) when Self == self() ->
-    %{succeed, true, Props};
-%attempt(Props, {move, _Obj, _Source, Self}) when Self == self() ->
-    %{succeed, true, Props};
 attempt(Props, {get, Obj, Pid}) when is_pid(Pid) ->
     case has_pid(Props, Pid) of
         true ->
@@ -74,11 +69,16 @@ succeed(Props, Msg) ->
     log([<<"saw ">>, Msg, <<" succeed with props ">>, Props]),
     Props.
 
+% TODO Not sure if this is used.
 fail(Props, Reason, {move, Obj, Self, Target}) when Self == self() ->
     log([Obj, <<" couldn't go from here to ">>, Target, <<" ">>, Reason]),
     Props;
-fail(Props, Reason, {move, Obj, Source, Self}) when Self == self() ->
-    log([<<"Room ">>, Self, <<": ">>, Obj, <<" couldn't come here from ">>, Source, <<"Reason: ">>, Reason, <<", Props: ">>, Props]),
+fail(Props, Reason, {move, Obj, Source, Target, Exit}) when Source == self(); Target == self() ->
+    log([Obj, <<" couldn't move from ">>,
+         <<" room ">>, Source, <<" to room ">>, Target,
+         <<" via ">>, Exit,
+         <<" because ">>, Reason,
+         <<", Props: ">>, Props]),
     Props.
 
 log(Terms) ->

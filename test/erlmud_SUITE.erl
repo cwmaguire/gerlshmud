@@ -5,28 +5,26 @@
 
 -define(WAIT100, receive after 100 -> ok end).
 
-all() -> [look].
-%all() ->
-    %[player_move,
-     %player_move_fail,
-     %player_move_exit_locked,
-     %player_get_item,
-     %player_drop_item,
-     %player_attack,
-     %player_attack_wait,
-     %one_sided_fight,
-     %counterattack_behaviour,
-     %player_wield,
-     %player_wield_missing_body_part,
-     %player_wield_wrong_body_part,
-     %player_wield_body_part_is_full,
-     %player_remove].
+%all() -> [look].
+%all() -> [player_move_exit_locked].
+all() ->
+    [player_move,
+     player_move_fail,
+     player_move_exit_locked,
+     player_get_item,
+     player_drop_item,
+     player_attack,
+     player_attack_wait,
+     one_sided_fight,
+     counterattack_behaviour,
+     player_wield,
+     player_wield_missing_body_part,
+     player_wield_wrong_body_part,
+     player_wield_body_part_is_full,
+     player_remove,
+     look].
 
 init_per_testcase(_, Config) ->
-    %application:ensure_all_started(cowboy),
-    %timer:sleep(2000),
-    %application:start(sasl),
-    %timer:sleep(2000),
     {ok, _Started} = application:ensure_all_started(erlmud),
     TestObject = spawn_link(fun mock_object/0),
     ct:pal("mock_object is ~p~n", [TestObject]),
@@ -143,7 +141,6 @@ counterattack_behaviour(Config) ->
     Player = erlmud_index:get(player),
     erlmud_object:set(Player, {attack_wait, 20}),
     Zombie = erlmud_index:get(zombie),
-    %receive after 1000 -> ok end,
     Behaviour = start_obj(behaviour,
                           erlmud_attack_behaviour,
                           [{owner, Zombie},
@@ -238,56 +235,42 @@ player_remove(Config) ->
     Helmet = val(item, player),
     undefined = val(item, head).
 
-look(_Config) ->
-    application:start(sasl),
-    dbg:tracer(),
-    dbg:p(all, call),
-    %dbg:tpl(erlmud_object, [{'_',[],[{return_trace}, {exception_trace}]}]),
-    %dbg:tpl(file, write, [{'_',[],[{return_trace}, {exception_trace}]}]),
-    dbg:tpl(erlmud_event_log, handle_cast, [{'_',[],[{return_trace}, {exception_trace}]}]),
-    %dbg:tpl(erlmud_event_log, log, [{'_',[],[{return_trace}, {exception_trace}]}]),
-
+look(Config) ->
     start(?WORLD_7),
-    %ok = application:start(erlmud),
-
-    %spawn(fun() -> monitor(process, whereis(erlmud_event_log)), loop() end),
-
     {ok, _TestSocket} = erlmud_test_socket:start(),
-    %ct:pal("~p test socket started: ~p~n", [?MODULE, TestSocket]),
     erlmud_test_socket:send(<<"AnyLoginWillDo">>),
     erlmud_test_socket:send(<<"AnyPasswordWillDo">>),
     ?WAIT100,
+    erlmud_test_socket:send(<<"look pete">>),
     ?WAIT100,
-    ?WAIT100,
-    ?WAIT100,
-    ?WAIT100,
-    ?WAIT100,
-    erlmud_test_socket:send(<<"look Pete">>),
-    ?WAIT100,
-    ?WAIT100,
-    ?WAIT100,
-    ?WAIT100,
-    ?WAIT100,
-    ?WAIT100,
-    ?WAIT100,
-    ?WAIT100,
-    Descriptions = erlmud_test_socket:messages(),
-    ct:pal("Socket messages:~n\t~p~n", [Descriptions]),
-    ?WAIT100,
-    ?WAIT100.
+    NakedDescriptions = erlmud_test_socket:messages(),
+    ct:pal("NakedDescriptions: ~p~n", [NakedDescriptions]),
+    ExpectedDescriptions =
+        lists:sort([<<"Pete, a male Giant, 4m tall and around 400kg.">>,
+                    <<"Giant Pete -> hands">>,
+                    <<"Giant Pete -> legs">>,
+                    <<"Giant Pete -> pants_">>,
+                    <<"Giant Pete -> sword_">>,
+                    <<"Giant Pete -> scroll_">>]),
+    ct:pal("ExpectedDescriptions (sorted): ~p~n", [ExpectedDescriptions]),
 
-loop() ->
-    %ct:pal("Monitoring erlmud_event_log~n", []),
-    %io:format("Monitoring erlmud_event_log~n", []),
-    receive
-        {'DOWN', _MonitorRef, _Type, Object, Info} ->
-            ct:pal("Monitored process ~p triggered ~p~n", [Object, Info])
-            %io:format("Monitored process ~p triggered ~p~n", [Object, Info])
-        after 200 ->
-            %ct:pal("Monitored process erlmud_event_log hasn't triggered anything~n", []),
-            %io:format("Monitored process erlmud_event_log hasn't triggered anything~n", []),
-            loop()
-    end.
+    ExpectedDescriptions = lists:sort(NakedDescriptions),
+
+    Giant = erlmud_index:get(giant),
+    attempt(Config, Giant, {add, Giant, <<"pants">>, <<"legs">>}),
+    ?WAIT100,
+    erlmud_test_socket:send(<<"look pete">>),
+    ?WAIT100,
+    ClothedDescriptions = erlmud_test_socket:messages(),
+    ct:pal("ClothedDescriptions: ~p~n", [ClothedDescriptions]),
+    ExpectedDescriptions2 =
+        lists:sort([<<"Pete, a male Giant, 4m tall and around 400kg.">>,
+                    <<"Giant Pete -> hands">>,
+                    <<"Giant Pete -> legs">>,
+                    <<"Giant Pete -> legs -> pants_">>,
+                    <<"Giant Pete -> sword_">>,
+                    <<"Giant Pete -> scroll_">>]),
+    ExpectedDescriptions2 = lists:sort(ClothedDescriptions).
 
 start(Objects) ->
     IdPids = [{Id, start_obj(Id, Type, Props)} || {Type, Id, Props} <- Objects],

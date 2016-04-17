@@ -71,42 +71,29 @@ init([]) ->
                 html_file = HtmlFile}}.
 
 handle_call(_Request, _From, State) ->
-    ct:pal("~p:handle_call(...)~n", [?MODULE]),
     {reply, ignored, State}.
 
-%handle_cast(_, State) ->
-    %{noreply, State};
 handle_cast({old_log, Pid, Msg, Params}, State) ->
-    ct:pal("~p:handle_cast({old_log, ...}, ...)~n", [?MODULE]),
     Id = erlmud_index:get(Pid),
     io:format(State#state.log_file, "~p (~p):~n" ++ Msg ++ "~n",
               [Pid, Id | Params]),
     {noreply, State};
 handle_cast({log, Level, Pid, Terms}, State) ->
-    %ct:pal("~p:handle_cast({log, ~p, ~p, ~p}, ~p~n", [?MODULE, Level, Pid, Terms, State]),
     try
     IoData = [[io(maybe_name(Term)), " "] || Term <- flatten(Terms)],
-    %ct:pal("~p IoData: ~p", [?MODULE, IoData]),
     Props = erlmud_object:props(Pid),
-    %ct:pal("~p Props: ~p", [?MODULE, Props]),
     PropsWithNames = [{K, io(maybe_name(V))} || {K, V} <- Props],
-    %ct:pal("~p PropsWithNames: ~p", [?MODULE, PropsWithNames]),
     ok = file:write(State#state.html_file,
                     spans(["log", Level, io(erlmud_index:get(Pid))],
                           [div_("log_time", io(os:timestamp())),
                            div_("log_message", IoData),
                            div_("log_props", io(PropsWithNames))]))
-    %ct:pal("~p wrote to file", [?MODULE])
     catch
         Error ->
             ct:pal("~p caught error:~n\t~p~n", [?MODULE, Error])
     end,
-    %ct:pal("~p:handle_cast({4}, ...) succeeded~n", [?MODULE]),
     {noreply, State};
 handle_cast({log, From, To, Stage, Action, _Params, _Room, _Next, _Done, _Subs}, State) ->
-    %ct:pal("~p:handle_cast({10}, ...)~n", [?MODULE]),
-    ct:pal("~p:handle_cast({log, ~p, ~p, ~p, ~p, _, _, _, _, _}, State)~n",
-           [?MODULE, From, To, Stage, Action]),
     FromName = erlmud_index:get(From),
     try
         FromProps = erlmud_object:props(From),
@@ -115,7 +102,6 @@ handle_cast({log, From, To, Stage, Action, _Params, _Room, _Next, _Done, _Subs},
         Error ->
             ct:pal("FromProps Error: ~p~n", [Error])
     end,
-    %dbg:stop_clear(),
 
     ToName = erlmud_index:get(To),
     %ToProps = erlmud_object:props(To),

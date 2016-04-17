@@ -43,17 +43,17 @@ init(_) ->
   {ok, #state{conn = Conn}}.
 
 handle_call(messages, _From, State = #state{messages = Messages}) ->
-    {reply, Messages, State};
+    {reply, Messages, State#state{messages = []}};
 handle_call(_Req = Text, _From, State = #state{conn = Conn}) ->
     erlmud_conn:handle(Conn, Text),
     {reply, ok, State}.
 
 handle_cast(_Req = Text, State = #state{conn = Conn}) ->
-    %ct:pal("~p passing ~p on to conn ~p~n", [?MODULE, Text, Conn]),
     erlmud_conn:handle(Conn, Text),
     {noreply, State}.
 
 handle_info({send, Msg}, State = #state{messages = Messages}) ->
+    ct:pal("Test socket received: ~p~n", [flatten(Msg)]),
     {noreply, State#state{messages = [flatten(Msg) | Messages]}};
 handle_info(_Req, State) ->
     {noreply, State}.
