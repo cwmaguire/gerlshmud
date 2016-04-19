@@ -19,6 +19,7 @@
                                     <<"around ">>, weight, <<"kg.">>]},
          {body_part_desc_template, [name]},
          {item_desc_template, [name]},
+         {room_desc_template, [name, <<": ">>, desc]},
 
          {context_verbs, [{giant, [{hand, [{sword, <<"is wielding">>},
                                            {gloves, <<"is wearing">>}]},

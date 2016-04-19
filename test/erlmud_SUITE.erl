@@ -5,8 +5,7 @@
 
 -define(WAIT100, receive after 100 -> ok end).
 
-%all() -> [look].
-%all() -> [player_move_exit_locked].
+%all() -> [look_room].
 all() ->
     [player_move,
      player_move_fail,
@@ -22,7 +21,8 @@ all() ->
      player_wield_wrong_body_part,
      player_wield_body_part_is_full,
      player_remove,
-     look].
+     look_player,
+     look_room].
 
 init_per_testcase(_, Config) ->
     {ok, _Started} = application:ensure_all_started(erlmud),
@@ -235,7 +235,7 @@ player_remove(Config) ->
     Helmet = val(item, player),
     undefined = val(item, head).
 
-look(Config) ->
+look_player(Config) ->
     start(?WORLD_7),
     {ok, _TestSocket} = erlmud_test_socket:start(),
     erlmud_test_socket:send(<<"AnyLoginWillDo">>),
@@ -271,6 +271,17 @@ look(Config) ->
                     <<"Giant Pete -> sword_">>,
                     <<"Giant Pete -> scroll_">>]),
     ExpectedDescriptions2 = lists:sort(ClothedDescriptions).
+
+look_room(_Config) ->
+    start(?WORLD_7),
+    {ok, _TestSocket} = erlmud_test_socket:start(),
+    erlmud_test_socket:send(<<"AnyLoginWillDo">>),
+    erlmud_test_socket:send(<<"AnyPasswordWillDo">>),
+    ?WAIT100,
+    erlmud_test_socket:send(<<"look">>),
+    ?WAIT100,
+    Descriptions = erlmud_test_socket:messages(),
+    ct:pal("Descriptions: ~p~n", [Descriptions]).
 
 start(Objects) ->
     IdPids = [{Id, start_obj(Id, Type, Props)} || {Type, Id, Props} <- Objects],

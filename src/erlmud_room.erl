@@ -47,6 +47,8 @@ attempt(Props, {get, Obj, Pid}) when is_pid(Pid) ->
     end;
 attempt(Props, {add, Self, _Player}) when Self == self() ->
     {succeed, true, Props};
+attempt(Props, {look, _Source, Self}) when Self == self() ->
+    {succeed, true, Props};
 attempt(Props, _Msg) ->
     {succeed, false, Props}.
 
@@ -65,6 +67,14 @@ succeed(Props, {get, Obj, Item, Self}) when Self == self() ->
 succeed(Props, {add, Self, Player}) when Self == self() ->
     log([<<"Process ">>, Player, <<" added to me">>]),
     Props;
+succeed(Props, {look, Player, Self}) when Self == self() ->
+    log([<<"Process ">>, Player, <<" looked at me">>]),
+    describe(Player, Props),
+    Name = proplists:get_value(name, Props, <<"room with no name">>),
+    RoomContext = <<Name/binary, " -> ">>,
+    NewMessage = {look, Player, self(), RoomContext},
+    erlmud_object:attempt(Player, NewMessage),
+    Props;
 succeed(Props, Msg) ->
     log([<<"saw ">>, Msg, <<" succeed with props ">>, Props]),
     Props.
@@ -80,6 +90,29 @@ fail(Props, Reason, {move, Obj, Source, Target, Exit}) when Source == self(); Ta
          <<" because ">>, Reason,
          <<", Props: ">>, Props]),
     Props.
+
+describe(Source, Props) ->
+    Description = description(Props),
+    erlmud_object:attempt(Source, {send, Source, Description}).
+
+description(Props) when is_list(Props) ->
+    DescTemplate = application:get_env(erlmud, room_desc_template, []),
+    log([<<"description template: ">>, DescTemplate]),
+    Description = [[description_part(Props, Part)] || Part <- DescTemplate],
+    log([<<"Description: ">>, Description]),
+    Description.
+
+description_part(_, RawText) when is_binary(RawText) ->
+    log([<<"description_part with unknown Props and RawText: ">>, RawText]),
+    RawText;
+description_part(Props, DescProp) ->
+    log([<<"description_part with Props: ">>, Props, <<", DescProp: ">>, DescProp]),
+    prop_description(proplists:get_value(DescProp, Props, <<"??">>)).
+
+prop_description(undefined) ->
+    [];
+prop_description(Value) when not is_pid(Value) ->
+    Value.
 
 log(Terms) ->
     erlmud_event_log:log(debug, [list_to_binary(atom_to_list(?MODULE)) | Terms]).

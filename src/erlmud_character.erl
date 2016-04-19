@@ -115,10 +115,15 @@ attempt(_Owner, Props, {look, Source, TargetName}) when Source =/= self(),
     end;
 attempt(_Owner, Props, {look, _Source, Self, _Context}) when Self == self() ->
     {succeed, true, Props};
+attempt(OwnerRoom, Props, {look, Player, OwnerRoom, _RoomContext}) when Player /= self() ->
+    {succeed, true, Props};
 attempt(_Owner, Props, {look, _Source, _Target, _Context}) ->
     {succeed, false, Props};
-attempt(_Owner, Props, {describe, _Source, _Child, _Desc}) ->
-    {succeed, true, Props};
+attempt(Room = _Owner, Props, {look, Self}) when Self == self() ->
+    NewMessage = {look, Self, Room},
+    {{resend, Self, NewMessage}, _ShouldSubscribe = false, Props};
+%attempt(_Owner, Props, {describe, _Source, _Child, _Desc}) ->
+    %{succeed, true, Props};
 attempt(_Owner, Props, _Msg) ->
     {succeed, false, Props}.
 
@@ -127,7 +132,8 @@ succeed(Props, {move, Self, Source, Target, _Exit}) when Self == self() ->
     erlmud_object:remove(Source, character, self()),
     erlmud_object:add(Target, character, self()),
     log(debug, [<<"setting ">>, Self, <<"'s room to ">>, Target, <<"\n">>]),
-    set(room, Target, Props);
+    set(room, Target, Props),
+    set(owner, Target, Props);
 succeed(Props, {move, Self, Source, Direction}) when Self == self(), is_atom(Direction) ->
     log(debug, [<<"succeeded in moving ">>, Direction, <<" from ">>, Source, <<"\n">>]),
     Props;
@@ -161,8 +167,7 @@ succeed(Props, {cleanup, Self}) when Self == self() ->
     %% TODO: kill/disconnect all connected processes
     %% TODO: drop all objects
     {stop, cleanup_succeeded, Props};
-succeed(Props, {look, Source, SelfTarget, _NoContext})
-    when SelfTarget == self() ->
+succeed(Props, {look, Source, SelfTarget, _NoContext}) when SelfTarget == self() ->
     describe(Source, Props, _Context = <<>>),
     Props;
 succeed(Props, {look, Source, Target, Context}) ->
@@ -199,10 +204,7 @@ attack(Target, Props) ->
     [{attack, Attack} | Props].
 
 describe(Source, Props, Context) ->
-    log(debug, [<<"calling description(">>, Props, <<")">>]),
     Description = description(Props),
-    log(debug, [<<"returned from Description: ">>, Description]),
-    io:format(user, "(io:format) returned from description: ~p~n", [Description]),
     erlmud_object:attempt(Source, {send, Source, [<<Context/binary>>, Description]}).
 
 is_owner(MaybeOwner, Props) when is_pid(MaybeOwner) ->

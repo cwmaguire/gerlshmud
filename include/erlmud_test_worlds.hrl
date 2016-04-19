@@ -41,8 +41,8 @@
 
 -define(WORLD_4, [{erlmud_room, room, [{player, player}]},
                   {erlmud_character, player, [{room, room},
-                                           {item, helmet},
-                                           {body_part, head}]},
+                                              {item, helmet},
+                                              {body_part, head}]},
                   {erlmud_body_part, head, [{name, <<"head">>}, {owner, player}]},
                   {erlmud_item, helmet, [{name, <<"helmet">>}, {owner, player}]}]).
 
@@ -79,14 +79,14 @@
                                         {body_parts, [finger]}]}]).
 
 -define(WORLD_7, [{erlmud_room, room, [{character, giant},
-                                       {name, <<"room">>}]},
+                                       {name, <<"room">>},
+                                       {desc, <<"an empty space">>}]},
 
-                  {erlmud_character, player, [{room, room},
-                                              {name, <<"Bob">>},
-                                              {species, <<"human">>}
-                                              ]},
+                  {erlmud_character, player, [{name, <<"Bob">>},
+                                              {species, <<"human">>}]},
 
                   {erlmud_character, giant, [{room, room},
+                                             {owner, room},
                                              {name, <<"Pete">>},
                                              {species, <<"Giant">>},
                                              {gender, <<"male">>},
@@ -96,8 +96,7 @@
                                              {item, sword},
                                              {item, scroll},
                                              {body_part, legs0},
-                                             {body_part, hands0}
-                                            ]},
+                                             {body_part, hands0}]},
 
                   {erlmud_body_part, legs0, %% if we name this 'legs' then 'legs' will be known as
                                             %% as an object ID. If 'legs' is an object identifier
