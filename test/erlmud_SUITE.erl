@@ -6,6 +6,7 @@
 -define(WAIT100, receive after 100 -> ok end).
 
 %all() -> [look_room].
+%all() -> [player_move].
 all() ->
     [player_move,
      player_move_fail,
@@ -26,6 +27,7 @@ all() ->
 
 init_per_testcase(_, Config) ->
     {ok, _Started} = application:ensure_all_started(erlmud),
+    {ok, _Pid} = erlmud_test_socket:start(),
     TestObject = spawn_link(fun mock_object/0),
     ct:pal("mock_object is ~p~n", [TestObject]),
     erlmud_index:put("TestObject", TestObject),
@@ -33,6 +35,7 @@ init_per_testcase(_, Config) ->
 
 end_per_testcase(_, _Config) ->
     ct:pal("~p stopping erlmud~n", [?MODULE]),
+    erlmud_test_socket:stop(),
     application:stop(erlmud).
 
 val(Key, Obj) ->
@@ -53,9 +56,11 @@ get_props(Obj) when is_atom(Obj) ->
     Props;
 get_props(Pid) ->
     {_, _, Props} = sys:get_state(Pid),
+    ct:pal("returning ~p from sys:get_state(~p)~n", [Props, Pid]),
     Props.
 
 player_move(Config) ->
+    %erlmud_dbg:add(erlmud_object),
     start(?WORLD_1),
     Player = erlmud_index:get(player),
     RoomNorth =  erlmud_index:get(room_nw),
@@ -237,7 +242,6 @@ player_remove(Config) ->
 
 look_player(Config) ->
     start(?WORLD_7),
-    {ok, _TestSocket} = erlmud_test_socket:start(),
     erlmud_test_socket:send(<<"AnyLoginWillDo">>),
     erlmud_test_socket:send(<<"AnyPasswordWillDo">>),
     ?WAIT100,
@@ -274,7 +278,6 @@ look_player(Config) ->
 
 look_room(_Config) ->
     start(?WORLD_7),
-    {ok, _TestSocket} = erlmud_test_socket:start(),
     erlmud_test_socket:send(<<"AnyLoginWillDo">>),
     erlmud_test_socket:send(<<"AnyPasswordWillDo">>),
     ?WAIT100,

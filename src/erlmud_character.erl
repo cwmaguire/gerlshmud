@@ -132,8 +132,9 @@ succeed(Props, {move, Self, Source, Target, _Exit}) when Self == self() ->
     erlmud_object:remove(Source, character, self()),
     erlmud_object:add(Target, character, self()),
     log(debug, [<<"setting ">>, Self, <<"'s room to ">>, Target, <<"\n">>]),
-    set(room, Target, Props),
-    set(owner, Target, Props);
+    NewProps = set(room, Target, Props),
+    log(debug, [<<" finished moving rooms \n">>]),
+    NewProps;
 succeed(Props, {move, Self, Source, Direction}) when Self == self(), is_atom(Direction) ->
     log(debug, [<<"succeeded in moving ">>, Direction, <<" from ">>, Source, <<"\n">>]),
     Props;

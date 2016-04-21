@@ -76,7 +76,7 @@ succeed(Props, {look, Player, Self}) when Self == self() ->
     erlmud_object:attempt(Player, NewMessage),
     Props;
 succeed(Props, Msg) ->
-    log([<<"saw ">>, Msg, <<" succeed with props ">>, Props]),
+    log([<<"saw unmatched msg ">>, Msg, <<" succeed">>]),
     Props.
 
 % TODO Not sure if this is used.
