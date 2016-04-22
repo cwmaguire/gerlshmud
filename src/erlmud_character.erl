@@ -45,6 +45,7 @@ attempt(_Owner, Props, {move, Self, Direction}) when Self == self() ->
         Room ->
             {{resend, Self, {move, Self, Room, Direction}}, false, Props}
     end;
+%% No longer used?
 attempt(_Owner, Props, {enter_world, Self}) when Self == self() ->
     case proplists:get_value(room, Props) of
         undefined ->
@@ -122,17 +123,15 @@ attempt(_Owner, Props, {look, _Source, _Target, _Context}) ->
 attempt(Room = _Owner, Props, {look, Self}) when Self == self() ->
     NewMessage = {look, Self, Room},
     {{resend, Self, NewMessage}, _ShouldSubscribe = false, Props};
-%attempt(_Owner, Props, {describe, _Source, _Child, _Desc}) ->
-    %{succeed, true, Props};
 attempt(_Owner, Props, _Msg) ->
     {succeed, false, Props}.
 
 succeed(Props, {move, Self, Source, Target, _Exit}) when Self == self() ->
     log(debug, [<<"moved from ">>, Source, <<" to ">>, Target, <<"\n">>]),
-    erlmud_object:remove(Source, character, self()),
-    erlmud_object:add(Target, character, self()),
+    %erlmud_object:remove(Source, character, self()),
+    %erlmud_object:add(Target, character, self()),
     log(debug, [<<"setting ">>, Self, <<"'s room to ">>, Target, <<"\n">>]),
-    NewProps = set(room, Target, Props),
+    NewProps = set(owner, Target, Props),
     log(debug, [<<" finished moving rooms \n">>]),
     NewProps;
 succeed(Props, {move, Self, Source, Direction}) when Self == self(), is_atom(Direction) ->
@@ -143,7 +142,7 @@ succeed(Props, {enter_world, Self})
     Room = proplists:get_value(room, Props),
     log(debug, [<<"entering ">>, Room, <<"\n">>]),
     erlmud_object:add(Room, character, self()),
-    erlmud_object:add(self(), room, Room),
+    erlmud_object:add(self(), owner, Room),
     Props;
 succeed(Props, {get, Self, Source, Item}) when Self == self() ->
     log(debug, [<<"getting ">>, Item, <<" from ">>, Source, <<"\n\tProps: ">>, Props, <<"\n">>]),

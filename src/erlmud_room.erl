@@ -52,12 +52,12 @@ attempt(Props, {look, _Source, Self}) when Self == self() ->
 attempt(Props, _Msg) ->
     {succeed, false, Props}.
 
-succeed(Props, {move, Obj, Self, Target}) when Self == self() ->
-    log([Obj, <<", ">>, Target]),
-    Props;
-succeed(Props, {move, Obj, Source, Self}) when Self == self() ->
+succeed(Props, {move, Obj, Self, Target, _Exit}) when Self == self() ->
+    log([Obj, <<" went to ">>, Target]),
+    lists:keydelete(Obj, 2, Props);
+succeed(Props, {move, Obj, Source, Self, _Exit}) when Self == self() ->
     log([Obj, <<" came from ">>, Source]),
-    Props;
+    [{character, Obj} | Props];
 succeed(Props, {move, Obj, Source, Target}) ->
     log([<<"Process ">>, Obj, <<" went from ">>, Source, <<" to ">>, Target]),
     Props;

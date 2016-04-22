@@ -85,8 +85,7 @@
                   {erlmud_character, player, [{name, <<"Bob">>},
                                               {species, <<"human">>}]},
 
-                  {erlmud_character, giant, [{room, room},
-                                             {owner, room},
+                  {erlmud_character, giant, [{owner, room},
                                              {name, <<"Pete">>},
                                              {species, <<"Giant">>},
                                              {gender, <<"male">>},
