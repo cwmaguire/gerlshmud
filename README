@@ -1,20 +1,164 @@
-Erlang MUD where everything is a process
+A MUD in Erlang.
 
-Doors, swords, goblins, rings, rooms, everything that is an
-object that can be interacted with is a process. Everything
-broadcasts messages to surrounding objects. Processes ignore
-anything they're not interested in. Every process that is
-interested in receiving the result of a message adds itself to
-the message as a subscriber. Even a description can be a process,
-especially if it generates parts of the description on the fly:
-time, weather, light level, etc.
+All MUD elements are processes.
+Processes live in a graph.
+Events propagate through the graph.
+Events succeed or fail.
+Events can be: generated, resent, failed, passed, subscribed to.
 
-The erlmud_object behaviour handles all the "networking": chaining
-all the processes together and passing the message allong the chain
-until:
-- A fail message is returned
-- The chain ends
-- The message is changed and the chain restarted
+Introduction:
+
+Any event in the MUD is first proposed as an attempt.
+Attempts are passed from process to process through the graph.
+Each process can either fail the attempt with a reason or allow
+the attempt to succeed. Each process can also subscribe to the event
+to be notified of the result. Processes can also resend a different
+attempt in place of an original or pass on a modified copy of the
+original.
+
+Examples:
+
+A exit process, modelling a door and linking two rooms, might fail an
+"open door" attempt if the door is locked. All subscribed processes
+would be notified that the attempt failed.
+
+A sword process may forward on a "get shield" event and not subscribe
+to the result if the sword does not care about the acquiring of the
+shield. Likewise a tree would ignore a chat message.
+
+A room process would subscribe to an attempt by a player to enter
+that room. The room would be notified if the attempt succeeded or
+failed.
+
+A character process with PID 1 would resend an "attack bob" attempt
+as "attack <1>". The character would send the event back to the source
+process to re-traverse the graph.
+
+Why:
+
+Asynchronicity
+
+Events in the MUD flow through the object graph
+without locking up the world. Each object that handles the event
+will handle it independently of all other objects. No object will
+halt processing to communicate with another object. This means that
+all information about the event must be contained in the event itself.
+The event is passed from object to object. Each object may modify, cancel,
+ignore or even resend the event as something else.
+
+De-coupling.
+
+Every property and state of the world is modelled as it's own process.
+Any logic can be added to any object. Any process can affect any event.
+
+A complicated example might be best to illustrate this:
+
+A player in a D&D MUD has a magic sword, magic boots, non-magic guantlets,
+a strength attribute, an experience level, a sword skill and a racial
+attribute. The player is attacking an orc that has a wooden shield,
+a racial defense attribute, an experience level, a strenght attribute,
+a dexterity attribute, a magic necklace, non-magical pants and is standing
+on uneven ground. In the next room an orc shaman is chanting a war chant
+that buffs the orc.
+
+We could model all of this logic in a human object and an orc
+object, or in an attack object that can communicate with both the human
+and the orc characters. However, if we centralize  the logic we'll end
+up with massive modules; this would be hard to test, hard to reason about
+and it would be hard to predict what would happen in any event.
+
+Another way to model the logic is to break the logic into specialized
+units and find a flexible way to bind the units together. Instead of
+constantly changing the character module we can put logic in separate processes
+and add them to the character. The human character becomes a process connected
+to processes that handle: the race, the sword, the sword's magic, the boots,
+the boot's magic, the gauntlets, etc. Each object belonging to the character
+will likewise have processes for different attributes, e.g. spells, weight,
+value, age, etc. Similarly, the orc and all its gear are a collection of
+processes embodying all the logic that each of them embues. The orc shaman
+likewise is a collection of processes, as are the rooms that the human, orc
+and orc shaman are in.
+
+With every object, spell and attribute being a process we can graft any
+logic onto any object, room or character. A character proces does not
+need to "know" what race it is, how strong it is or what skills it has.
+The character's strength attribute will have logic to apply strength to
+relevant events. Is the character attempting to bash down a door? The
+strength attribute will have something to say about that event. Is the
+character attempting to attack an enemy? The non-magical guantlets
+may not have anything to say about that. On the other hand if the player
+is being attacked the gauntlets may speak up and add their input on how
+the attack should go down.
+
+We can add a variety of custom logic in the style of plug-ins
+as long as each process knows how to participate in the handling of events.
+
+For instance, if we wanted to add a "light spell" to an object we can
+ code up a "light spell" process and attach it to the object.
+Whenever that light spell process sees an event that would be modified
+by an amount of light the light spell will modify that event. The spell
+could be attached to a sword, a body part, a room, or anything.
+
+How:
+
+If a character process doesn't know how to process race or attribute
+logic how do we ask the character's race or attributes what their input
+is? We pass each event to each process and each process adds its "two
+cents" to the event. Somehow, each object will have a chance to take a
+crack at the event. To prevent events from cycling around in the graph
+of processes forever each process is limited to seeing an event once.
+This means that processes are not communicating with each other so much
+as contributing to a final result. Contributions must be atomic and
+isolated. If we order the same list of processes in different ways the
+result must be the same no matter which order each process has seen the
+event.
+
+An example of a command typed in by a user might help. A user enters
+"bash door". The connection object for the player kicks sends the
+input as an event to the player. The player passes "bash door" to one
+of its connected processes with enough information such that the the event
+will reach every process (within some limit) only once.
+If there is a process modelling a door
+that recognizes that "door" means itself it will resend that event
+as "bash <process ID of door>". Now any process that cares to modify
+the outcome of a character attempting to bash a door in can modify
+the event. Processes are free to add data required to resolve the
+event. An attack attempt event might have a "hit roll" value that is
+increased or descreased by processes that see it. A strength stat process
+might add 5 to the hit roll reflected that strength contributes to attack
+success. A wound
+process might subtract 2 from the hit roll reflecting that injury
+hinders attacks. The defender's plate mail armor may subtract 3 from the hit
+roll because it blocks the attack. The characters race process may
+add 3 to the hit roll because the character's race has an advantage
+over the ... oh wait, how does the character's race know what the
+target's race is? We have to find a way to
+encode in the attack attempt event the information that the
+character's race has various bonuses "to hit" versus other races.
+Likewise the target may also add a list of races against which
+it has modifications to the hit roll. Once all applicable processes
+have had their say any process that is subscribed to the result,
+like an attack process, can use the result to calculate whether the
+hit succceeded. The attack process may then generate a "calc damage"
+event to ask all processes involved how they affect the damage roll.
+Obviously processes must agree on the data involved and how it is
+structured.
+
+Another way to think of this would be to picture a group of people
+who are each resposible for managing a different aspect of a D&D character.
+When an event happens the event is written on a piece of paper and the
+paper is passed to each person in turn until all the people have
+seen it. No person may talk. They may only write on the piece of
+paper or throw the paper away and start the passing over. One person, Alex, may
+be responsible for the character's race and he will add any information
+to the event based on the race of the character. Another person, Brittany, may be
+responsible for the dexterity of the character so she'll add to, or
+change the event based on how the character's dexterity affects the event.
+Since only one person is handling the event at any one time everyone
+else is free to handle other events. In this way a constant stream
+of events can be fed to the group and no person has to wait for any
+other.
+
 
 Videos:
 Jun 20, 2015 - How attacks work: https://youtu.be/oSG1EXPMJVw
@@ -30,6 +174,11 @@ Jun 24, 2015 - wielding/wearing items on body parts
 Jun 26, 2015 - remove items from body, body part compatibility
 Jun 28, 2015 - add item to first available body part
 Sep 26, 2015 - life, hp and behaviour processes, counterattacks, CSS logging
+Apr 23, 2015 - can look at a character
+
+Running Tests:
+(Which is all I've been doing lately)
+./t
 
 How to run it:
 (I haven't been running this lately, just running tests)
@@ -42,14 +191,7 @@ make && make rel && _rel/erlmud_release/bin/erlmud_release console
 > in the browser enter any text for the login
 > in the browser enter any text for the password
 
-Running Tests:
-make ct
--or-
-rm -rf logs/*<hostname>*; rm -rf logs/erlmud.log; ERLMUD_LOG_PATH=$(pwd)/logs make ct
--or-
-./t
-
-Commit Explanation Videos:
+Videos in which I give explanations for commits:
 Why commit comment videos: https://www.youtube.com/watch?v=oHRU1Y8mlJ4
 F7189F17 - https://www.youtube.com/watch?v=GBPLuBVrRLU
 B85C17EA - https://www.youtube.com/watch?v=e4KM6ZsjpHY
