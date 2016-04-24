@@ -80,7 +80,7 @@ likewise is a collection of processes, as are the rooms that the human, orc
 and orc shaman are in.
 
 With every object, spell and attribute being a process we can graft any
-logic onto any object, room or character. A character proces does not
+logic onto any object, room or character. A character process does not
 need to "know" what race it is, how strong it is or what skills it has.
 The character's strength attribute will have logic to apply strength to
 relevant events. Is the character attempting to bash down a door? The
@@ -114,7 +114,7 @@ result must be the same no matter which order each process has seen the
 event.
 
 An example of a command typed in by a user might help. A user enters
-"bash door". The connection object for the player kicks sends the
+"bash door". The connection process for the player sends the
 input as an event to the player. The player passes "bash door" to one
 of its connected processes with enough information such that the the event
 will reach every process (within some limit) only once.
@@ -125,11 +125,11 @@ the outcome of a character attempting to bash a door in can modify
 the event. Processes are free to add data required to resolve the
 event. An attack attempt event might have a "hit roll" value that is
 increased or descreased by processes that see it. A strength stat process
-might add 5 to the hit roll reflected that strength contributes to attack
+might add 5 to the hit roll reflecting that strength contributes to attack
 success. A wound
 process might subtract 2 from the hit roll reflecting that injury
 hinders attacks. The defender's plate mail armor may subtract 3 from the hit
-roll because it blocks the attack. The characters race process may
+roll because it contributes to blocking the attack. The characters race process may
 add 3 to the hit roll because the character's race has an advantage
 over the ... oh wait, how does the character's race know what the
 target's race is? We have to find a way to
@@ -149,14 +149,15 @@ who are each resposible for managing a different aspect of a D&D character.
 When an event happens the event is written on a piece of paper and the
 paper is passed to each person in turn until all the people have
 seen it. No person may talk. They may only write on the piece of
-paper or throw the paper away and start the passing over. One person, Alex, may
-be responsible for the character's race and he will add any information
-to the event based on the race of the character. Another person, Brittany, may be
-responsible for the dexterity of the character so she'll add to, or
-change the event based on how the character's dexterity affects the event.
-Since only one person is handling the event at any one time everyone
-else is free to handle other events. In this way a constant stream
-of events can be fed to the group and no person has to wait for any
+paper or throw the paper away and start the over with a new piece of paper.
+One person, Alex, may be responsible for the character's race and he
+will add any information to the event based on the race of the character.
+Another person, Brittany, may be responsible for the dexterity of the
+character so she'll add to, or change the event based on how the character's
+dexterity affects the event.  Since only one person is handling the event
+at any one time everyone else is free to handle other events. In this way
+a constant stream of events can be fed to the group and no person has to
+wait for any
 other.
 
 
