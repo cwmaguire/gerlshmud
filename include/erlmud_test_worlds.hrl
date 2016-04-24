@@ -83,7 +83,10 @@
                                        {desc, <<"an empty space">>}]},
 
                   {erlmud_character, player, [{name, <<"Bob">>},
-                                              {species, <<"human">>}]},
+                                              {species, <<"human">>},
+                                              {gender, <<"female">>},
+                                              {height, <<"2.2">>},
+                                              {weight, <<"128">>}]},
 
                   {erlmud_character, giant, [{owner, room},
                                              {name, <<"Pete">>},

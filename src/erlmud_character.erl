@@ -116,7 +116,7 @@ attempt(_Owner, Props, {look, Source, TargetName}) when Source =/= self(),
     end;
 attempt(_Owner, Props, {look, _Source, Self, _Context}) when Self == self() ->
     {succeed, true, Props};
-attempt(OwnerRoom, Props, {look, Player, OwnerRoom, _RoomContext}) when Player /= self() ->
+attempt(OwnerRoom, Props, {look, _Source, OwnerRoom, _RoomContext}) ->
     {succeed, true, Props};
 attempt(_Owner, Props, {look, _Source, _Target, _Context}) ->
     {succeed, false, Props};
@@ -156,7 +156,6 @@ succeed(Props, {attack, Self, Target}) when Self == self() ->
                     TBin -> TBin
                 end,
                 <<"} succeeded. Starting attack process">>]),
-    %attack(Target, stop_attack(Props));
     attack(Target, lists:keydelete(attack, 1, Props));
 succeed(Props, {stop_attack, AttackPid}) ->
     log(debug, [<<"Character ">>, self(), <<" attack ">>, AttackPid, <<" stopped; remove (if applicable) from props:\n\t">>, Props, <<"\n">>]),
@@ -167,6 +166,7 @@ succeed(Props, {cleanup, Self}) when Self == self() ->
     %% TODO: kill/disconnect all connected processes
     %% TODO: drop all objects
     {stop, cleanup_succeeded, Props};
+%% _NoContext == "Ignore context"?
 succeed(Props, {look, Source, SelfTarget, _NoContext}) when SelfTarget == self() ->
     describe(Source, Props, _Context = <<>>),
     Props;
