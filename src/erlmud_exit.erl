@@ -75,7 +75,7 @@ move(Props, Obj, [{{room, FromExit}, FromRoom}], ToExit) when FromExit /= ToExit
                   ToExit_ == ToExit] of
         [{_, ToRoom}] ->
             log([<<"Found room ">>, ToRoom, <<" with exit ">>, ToExit, <<" connected to room ">>, FromRoom,
-                 " (exit ", FromExit, ")"]),
+                 <<" (exit ">>, FromExit, <<")">>]),
             NewMsg = {move, Obj, FromRoom, ToRoom, self()},
             {{resend, Obj, NewMsg}, false, Props};
         [] ->

@@ -39,23 +39,16 @@ get_(Type, Props) ->
     lists:keyfind(Type, 1, Props).
 
 attempt(_Owner, Props, {move, Self, Direction}) when Self == self() ->
-    case proplists:get_value(room, Props) of
+    case proplists:get_value(owner, Props) of
         undefined ->
-            {{fail, "Character doesn't have room"}, false, Props};
+            {{fail, <<"Character doesn't have room">>}, false, Props};
         Room ->
             {{resend, Self, {move, Self, Room, Direction}}, false, Props}
-    end;
-attempt(_Owner, Props, {enter_world, Self}) when Self == self() ->
-    case proplists:get_value(room, Props) of
-        undefined ->
-            {{fail, "Character doesn't have room"}, false, Props};
-        Room when is_pid(Room) ->
-            {succeed, true, Props}
     end;
 attempt(_Owner, Props, {drop, Self, Pid}) when Self == self(), is_pid(Pid) ->
     case has_pid(Props, Pid) of
         true ->
-            {room, Room} = get_(room, Props),
+            {owner, Room} = get_(owner, Props),
             {{resend, Self, {drop, Self, Pid, Room}}, true, Props};
         _ ->
             {succeed, _Interested = false, Props}
@@ -115,28 +108,24 @@ attempt(_Owner, Props, {look, Source, TargetName}) when Source =/= self(),
     end;
 attempt(_Owner, Props, {look, _Source, Self, _Context}) when Self == self() ->
     {succeed, true, Props};
+attempt(OwnerRoom, Props, {look, _Source, OwnerRoom, _RoomContext}) ->
+    {succeed, true, Props};
 attempt(_Owner, Props, {look, _Source, _Target, _Context}) ->
     {succeed, false, Props};
-attempt(_Owner, Props, {describe, _Source, _Child, _Desc}) ->
-    {succeed, true, Props};
+attempt(Room = _Owner, Props, {look, Self}) when Self == self() ->
+    NewMessage = {look, Self, Room},
+    {{resend, Self, NewMessage}, _ShouldSubscribe = false, Props};
 attempt(_Owner, Props, _Msg) ->
     {succeed, false, Props}.
 
 succeed(Props, {move, Self, Source, Target, _Exit}) when Self == self() ->
     log(debug, [<<"moved from ">>, Source, <<" to ">>, Target, <<"\n">>]),
-    erlmud_object:remove(Source, character, self()),
-    erlmud_object:add(Target, character, self()),
     log(debug, [<<"setting ">>, Self, <<"'s room to ">>, Target, <<"\n">>]),
-    set(room, Target, Props);
+    NewProps = set(owner, Target, Props),
+    log(debug, [<<" finished moving rooms \n">>]),
+    NewProps;
 succeed(Props, {move, Self, Source, Direction}) when Self == self(), is_atom(Direction) ->
     log(debug, [<<"succeeded in moving ">>, Direction, <<" from ">>, Source, <<"\n">>]),
-    Props;
-succeed(Props, {enter_world, Self})
-    when Self == self() ->
-    Room = proplists:get_value(room, Props),
-    log(debug, [<<"entering ">>, Room, <<"\n">>]),
-    erlmud_object:add(Room, character, self()),
-    erlmud_object:add(self(), room, Room),
     Props;
 succeed(Props, {get, Self, Source, Item}) when Self == self() ->
     log(debug, [<<"getting ">>, Item, <<" from ">>, Source, <<"\n\tProps: ">>, Props, <<"\n">>]),
@@ -150,7 +139,6 @@ succeed(Props, {attack, Self, Target}) when Self == self() ->
                     TBin -> TBin
                 end,
                 <<"} succeeded. Starting attack process">>]),
-    %attack(Target, stop_attack(Props));
     attack(Target, lists:keydelete(attack, 1, Props));
 succeed(Props, {stop_attack, AttackPid}) ->
     log(debug, [<<"Character ">>, self(), <<" attack ">>, AttackPid, <<" stopped; remove (if applicable) from props:\n\t">>, Props, <<"\n">>]),
@@ -161,8 +149,8 @@ succeed(Props, {cleanup, Self}) when Self == self() ->
     %% TODO: kill/disconnect all connected processes
     %% TODO: drop all objects
     {stop, cleanup_succeeded, Props};
-succeed(Props, {look, Source, SelfTarget, _NoContext})
-    when SelfTarget == self() ->
+%% _NoContext == "Ignore context"?
+succeed(Props, {look, Source, SelfTarget, _NoContext}) when SelfTarget == self() ->
     describe(Source, Props, _Context = <<>>),
     Props;
 succeed(Props, {look, Source, Target, Context}) ->
@@ -199,10 +187,7 @@ attack(Target, Props) ->
     [{attack, Attack} | Props].
 
 describe(Source, Props, Context) ->
-    log(debug, [<<"calling description(">>, Props, <<")">>]),
     Description = description(Props),
-    log(debug, [<<"returned from Description: ">>, Description]),
-    io:format(user, "(io:format) returned from description: ~p~n", [Description]),
     erlmud_object:attempt(Source, {send, Source, [<<Context/binary>>, Description]}).
 
 is_owner(MaybeOwner, Props) when is_pid(MaybeOwner) ->

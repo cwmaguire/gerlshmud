@@ -82,6 +82,7 @@ handle_cast({log, Level, Pid, Terms}, State) ->
     try
     IoData = [[io(maybe_name(Term)), " "] || Term <- flatten(Terms)],
     Props = erlmud_object:props(Pid),
+        io:format(user, "Getting names for PID properties: ~p~n", [Props]),
     PropsWithNames = [{K, io(maybe_name(V))} || {K, V} <- Props],
     ok = file:write(State#state.html_file,
                     spans(["log", Level, io(erlmud_index:get(Pid))],

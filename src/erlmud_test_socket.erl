@@ -16,6 +16,7 @@
 -behaviour(gen_server).
 
 -export([start/0]).
+-export([stop/0]).
 -export([send/1]).
 -export([messages/0]).
 
@@ -31,6 +32,9 @@
 
 start() ->
     gen_server:start({local, ?MODULE}, ?MODULE, [], []).
+
+stop() ->
+    gen_server:cast(?MODULE, stop).
 
 send(Msg) ->
     gen_server:cast(?MODULE, Msg).
@@ -48,6 +52,8 @@ handle_call(_Req = Text, _From, State = #state{conn = Conn}) ->
     erlmud_conn:handle(Conn, Text),
     {reply, ok, State}.
 
+handle_cast(stop, State) ->
+    {stop, normal, State};
 handle_cast(_Req = Text, State = #state{conn = Conn}) ->
     erlmud_conn:handle(Conn, Text),
     {noreply, State}.

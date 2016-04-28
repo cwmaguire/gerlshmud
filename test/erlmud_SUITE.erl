@@ -5,8 +5,10 @@
 
 -define(WAIT100, receive after 100 -> ok end).
 
-%all() -> [look].
-%all() -> [player_move_exit_locked].
+%all() -> [look_player].
+%all() -> [look_room].
+%all() -> [player_move].
+%all() -> [player_drop_item].
 all() ->
     [player_move,
      player_move_fail,
@@ -22,10 +24,12 @@ all() ->
      player_wield_wrong_body_part,
      player_wield_body_part_is_full,
      player_remove,
-     look].
+     look_player,
+     look_room].
 
 init_per_testcase(_, Config) ->
     {ok, _Started} = application:ensure_all_started(erlmud),
+    {ok, _Pid} = erlmud_test_socket:start(),
     TestObject = spawn_link(fun mock_object/0),
     ct:pal("mock_object is ~p~n", [TestObject]),
     erlmud_index:put("TestObject", TestObject),
@@ -33,6 +37,7 @@ init_per_testcase(_, Config) ->
 
 end_per_testcase(_, _Config) ->
     ct:pal("~p stopping erlmud~n", [?MODULE]),
+    erlmud_test_socket:stop(),
     application:stop(erlmud).
 
 val(Key, Obj) ->
@@ -53,27 +58,29 @@ get_props(Obj) when is_atom(Obj) ->
     Props;
 get_props(Pid) ->
     {_, _, Props} = sys:get_state(Pid),
+    ct:pal("returning ~p from sys:get_state(~p)~n", [Props, Pid]),
     Props.
 
 player_move(Config) ->
+    %erlmud_dbg:add(erlmud_object),
     start(?WORLD_1),
     Player = erlmud_index:get(player),
     RoomNorth =  erlmud_index:get(room_nw),
     RoomSouth =  erlmud_index:get(room_s),
 
-    RoomNorth = val(room, Player),
+    RoomNorth = val(owner, Player),
     attempt(Config, Player, {move, Player, s}),
     ?WAIT100,
-    RoomSouth = val(room, Player).
+    RoomSouth = val(owner, Player).
 
 player_move_fail(Config) ->
     start(?WORLD_1),
     Player = erlmud_index:get(player),
     RoomNorth =  erlmud_index:get(room_nw),
-    RoomNorth = val(room, Player),
+    RoomNorth = val(owner, Player),
     attempt(Config, Player, {move, Player, non_existent_exit}),
     ?WAIT100,
-    RoomNorth = val(room, Player).
+    RoomNorth = val(owner, Player).
 
 player_move_exit_locked(Config) ->
     start(?WORLD_1),
@@ -81,14 +88,14 @@ player_move_exit_locked(Config) ->
     RoomNorth =  erlmud_index:get(room_nw),
     RoomEast =  erlmud_index:get(room_e),
     ExitEastWest =  erlmud_index:get(exit_ew),
-    RoomNorth = val(room, Player),
+    RoomNorth = val(owner, Player),
     attempt(Config, Player, {move, Player, e}),
     ?WAIT100,
-    RoomNorth = val(room, Player),
+    RoomNorth = val(owner, Player),
     erlmud_object:set(ExitEastWest, {is_locked, false}),
     attempt(Config, Player, {move, Player, e}),
     ?WAIT100,
-    RoomEast = val(room, Player).
+    RoomEast = val(owner, Player).
 
 player_get_item(Config) ->
     start(?WORLD_2),
@@ -235,23 +242,22 @@ player_remove(Config) ->
     Helmet = val(item, player),
     undefined = val(item, head).
 
-look(Config) ->
+look_player(Config) ->
     start(?WORLD_7),
-    {ok, _TestSocket} = erlmud_test_socket:start(),
     erlmud_test_socket:send(<<"AnyLoginWillDo">>),
     erlmud_test_socket:send(<<"AnyPasswordWillDo">>),
     ?WAIT100,
     erlmud_test_socket:send(<<"look pete">>),
     ?WAIT100,
     NakedDescriptions = erlmud_test_socket:messages(),
-    ct:pal("NakedDescriptions: ~p~n", [NakedDescriptions]),
+    ct:pal("NakedDescriptions: ~p~n", [lists:sort(NakedDescriptions)]),
     ExpectedDescriptions =
         lists:sort([<<"Pete, a male Giant, 4m tall and around 400kg.">>,
                     <<"Giant Pete -> hands">>,
                     <<"Giant Pete -> legs">>,
-                    <<"Giant Pete -> pants_">>,
-                    <<"Giant Pete -> sword_">>,
-                    <<"Giant Pete -> scroll_">>]),
+                    <<"Giant Pete -> pants_: pants">>,
+                    <<"Giant Pete -> sword_: sword">>,
+                    <<"Giant Pete -> scroll_: scroll">>]),
     ct:pal("ExpectedDescriptions (sorted): ~p~n", [ExpectedDescriptions]),
 
     ExpectedDescriptions = lists:sort(NakedDescriptions),
@@ -262,15 +268,32 @@ look(Config) ->
     erlmud_test_socket:send(<<"look pete">>),
     ?WAIT100,
     ClothedDescriptions = erlmud_test_socket:messages(),
-    ct:pal("ClothedDescriptions: ~p~n", [ClothedDescriptions]),
+    ct:pal("ClothedDescriptions: ~p~n", [lists:sort(ClothedDescriptions)]),
     ExpectedDescriptions2 =
         lists:sort([<<"Pete, a male Giant, 4m tall and around 400kg.">>,
                     <<"Giant Pete -> hands">>,
                     <<"Giant Pete -> legs">>,
-                    <<"Giant Pete -> legs -> pants_">>,
-                    <<"Giant Pete -> sword_">>,
-                    <<"Giant Pete -> scroll_">>]),
+                    <<"Giant Pete -> legs -> pants_: pants">>,
+                    <<"Giant Pete -> sword_: sword">>,
+                    <<"Giant Pete -> scroll_: scroll">>]),
+    ct:pal("ExpectedDescriptions2: ~p~n", [ExpectedDescriptions2]),
     ExpectedDescriptions2 = lists:sort(ClothedDescriptions).
+
+look_room(_Config) ->
+    start(?WORLD_7),
+    erlmud_test_socket:send(<<"AnyLoginWillDo">>),
+    erlmud_test_socket:send(<<"AnyPasswordWillDo">>),
+    ?WAIT100,
+    erlmud_test_socket:send(<<"look">>),
+    ?WAIT100,
+    Descriptions = lists:sort(erlmud_test_socket:messages()),
+    ct:pal("Descriptions: ~p~n", [Descriptions]),
+    Expected = lists:sort([<<"room -> Bob, a female human, 2.2m tall and around 128kg.">>,
+                           <<"room -> Pete, a male Giant, 4m tall and around 400kg.">>,
+                           <<"room -> bread_: a loaf of bread">>,
+                           <<"room: an empty space">>]),
+    Descriptions = Expected.
+
 
 start(Objects) ->
     IdPids = [{Id, start_obj(Id, Type, Props)} || {Type, Id, Props} <- Objects],

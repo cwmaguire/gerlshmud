@@ -130,6 +130,8 @@ init({Type, Props}) ->
     {ok, #state{type = Type, props = Props}}.
 
 handle_call(props, _From, State) ->
+    io:format(user, "Replying to handle_call(props, ...) with ~p~n",
+              [State#state.props]),
     {reply, State#state.props, State};
 handle_call({get, Key}, _From, State = #state{props = Props}) ->
     {reply, proplists:get_all_values(Key, Props), State};
@@ -221,7 +223,7 @@ attempt_(Msg,
                         props = Props}) ->
     Owner = proplists:get_value(owner, Props),
     Results = {Result, Msg2, ShouldSubscribe, Props2} = ensure_message(Msg, Type:attempt(Owner, Props, Msg)),
-    log([Type, <<" ">>, self(), <<" ">>, Owner,
+    log([Type, <<" ">>, self(), <<" {owner, ">>, Owner, <<"} ">>,
          <<"attempt: ">>, Msg, <<" -> ">>,
          ShouldSubscribe, <<", ">>, Result]),
     MergedProcs = merge(self(), Type, Results, Procs),
@@ -253,6 +255,7 @@ send(Pid, SendMsg = {fail, _Reason, Msg}, Procs) ->
     send_(Pid, SendMsg);
 send(Pid, SendMsg = {succeed, Msg}, Procs) ->
     log(Pid, succeed, Msg, Procs),
+    log([Pid, succeed, Msg]),
     send_(Pid, SendMsg).
 
 send(Pid, SendMsg = {attempt, Msg, Procs}) ->
@@ -268,16 +271,16 @@ send_(Pid, Msg) ->
 populate_(Props, IdPids) ->
     [{K, proc(V, IdPids)} || {K, V} <- Props].
 
-proc(Value, IdPids) when is_atom(Value) ->
-    Pid = proplists:get_value(Value, IdPids, Value),
-    case is_pid(Pid) of
+proc(MaybeId, IdPids) when is_atom(MaybeId) ->
+    MaybePid = proplists:get_value(MaybeId, IdPids, MaybeId),
+    case is_pid(MaybePid) of
         true ->
-            log([<<"Linking to pid: ">>, Pid, <<" for value ">>, Value]),
-            link(Pid);
+            log([<<"Linking to pid: ">>, MaybePid, <<" for value ">>, MaybeId]),
+            link(MaybePid);
         false ->
-            log([<<"Property value is not a pid: ">>, Value])
+            log([<<"Property value ">>, MaybeId, <<" is an atom, but not a pid">>])
     end,
-    Pid;
+    MaybePid;
 proc(Value, _) ->
     Value.
 

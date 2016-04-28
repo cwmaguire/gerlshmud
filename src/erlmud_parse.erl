@@ -29,6 +29,9 @@ parse(Player, <<"get ", Item/binary>>) ->
 parse(Player, <<"drop ", Item/binary>>) ->
     log([<<"Dropping ">>, Item]),
     {drop, Player, Item};
+parse(Player, <<"look">>) ->
+    log([<<"Looking ">>]),
+    {look, Player};
 parse(Player, <<"look ", Object/binary>>) ->
     log([<<"Looking ">>, Object]),
     {look, Player, Object};
