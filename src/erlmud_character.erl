@@ -45,14 +45,6 @@ attempt(_Owner, Props, {move, Self, Direction}) when Self == self() ->
         Room ->
             {{resend, Self, {move, Self, Room, Direction}}, false, Props}
     end;
-%% No longer used?
-attempt(_Owner, Props, {enter_world, Self}) when Self == self() ->
-    case proplists:get_value(owner, Props) of
-        undefined ->
-            {{fail, <<"Character doesn't have room">>}, false, Props};
-        Room when is_pid(Room) ->
-            {succeed, true, Props}
-    end;
 attempt(_Owner, Props, {drop, Self, Pid}) when Self == self(), is_pid(Pid) ->
     case has_pid(Props, Pid) of
         true ->
@@ -128,20 +120,12 @@ attempt(_Owner, Props, _Msg) ->
 
 succeed(Props, {move, Self, Source, Target, _Exit}) when Self == self() ->
     log(debug, [<<"moved from ">>, Source, <<" to ">>, Target, <<"\n">>]),
-    %erlmud_object:remove(Source, character, self()),
-    %erlmud_object:add(Target, character, self()),
     log(debug, [<<"setting ">>, Self, <<"'s room to ">>, Target, <<"\n">>]),
     NewProps = set(owner, Target, Props),
     log(debug, [<<" finished moving rooms \n">>]),
     NewProps;
 succeed(Props, {move, Self, Source, Direction}) when Self == self(), is_atom(Direction) ->
     log(debug, [<<"succeeded in moving ">>, Direction, <<" from ">>, Source, <<"\n">>]),
-    Props;
-succeed(Props, {enter_world, Self})
-    when Self == self() ->
-    Room = proplists:get_value(owner, Props),
-    log(debug, [<<"entering ">>, Room, <<"\n">>]),
-    erlmud_object:add(self(), owner, Room),
     Props;
 succeed(Props, {get, Self, Source, Item}) when Self == self() ->
     log(debug, [<<"getting ">>, Item, <<" from ">>, Source, <<"\n\tProps: ">>, Props, <<"\n">>]),
