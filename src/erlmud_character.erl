@@ -106,15 +106,22 @@ attempt(_Owner, Props, {look, Source, TargetName}) when Source =/= self(),
                  <<".\n">>]),
             {succeed, false, Props}
     end;
-attempt(_Owner, Props, {look, _Source, Self, _Context}) when Self == self() ->
+attempt(_Owner, Props,
+        _LookAtSelfForChildren = {look, _Source, Self, _Context})
+  when Self == self() ->
     {succeed, true, Props};
-attempt(OwnerRoom, Props, {look, _Source, OwnerRoom, _RoomContext}) ->
+attempt(OwnerRoom, Props,
+        _LookFromParent = {look, _Source, OwnerRoom, _RoomContext}) ->
     {succeed, true, Props};
-attempt(_Owner, Props, {look, _Source, _Target, _Context}) ->
-    {succeed, false, Props};
-attempt(Room = _Owner, Props, {look, Self}) when Self == self() ->
-    NewMessage = {look, Self, Room},
-    {{resend, Self, NewMessage}, _ShouldSubscribe = false, Props};
+attempt(Room = _Owner, Props,
+        _JustPlainLook = {look, SelfSource})
+  when SelfSource == self() ->
+    NewMessage = {look, SelfSource, Room},
+    {{resend, SelfSource, NewMessage}, _ShouldSubscribe = false, Props};
+attempt(_Owner, Props,
+        _DescribeForChildren = {describe, _Source, Self, _Context, _SubDescs = [], _HandledBy = []})
+  when Self == self() ->
+    {succeed, true, Props};
 attempt(_Owner, Props, _Msg) ->
     {succeed, false, Props}.
 
@@ -150,23 +157,24 @@ succeed(Props, {cleanup, Self}) when Self == self() ->
     %% TODO: drop all objects
     {stop, cleanup_succeeded, Props};
 %% _NoContext == "Ignore context"?
-succeed(Props, {look, Source, SelfTarget, _NoContext}) when SelfTarget == self() ->
-    describe(Source, Props, _Context = <<>>),
-    Props;
+%succeed(Props, {look, Source, SelfTarget, _NoContext}) when SelfTarget == self() ->
+    %describe(Source, Props, _Context = <<>>),
+    %Props;
 succeed(Props, {look, Source, Target, Context}) ->
     _ = case is_owner(Target, Props) of
             true ->
-                describe(Source, Props, Context);
+                %% attempt describe so our children will see it and
+                %% add descriptive properties
+                erlmud_object:attempt(Source, {describe, self(), Context});
+                %describe(Source, Props, Context);
             _ ->
                 ok
         end,
     Props;
 %% TODO use Child to determine the preposition (In/on/at, etc.)
 %% e.g. "in the crater", "on the dock", "at the back of the bus"
-succeed(Props, {describe, Source, _Child, Desc}) ->
-    Name = proplists:get_value(name, Props, <<"I-don't-have-a-name">>),
-    FramedDesc = <<"In/on/at ", Name/binary, " you see ", Desc/binary>>,
-    erlmud_object:attempt(Source, {send, FramedDesc});
+succeed(Props, {describe, Source, Self, Context, DescProps}) when Self == self() ->
+    describe(Source, Props, Context, DescProps);
 succeed(Props, Msg) ->
     log(debug, [<<"saw ">>, Msg, <<" succeed\n">>]),
     Props.
@@ -186,8 +194,9 @@ attack(Target, Props) ->
     erlmud_object:attempt(Attack, {attack, Attack, self(), Target}),
     [{attack, Attack} | Props].
 
-describe(Source, Props, Context) ->
-    Description = description(Props),
+describe(Source, Props, Context, SubDescs0) ->
+    SubDescs = [<<", ", D/binary>> || D <- SubDescs0],
+    Description = [description(Props) | SubDescs],
     erlmud_object:attempt(Source, {send, Source, [<<Context/binary>>, Description]}).
 
 is_owner(MaybeOwner, Props) when is_pid(MaybeOwner) ->

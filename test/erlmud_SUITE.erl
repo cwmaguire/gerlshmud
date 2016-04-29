@@ -5,27 +5,27 @@
 
 -define(WAIT100, receive after 100 -> ok end).
 
-%all() -> [look_player].
+all() -> [look_player].
 %all() -> [look_room].
 %all() -> [player_move].
 %all() -> [player_drop_item].
-all() ->
-    [player_move,
-     player_move_fail,
-     player_move_exit_locked,
-     player_get_item,
-     player_drop_item,
-     player_attack,
-     player_attack_wait,
-     one_sided_fight,
-     counterattack_behaviour,
-     player_wield,
-     player_wield_missing_body_part,
-     player_wield_wrong_body_part,
-     player_wield_body_part_is_full,
-     player_remove,
-     look_player,
-     look_room].
+%all() ->
+    %[player_move,
+     %player_move_fail,
+     %player_move_exit_locked,
+     %player_get_item,
+     %player_drop_item,
+     %player_attack,
+     %player_attack_wait,
+     %one_sided_fight,
+     %counterattack_behaviour,
+     %player_wield,
+     %player_wield_missing_body_part,
+     %player_wield_wrong_body_part,
+     %player_wield_body_part_is_full,
+     %player_remove,
+     %look_player,
+     %look_room].
 
 init_per_testcase(_, Config) ->
     {ok, _Started} = application:ensure_all_started(erlmud),

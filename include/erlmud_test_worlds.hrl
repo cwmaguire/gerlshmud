@@ -84,22 +84,62 @@
                                        {item, bread}]},
 
                   {erlmud_character, player, [{name, <<"Bob">>},
-                                              {species, <<"human">>},
-                                              {gender, <<"female">>},
-                                              {height, <<"2.2">>},
-                                              {weight, <<"128">>}]},
+                                              {attribute, height0},
+                                              {attribute, weight0},
+                                              {attribute, gender0},
+                                              {attribute, race0}]},
+
+                  {erlmud_attribute, height0, [{owner, player},
+                                               {type, height},
+                                               {value, 2.2},
+                                               {desc, <<"2.2m tall">>}]},
+
+                  {erlmud_attribute, weight0, [{owner, player},
+                                               {type, weight},
+                                               {value, 128},
+                                               {desc, <<"weighs 400kg">>}]},
+
+                  {erlmud_attribute, gender0, [{owner, player},
+                                               {type, gender},
+                                               {value, female},
+                                               {desc, <<"female">>}]},
+
+                  {erlmud_attribute, race0, [{owner, player},
+                                             {type, race},
+                                             {value, giant},
+                                             {desc, <<"giant">>}]},
 
                   {erlmud_character, giant, [{owner, room},
                                              {name, <<"Pete">>},
-                                             {species, <<"Giant">>},
-                                             {gender, <<"male">>},
-                                             {height, <<"4">>},
-                                             {weight, <<"400">>},
                                              {item, pants},
                                              {item, sword},
                                              {item, scroll},
                                              {body_part, legs0},
-                                             {body_part, hands0}]},
+                                             {body_part, hands0},
+                                             {attribute, height1},
+                                             {attribute, weight1},
+                                             {attribute, gender1},
+                                             {attribute, race1}]},
+
+                  {erlmud_attribute, height1, [{owner, giant},
+                                               {type, height},
+                                               {value, 4.0},
+                                               {desc, <<"4m tall">>}]},
+
+                  {erlmud_attribute, weight1, [{owner, giant},
+                                               {type, weight},
+                                               {value, 400.0},
+                                               {desc, <<"weighs 400kg">>}]},
+
+                  {erlmud_attribute, gender1, [{owner, giant},
+                                               {type, gender},
+                                               {value, male},
+                                               {desc, <<"male">>}]},
+
+                  {erlmud_attribute, race1, [{owner, giant},
+                                             {type, race},
+                                             {value, giant},
+                                             {desc, <<"giant">>}]},
 
                   {erlmud_body_part, legs0, %% if we name this 'legs' then 'legs' will be known as
                                             %% as an object ID. If 'legs' is an object identifier
