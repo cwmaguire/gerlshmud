@@ -88,7 +88,6 @@ has_space(Props, _) ->
 can_remove(_Props, _Item) ->
     true.
 
-
 has_owner(Item, Owner) when is_pid(Item) ->
     [Owner] == erlmud_object:get(Item, owner).
 
@@ -136,9 +135,9 @@ attempt(Owner, Props, {remove, Owner, Item}) ->
         _ ->
             {succeed, _Subscribe = false, Props}
     end;
-attempt(Owner, Props, {look, _Source, Owner, _Context}) ->
+attempt(Owner, Props, {describe, _Source, Owner, _Context, _SubDescs}) ->
     {succeed, true, Props};
-attempt(_Owner, Props, {look, _Source, _Target, _Context}) ->
+attempt(_Owner, Props, {describe, _Source, _Target, _Context, _SubDescs}) ->
     {succeed, false, Props};
 attempt(_Owner, Props, _Msg) ->
     {succeed, _Subscribe = false, Props}.
@@ -153,13 +152,13 @@ succeed(Props, {remove, Item, Self}) when Self == self(), is_pid(Item) ->
     erlmud_object:add(Owner, item, Item),
     erlmud_object:set(Item, {owner, Owner}),
     lists:keydelete(Item, 2, Props);
-succeed(Props, {look, Source, Target, AncestorsContext}) ->
+succeed(Props, {describe, Source, Target, AncestorsContext, _SubDescs}) ->
     _ = case is_owner(Target, Props) of
             true ->
                 describe(Source, Props, AncestorsContext),
                 Name = proplists:get_value(name, Props, undefined),
                 BodyPartContext = <<Name/binary, " -> ">>,
-                NewMessage = {look, Source, self(), <<AncestorsContext/binary, BodyPartContext/binary>>},
+                NewMessage = {describe, Source, self(), <<AncestorsContext/binary, BodyPartContext/binary>>},
                 erlmud_object:attempt(Source, NewMessage);
             _ ->
                 ok

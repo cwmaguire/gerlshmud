@@ -94,7 +94,7 @@ attempt(_Owner, Props, {look, Source, TargetName}) when Source =/= self(),
     case re:run(SelfName, TargetName, [{capture, none}, caseless]) of
         match ->
             Context = <<SelfSpecies/binary, " ", SelfName/binary, " -> ">>,
-            NewMessage = {look, Source, self(), Context},
+            NewMessage = {describe, Source, self(), Context, _SubDescs = []},
             {{resend, Source, NewMessage}, _ShouldSubscribe = true, Props};
         _ ->
             ct:pal("Name ~p did not match this character's name ~p~n", [TargetName, SelfName]),
@@ -107,7 +107,7 @@ attempt(_Owner, Props, {look, Source, TargetName}) when Source =/= self(),
             {succeed, false, Props}
     end;
 attempt(_Owner, Props,
-        _LookAtSelfForChildren = {look, _Source, Self, _Context})
+        _DescSelfForChildren = {describe, _Source, Self, _Context})
   when Self == self() ->
     {succeed, true, Props};
 attempt(OwnerRoom, Props,
@@ -119,7 +119,7 @@ attempt(Room = _Owner, Props,
     NewMessage = {look, SelfSource, Room},
     {{resend, SelfSource, NewMessage}, _ShouldSubscribe = false, Props};
 attempt(_Owner, Props,
-        _DescribeForChildren = {describe, _Source, Self, _Context, _SubDescs = [], _HandledBy = []})
+        _DescribeForChildren = {describe, _Source, Self, _Context, _SubDescs = []})
   when Self == self() ->
     {succeed, true, Props};
 attempt(_Owner, Props, _Msg) ->
@@ -174,7 +174,8 @@ succeed(Props, {look, Source, Target, Context}) ->
 %% TODO use Child to determine the preposition (In/on/at, etc.)
 %% e.g. "in the crater", "on the dock", "at the back of the bus"
 succeed(Props, {describe, Source, Self, Context, DescProps}) when Self == self() ->
-    describe(Source, Props, Context, DescProps);
+    describe(Source, Props, Context, DescProps),
+    Props;
 succeed(Props, Msg) ->
     log(debug, [<<"saw ">>, Msg, <<" succeed\n">>]),
     Props.
@@ -194,34 +195,35 @@ attack(Target, Props) ->
     erlmud_object:attempt(Attack, {attack, Attack, self(), Target}),
     [{attack, Attack} | Props].
 
-describe(Source, Props, Context, SubDescs0) ->
-    SubDescs = [<<", ", D/binary>> || D <- SubDescs0],
-    Description = [description(Props) | SubDescs],
-    erlmud_object:attempt(Source, {send, Source, [<<Context/binary>>, Description]}).
+describe(Source, _Props, Context, SubDescs) ->
+    %SubDescs = [[<<", ">>, D] || D <- SubDescs0],
+    %Description = [description(Props) | SubDescs],
+    Description = [Context | SubDescs],
+    erlmud_object:attempt(Source, {send, Source, Description}).
 
 is_owner(MaybeOwner, Props) when is_pid(MaybeOwner) ->
     MaybeOwner == proplists:get_value(owner, Props);
 is_owner(_, _) ->
     false.
 
-description(Props) when is_list(Props) ->
-    DescTemplate = application:get_env(erlmud, character_desc_template, []),
-    log(debug, [<<"description template: ">>, DescTemplate]),
-    Description = [[description_part(Props, Part)] || Part <- DescTemplate],
-    log(debug, [<<"Description: ">>, Description]),
-    Description.
+%description(Props) when is_list(Props) ->
+    %DescTemplate = application:get_env(erlmud, character_desc_template, []),
+    %log(debug, [<<"description template: ">>, DescTemplate]),
+    %Description = [[description_part(Props, Part)] || Part <- DescTemplate],
+    %log(debug, [<<"Description: ">>, Description]),
+    %Description.
 
-description_part(_, RawText) when is_binary(RawText) ->
-    log(debug, [<<"description_part with unknown Props and RawText: ">>, RawText]),
-    RawText;
-description_part(Props, DescProp) ->
-    log(debug, [<<"description_part with Props: ">>, Props, <<", DescProp: ">>, DescProp]),
-    prop_description(proplists:get_value(DescProp, Props, <<"??">>)).
+%description_part(_, RawText) when is_binary(RawText) ->
+    %log(debug, [<<"description_part with unknown Props and RawText: ">>, RawText]),
+    %RawText;
+%description_part(Props, DescProp) ->
+    %log(debug, [<<"description_part with Props: ">>, Props, <<", DescProp: ">>, DescProp]),
+    %prop_description(proplists:get_value(DescProp, Props, <<"??">>)).
 
-prop_description(undefined) ->
-    [];
-prop_description(Value) when not is_pid(Value) ->
-    Value.
+%prop_description(undefined) ->
+    %[];
+%prop_description(Value) when not is_pid(Value) ->
+    %Value.
 
 log(Level, IoData) ->
     erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).

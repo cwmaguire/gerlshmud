@@ -91,23 +91,23 @@
 
                   {erlmud_attribute, height0, [{owner, player},
                                                {type, height},
-                                               {value, 2.2},
-                                               {desc, <<"2.2m tall">>}]},
+                                               {value, <<"2.2">>},
+                                               {desc, [value, <<"m tall">>]}]},
 
                   {erlmud_attribute, weight0, [{owner, player},
                                                {type, weight},
-                                               {value, 128},
-                                               {desc, <<"weighs 400kg">>}]},
+                                               {value, <<"128">>},
+                                               {desc, <<"weighs ">>, value, <<"kg">>}]},
 
                   {erlmud_attribute, gender0, [{owner, player},
                                                {type, gender},
-                                               {value, female},
-                                               {desc, <<"female">>}]},
+                                               {value, <<"female">>},
+                                               {desc, [value]}]},
 
                   {erlmud_attribute, race0, [{owner, player},
                                              {type, race},
-                                             {value, giant},
-                                             {desc, <<"giant">>}]},
+                                             {value, <<"giant">>},
+                                             {desc, [value]}]},
 
                   {erlmud_character, giant, [{owner, room},
                                              {name, <<"Pete">>},
@@ -123,23 +123,23 @@
 
                   {erlmud_attribute, height1, [{owner, giant},
                                                {type, height},
-                                               {value, 4.0},
-                                               {desc, <<"4m tall">>}]},
+                                               {value, <<"4.0">>},
+                                               {desc, [value, <<"m tall">>]}]},
 
                   {erlmud_attribute, weight1, [{owner, giant},
                                                {type, weight},
-                                               {value, 400.0},
-                                               {desc, <<"weighs 400kg">>}]},
+                                               {value, <<"400.0">>},
+                                               {desc, [<<"weighs ">>, value, <<"kg">>]}]},
 
                   {erlmud_attribute, gender1, [{owner, giant},
                                                {type, gender},
-                                               {value, male},
-                                               {desc, <<"male">>}]},
+                                               {value, <<"male">>},
+                                               {desc, [value]}]},
 
                   {erlmud_attribute, race1, [{owner, giant},
                                              {type, race},
-                                             {value, giant},
-                                             {desc, <<"giant">>}]},
+                                             {value, <<"giant">>},
+                                             {desc, [value]}]},
 
                   {erlmud_body_part, legs0, %% if we name this 'legs' then 'legs' will be known as
                                             %% as an object ID. If 'legs' is an object identifier

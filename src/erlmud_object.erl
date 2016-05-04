@@ -130,8 +130,8 @@ init({Type, Props}) ->
     {ok, #state{type = Type, props = Props}}.
 
 handle_call(props, _From, State) ->
-    io:format(user, "Replying to handle_call(props, ...) with ~p~n",
-              [State#state.props]),
+    %io:format(user, "Replying to handle_call(props, ...) with ~p~n",
+              %[State#state.props]),
     {reply, State#state.props, State};
 handle_call({get, Key}, _From, State = #state{props = Props}) ->
     {reply, proplists:get_all_values(Key, Props), State};

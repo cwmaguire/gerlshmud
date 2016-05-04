@@ -83,7 +83,7 @@ attempt(_Owner, Props, {look, Source, TargetName}) when Source =/= self(),
         match ->
             Type = proplists:get_value(type, Props, <<"<notype>">>),
             Context = <<Type/binary, " ", SelfName/binary, " -> ">>,
-            NewMessage = {look, Source, self(), Context},
+            NewMessage = {describe, Source, self(), Context},
             {{resend, Source, NewMessage}, _ShouldSubscribe = true, Props};
         _ ->
             ct:pal("Name ~p did not match this character's name ~p~n", [TargetName, SelfName]),
@@ -95,7 +95,7 @@ attempt(_Owner, Props, {look, Source, TargetName}) when Source =/= self(),
                  <<".\n">>]),
             {succeed, false, Props}
     end;
-attempt(Owner, Props, {look, _Source, Owner, _Context}) ->
+attempt(Owner, Props, {describe, _Source, Owner, _Context, _SubDescs}) ->
     {succeed, true, Props};
 attempt(_Owner, Props, _Msg) ->
     {succeed, false, Props}.
@@ -104,10 +104,10 @@ succeed(Props, {get, Receiver, Self, Owner}) when Self == self() ->
     move(Props, Owner, Receiver);
 succeed(Props, {drop, Owner, Self, Receiver}) when Self == self() ->
     move(Props, Owner, Receiver);
-succeed(Props, {look, Source, Self, Context}) when Self == self() ->
+succeed(Props, {describe, Source, Self, Context}) when Self == self() ->
     describe(Source, Props, Context),
     Props;
-succeed(Props, {look, Source, Target, Context}) ->
+succeed(Props, {describe, Source, Target, Context, _SubDescs}) ->
     _ = case is_owner(Target, Props) of
             true ->
                 describe(Source, Props, Context);
