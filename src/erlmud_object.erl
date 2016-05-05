@@ -130,8 +130,6 @@ init({Type, Props}) ->
     {ok, #state{type = Type, props = Props}}.
 
 handle_call(props, _From, State) ->
-    %io:format(user, "Replying to handle_call(props, ...) with ~p~n",
-              %[State#state.props]),
     {reply, State#state.props, State};
 handle_call({get, Key}, _From, State = #state{props = Props}) ->
     {reply, proplists:get_all_values(Key, Props), State};
@@ -157,7 +155,6 @@ handle_cast_({set, Prop = {K, _}}, State = #state{props = Props}) ->
 handle_cast_({attempt, Msg, Procs}, State) ->
     {noreply, maybe_attempt(Msg, Procs, State)};
 handle_cast_({fail, Reason, Msg}, State) ->
-    %io:format("erlmud_object saw ~p fail because ~p with state ~p~n", [Msg, Reason, State]),
     case fail(Reason, Msg, State) of
         {stop, Props} ->
             %% TODO: remove from index
@@ -166,13 +163,10 @@ handle_cast_({fail, Reason, Msg}, State) ->
             {noreply, State#state{props = Props}}
     end;
 handle_cast_({succeed, Msg}, State) ->
-    %io:format("erlmud_object saw ~p succeed~nwith state ~p~n", [Msg, State]),
     case succeed(Msg, State) of
         {stop, Reason, Props} ->
-            %ct:pal("erlmud_object succeed resulted in stop with reason ~p~n", [Reason]),
             {stop, {shutdown, Reason}, State#state{props = Props}};
         Props ->
-            %ct:pal("erlmud_object succeed resulted in ~p~n", [Props]),
             {noreply, State#state{props = Props}}
      end.
 
@@ -183,19 +177,15 @@ handle_info({'EXIT', From, Reason}, State = #state{props = Props}) ->
     {noreply, State#state{props = Props2}};
 handle_info({Pid, Msg}, State) ->
     log([Pid, <<": handle_info attempt Msg = ">>, Msg]),
-    %io:format("erlmud_object picked up raw message: {~p, ~p}~nwith state:~n\t~p~n", [Pid, Msg, State]),
     attempt(Pid, Msg),
     {noreply, State};
 handle_info(Unknown, State) ->
-    %io:format("erlmud_object picked up raw message: ~p~nwith state:~n\t~p~n", [Unknown, State]),
     log([<<"Unknown Message: ">>, Unknown]),
     {noreply, State}.
 
 terminate(Reason, State) ->
     log([<<"erlmud_object ">>, self(), <<" shutting down Reason: ">>, Reason, <<" State: ">>, State]),
     erlmud_index:del(self()),
-    %ct:pal("erlmud_object ~p shutting down~nReason: ~p~nState:~n\t~p~n",
-           %[self(), Reason, State]),
     ok.
 
 code_change(_OldVsn, State, _Extra) ->

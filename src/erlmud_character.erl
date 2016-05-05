@@ -90,10 +90,9 @@ attempt(_Owner, Props, {look, Source, TargetName}) when Source =/= self(),
                                                   is_binary(TargetName) ->
     log(debug, [<<"Checking if name ">>, TargetName, <<" matches">>]),
     SelfName = proplists:get_value(name, Props, <<>>),
-    SelfSpecies = proplists:get_value(species, Props, <<>>),
     case re:run(SelfName, TargetName, [{capture, none}, caseless]) of
         match ->
-            Context = <<SelfSpecies/binary, " ", SelfName/binary, " -> ">>,
+            Context = <<SelfName/binary, " -> ">>,
             NewMessage = {describe, Source, self(), Context, _SubDescs = []},
             {{resend, Source, NewMessage}, _ShouldSubscribe = true, Props};
         _ ->
@@ -156,17 +155,10 @@ succeed(Props, {cleanup, Self}) when Self == self() ->
     %% TODO: kill/disconnect all connected processes
     %% TODO: drop all objects
     {stop, cleanup_succeeded, Props};
-%% _NoContext == "Ignore context"?
-%succeed(Props, {look, Source, SelfTarget, _NoContext}) when SelfTarget == self() ->
-    %describe(Source, Props, _Context = <<>>),
-    %Props;
 succeed(Props, {look, Source, Target, Context}) ->
     _ = case is_owner(Target, Props) of
             true ->
-                %% attempt describe so our children will see it and
-                %% add descriptive properties
                 erlmud_object:attempt(Source, {describe, self(), Context});
-                %describe(Source, Props, Context);
             _ ->
                 ok
         end,
@@ -195,35 +187,17 @@ attack(Target, Props) ->
     erlmud_object:attempt(Attack, {attack, Attack, self(), Target}),
     [{attack, Attack} | Props].
 
+describe(_Source, _Props, _Context, _NoSubDescs = []) ->
+    ok;
 describe(Source, _Props, Context, SubDescs) ->
-    %SubDescs = [[<<", ">>, D] || D <- SubDescs0],
-    %Description = [description(Props) | SubDescs],
-    Description = [Context | SubDescs],
+    [_ | TrimmedSubDescs] = lists:reverse(SubDescs),
+    Description = [Context | lists:reverse(TrimmedSubDescs)],
     erlmud_object:attempt(Source, {send, Source, Description}).
 
 is_owner(MaybeOwner, Props) when is_pid(MaybeOwner) ->
     MaybeOwner == proplists:get_value(owner, Props);
 is_owner(_, _) ->
     false.
-
-%description(Props) when is_list(Props) ->
-    %DescTemplate = application:get_env(erlmud, character_desc_template, []),
-    %log(debug, [<<"description template: ">>, DescTemplate]),
-    %Description = [[description_part(Props, Part)] || Part <- DescTemplate],
-    %log(debug, [<<"Description: ">>, Description]),
-    %Description.
-
-%description_part(_, RawText) when is_binary(RawText) ->
-    %log(debug, [<<"description_part with unknown Props and RawText: ">>, RawText]),
-    %RawText;
-%description_part(Props, DescProp) ->
-    %log(debug, [<<"description_part with Props: ">>, Props, <<", DescProp: ">>, DescProp]),
-    %prop_description(proplists:get_value(DescProp, Props, <<"??">>)).
-
-%prop_description(undefined) ->
-    %[];
-%prop_description(Value) when not is_pid(Value) ->
-    %Value.
 
 log(Level, IoData) ->
     erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).
