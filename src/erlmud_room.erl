@@ -67,12 +67,15 @@ succeed(Props, {get, Obj, Item, Self}) when Self == self() ->
 succeed(Props, {add, Self, Player}) when Self == self() ->
     log([<<"Process ">>, Player, <<" added to me">>]),
     Props;
+%% Player looking at room
 succeed(Props, {look, Player, Self}) when Self == self() ->
     log([<<"Process ">>, Player, <<" looked at me">>]),
     describe(Player, Props),
     Name = proplists:get_value(name, Props, <<"room with no name">>),
     RoomContext = <<Name/binary, " -> ">>,
-    NewMessage = {look, Player, self(), RoomContext},
+    %% Resend as Player looking at this Room with Context
+    %% which is a key to objects in this room to describe themselves
+    NewMessage = {describe, Player, self(), RoomContext},
     erlmud_object:attempt(Player, NewMessage),
     Props;
 succeed(Props, Msg) ->

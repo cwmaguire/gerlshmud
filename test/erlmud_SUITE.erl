@@ -5,10 +5,12 @@
 
 -define(WAIT100, receive after 100 -> ok end).
 
+%all() -> [look_player, look_player_clothed].
 %all() -> [look_player].
 %all() -> [look_room].
 %all() -> [player_move].
 %all() -> [player_drop_item].
+%all() -> [look_room, look_player, look_player_clothed].
 all() ->
     [player_move,
      player_move_fail,
@@ -250,34 +252,42 @@ look_player(Config) ->
     erlmud_test_socket:send(<<"look pete">>),
     ?WAIT100,
     NakedDescriptions = erlmud_test_socket:messages(),
-    ct:pal("NakedDescriptions: ~p~n", [lists:sort(NakedDescriptions)]),
-    ExpectedDescriptions =
-        lists:sort([<<"Pete, a male Giant, 4m tall and around 400kg.">>,
-                    <<"Giant Pete -> hands">>,
-                    <<"Giant Pete -> legs">>,
-                    <<"Giant Pete -> pants_: pants">>,
-                    <<"Giant Pete -> sword_: sword">>,
-                    <<"Giant Pete -> scroll_: scroll">>]),
-    ct:pal("ExpectedDescriptions (sorted): ~p~n", [ExpectedDescriptions]),
+    ExpectedDescriptions = lists:sort([<<"Pete -> weighs 400.0kg">>,
+                                       <<"Pete -> male">>,
+                                       <<"Pete -> giant">>,
+                                       <<"Pete -> 4.0m tall">>,
+                                       <<"Pete -> hands">>,
+                                       <<"Pete -> legs">>,
+                                       <<"Pete -> pants_: pants">>,
+                                       <<"Pete -> sword_: sword">>,
+                                       <<"Pete -> scroll_: scroll">>]),
+    ExpectedDescriptions = lists:sort(NakedDescriptions).
 
-    ExpectedDescriptions = lists:sort(NakedDescriptions),
-
+look_player_clothed(Config) ->
+    start(?WORLD_7),
+    erlmud_test_socket:send(<<"AnyLoginWillDo">>),
+    erlmud_test_socket:send(<<"AnyPasswordWillDo">>),
     Giant = erlmud_index:get(giant),
     attempt(Config, Giant, {add, Giant, <<"pants">>, <<"legs">>}),
     ?WAIT100,
     erlmud_test_socket:send(<<"look pete">>),
     ?WAIT100,
     ClothedDescriptions = erlmud_test_socket:messages(),
-    ct:pal("ClothedDescriptions: ~p~n", [lists:sort(ClothedDescriptions)]),
-    ExpectedDescriptions2 =
-        lists:sort([<<"Pete, a male Giant, 4m tall and around 400kg.">>,
-                    <<"Giant Pete -> hands">>,
-                    <<"Giant Pete -> legs">>,
-                    <<"Giant Pete -> legs -> pants_: pants">>,
-                    <<"Giant Pete -> sword_: sword">>,
-                    <<"Giant Pete -> scroll_: scroll">>]),
-    ct:pal("ExpectedDescriptions2: ~p~n", [ExpectedDescriptions2]),
-    ExpectedDescriptions2 = lists:sort(ClothedDescriptions).
+    ExpectedDescriptions =
+        lists:sort([<<"Pete -> hands">>,
+                    <<"Pete -> legs">>,
+                    <<"Pete -> legs -> pants_: pants">>,
+                    <<"Pete -> sword_: sword">>,
+                    <<"Pete -> scroll_: scroll">>]),
+
+    [MainDesc = <<"Pete -> ", AttributeDescs/binary>>] =
+        sets:to_list(sets:subtract(sets:from_list(ClothedDescriptions),
+                                   sets:from_list(ExpectedDescriptions))),
+    RestDescs = [X || X <- ClothedDescriptions, X /= MainDesc],
+    ExpectedParts = lists:sort([<<"4.0m tall">>, <<"weighs 400.0kg">>, <<"male">>, <<"giant">>]),
+    Parts = lists:sort(binary:split(AttributeDescs, [<<", ">>], [global])),
+    Parts = ExpectedParts,
+    ExpectedDescriptions = lists:sort(RestDescs).
 
 look_room(_Config) ->
     start(?WORLD_7),
@@ -288,8 +298,8 @@ look_room(_Config) ->
     ?WAIT100,
     Descriptions = lists:sort(erlmud_test_socket:messages()),
     ct:pal("Descriptions: ~p~n", [Descriptions]),
-    Expected = lists:sort([<<"room -> Bob, a female human, 2.2m tall and around 128kg.">>,
-                           <<"room -> Pete, a male Giant, 4m tall and around 400kg.">>,
+    Expected = lists:sort([<<"room -> Bob -> human">>,
+                           <<"room -> Pete -> giant">>,
                            <<"room -> bread_: a loaf of bread">>,
                            <<"room: an empty space">>]),
     Descriptions = Expected.
