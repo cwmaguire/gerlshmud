@@ -75,7 +75,7 @@ succeed(Props, {look, Player, Self}) when Self == self() ->
     RoomContext = <<Name/binary, " -> ">>,
     %% Resend as Player looking at this Room with Context
     %% which is a key to objects in this room to describe themselves
-    NewMessage = {look, Player, self(), RoomContext},
+    NewMessage = {describe, Player, self(), shallow, RoomContext, _SubDescs = []},
     erlmud_object:attempt(Player, NewMessage),
     Props;
 succeed(Props, Msg) ->

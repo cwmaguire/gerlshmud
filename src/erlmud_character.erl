@@ -86,6 +86,7 @@ attempt(_Owner, Props, {stop_attack, Attack}) ->
     {succeed, _IsCurrAttack = lists:member({attack, Attack}, Props), Props};
 attempt(_Owner, Props, {die, Self}) when Self == self() ->
     {succeed, true, Props};
+
 attempt(_Owner, Props, {look, Source, TargetName}) when Source =/= self(),
                                                   is_binary(TargetName) ->
     log(debug, [<<"Checking if name ">>, TargetName, <<" matches">>]),
@@ -105,20 +106,22 @@ attempt(_Owner, Props, {look, Source, TargetName}) when Source =/= self(),
                  <<".\n">>]),
             {succeed, false, Props}
     end;
-attempt(_Owner, Props,
-        _DescSelfForChildren = {describe, _Source, Self, _Context})
-  when Self == self() ->
-    {succeed, true, Props};
-attempt(OwnerRoom, Props,
-        _LookFromParent = {look, _Source, OwnerRoom, _RoomContext}) ->
-    {succeed, true, Props};
 attempt(Room = _Owner, Props,
         _JustPlainLook = {look, SelfSource})
   when SelfSource == self() ->
     NewMessage = {look, SelfSource, Room},
     {{resend, SelfSource, NewMessage}, _ShouldSubscribe = false, Props};
+
+attempt(OwnerRoom, Props,
+        _LookFromParent = {describe, _Source, OwnerRoom, _RoomContext, _SubDescs}) ->
+    {succeed, true, Props};
+%% TODO is this even needed considering the almost identical clause below?
 attempt(_Owner, Props,
-        _DescribeForChildren = {describe, _Source, Self, _Context, _SubDescs = []})
+        _DescSelfForChildren = {describe, _Source, Self, _Context})
+  when Self == self() ->
+    {succeed, true, Props};
+attempt(_Owner, Props,
+        _DescribeForChildren = {describe, _Source, Self, _Context, _SubDescs})
   when Self == self() ->
     {succeed, true, Props};
 attempt(_Owner, Props, _Msg) ->
@@ -155,18 +158,17 @@ succeed(Props, {cleanup, Self}) when Self == self() ->
     %% TODO: kill/disconnect all connected processes
     %% TODO: drop all objects
     {stop, cleanup_succeeded, Props};
-succeed(Props, {look, Source, Target, Context}) ->
+succeed(Props, {describe, Source, Self, Context, SubDescs}) when Self == self() ->
+    describe(Source, Props, Context, SubDescs),
+    Props;
+succeed(Props, {describe, Source, Target, ShallowOrDeep, Context}) ->
     _ = case is_owner(Target, Props) of
             true ->
-                erlmud_object:attempt(Source, {describe, self(), Context});
+                erlmud_object:attempt(Source, {describe, self(), ShallowOrDeep, Context});
+                describe(Source, Props, Context);
             _ ->
                 ok
         end,
-    Props;
-%% TODO use Child to determine the preposition (In/on/at, etc.)
-%% e.g. "in the crater", "on the dock", "at the back of the bus"
-succeed(Props, {describe, Source, Self, Context, DescProps}) when Self == self() ->
-    describe(Source, Props, Context, DescProps),
     Props;
 succeed(Props, Msg) ->
     log(debug, [<<"saw ">>, Msg, <<" succeed\n">>]),
