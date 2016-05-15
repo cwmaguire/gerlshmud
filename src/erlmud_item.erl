@@ -95,8 +95,12 @@ attempt(_Owner, Props, {look, Source, TargetName}) when Source =/= self(),
                  <<".\n">>]),
             {succeed, false, Props}
     end;
-attempt(Owner, Props, {describe, _Source, Owner, _Context, _SubDescs}) ->
+attempt(Owner, Props, {describe, _Source, Owner, _Context}) ->
     {succeed, true, Props};
+attempt(Owner, Props, {describe, _Source, Owner, deep, _Context}) ->
+    {succeed, true, Props};
+attempt(Owner, Props, {describe, _Source, Owner, _Depth, _Context}) ->
+    {succeed, false, Props};
 attempt(_Owner, Props, _Msg) ->
     {succeed, false, Props}.
 
@@ -107,7 +111,15 @@ succeed(Props, {drop, Owner, Self, Receiver}) when Self == self() ->
 succeed(Props, {describe, Source, Self, Context}) when Self == self() ->
     describe(Source, Props, Context),
     Props;
-succeed(Props, {describe, Source, Target, Context, _SubDescs}) ->
+succeed(Props, {describe, Source, Target, Context}) ->
+    _ = case is_owner(Target, Props) of
+            true ->
+                describe(Source, Props, Context);
+            _ ->
+                ok
+        end,
+    Props;
+succeed(Props, {describe, Source, Target, deep, Context}) ->
     _ = case is_owner(Target, Props) of
             true ->
                 describe(Source, Props, Context);

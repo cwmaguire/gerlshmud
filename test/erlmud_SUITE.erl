@@ -6,27 +6,28 @@
 -define(WAIT100, receive after 100 -> ok end).
 
 %all() -> [look_player, look_player_clothed].
-all() -> [look_room].
+%all() -> [look_player].
+%all() -> [look_room].
 %all() -> [player_move].
 %all() -> [player_drop_item].
 %all() -> [look_room, look_player, look_player_clothed].
-%all() ->
-    %[player_move,
-     %player_move_fail,
-     %player_move_exit_locked,
-     %player_get_item,
-     %player_drop_item,
-     %player_attack,
-     %player_attack_wait,
-     %one_sided_fight,
-     %counterattack_behaviour,
-     %player_wield,
-     %player_wield_missing_body_part,
-     %player_wield_wrong_body_part,
-     %player_wield_body_part_is_full,
-     %player_remove,
-     %look_player,
-     %look_room].
+all() ->
+    [player_move,
+     player_move_fail,
+     player_move_exit_locked,
+     player_get_item,
+     player_drop_item,
+     player_attack,
+     player_attack_wait,
+     one_sided_fight,
+     counterattack_behaviour,
+     player_wield,
+     player_wield_missing_body_part,
+     player_wield_wrong_body_part,
+     player_wield_body_part_is_full,
+     player_remove,
+     look_player,
+     look_room].
 
 init_per_testcase(_, Config) ->
     {ok, _Started} = application:ensure_all_started(erlmud),
@@ -251,19 +252,16 @@ look_player(Config) ->
     erlmud_test_socket:send(<<"look pete">>),
     ?WAIT100,
     NakedDescriptions = erlmud_test_socket:messages(),
-    ExpectedDescriptions = lists:sort([<<"Pete -> hands">>,
+    ExpectedDescriptions = lists:sort([<<"Pete -> weighs 400.0kg">>,
+                                       <<"Pete -> male">>,
+                                       <<"Pete -> giant">>,
+                                       <<"Pete -> 4.0m tall">>,
+                                       <<"Pete -> hands">>,
                                        <<"Pete -> legs">>,
                                        <<"Pete -> pants_: pants">>,
                                        <<"Pete -> sword_: sword">>,
                                        <<"Pete -> scroll_: scroll">>]),
-    [MainDesc = <<"Pete -> ", AttributeDescs/binary>>] =
-        sets:to_list(sets:subtract(sets:from_list(NakedDescriptions),
-                                   sets:from_list(ExpectedDescriptions))),
-
-    RestDescs = [X || X <- NakedDescriptions, X /= MainDesc],
-    ExpectedDescriptions = lists:sort(RestDescs),
-    ExpectedParts = lists:sort([<<"4.0m tall">>, <<"weighs 400.0kg">>, <<"male">>, <<"giant">>]),
-    ExpectedParts = lists:sort(binary:split(AttributeDescs, [<<", ">>], [global])).
+    ExpectedDescriptions = lists:sort(NakedDescriptions).
 
 look_player_clothed(Config) ->
     start(?WORLD_7),
@@ -300,8 +298,8 @@ look_room(_Config) ->
     ?WAIT100,
     Descriptions = lists:sort(erlmud_test_socket:messages()),
     ct:pal("Descriptions: ~p~n", [Descriptions]),
-    Expected = lists:sort([<<"room -> Bob">>,
-                           <<"room -> Pete">>,
+    Expected = lists:sort([<<"room -> Bob -> human">>,
+                           <<"room -> Pete -> giant">>,
                            <<"room -> bread_: a loaf of bread">>,
                            <<"room: an empty space">>]),
     Descriptions = Expected.

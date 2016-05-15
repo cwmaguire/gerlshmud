@@ -135,11 +135,9 @@ attempt(Owner, Props, {remove, Owner, Item}) ->
         _ ->
             {succeed, _Subscribe = false, Props}
     end;
-attempt(Owner, Props, {describe, _Source, Owner, deep, _Context, _SubDescs}) ->
+attempt(Owner, Props, {describe, _Source, Owner, deep, _Context}) ->
     {succeed, true, Props};
-attempt(Owner, Props, {describe, _Source, Owner, _NotDeep, _Context, _SubDescs}) ->
-    {succeed, false, Props};
-attempt(_Owner, Props, {describe, _Source, _Target, _Context, _SubDescs}) ->
+attempt(_Owner, Props, {describe, _Source, _Target, _Context}) ->
     {succeed, false, Props};
 attempt(_Owner, Props, _Msg) ->
     {succeed, _Subscribe = false, Props}.
@@ -154,7 +152,7 @@ succeed(Props, {remove, Item, Self}) when Self == self(), is_pid(Item) ->
     erlmud_object:add(Owner, item, Item),
     erlmud_object:set(Item, {owner, Owner}),
     lists:keydelete(Item, 2, Props);
-succeed(Props, {describe, Source, Target, _Deep, AncestorsContext, _SubDescs}) ->
+succeed(Props, {describe, Source, Target, _Deep, AncestorsContext}) ->
     _ = case is_owner(Target, Props) of
             true ->
                 describe(Source, Props, AncestorsContext),

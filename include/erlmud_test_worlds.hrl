@@ -106,7 +106,7 @@
 
                   {erlmud_attribute, race0, [{owner, player},
                                              {type, race},
-                                             {value, <<"giant">>},
+                                             {value, <<"human">>},
                                              {desc, [value]}]},
 
                   {erlmud_character, giant, [{owner, room},

@@ -94,7 +94,7 @@ attempt(_Owner, Props, {look, Source, TargetName}) when Source =/= self(),
     case re:run(SelfName, TargetName, [{capture, none}, caseless]) of
         match ->
             Context = <<SelfName/binary, " -> ">>,
-            NewMessage = {describe, Source, self(), Context, _SubDescs = []},
+            NewMessage = {describe, Source, self(), deep, Context},
             {{resend, Source, NewMessage}, _ShouldSubscribe = true, Props};
         _ ->
             ct:pal("Name ~p did not match this character's name ~p~n", [TargetName, SelfName]),
@@ -113,16 +113,7 @@ attempt(Room = _Owner, Props,
     {{resend, SelfSource, NewMessage}, _ShouldSubscribe = false, Props};
 
 attempt(OwnerRoom, Props,
-        _LookFromParent = {describe, _Source, OwnerRoom, _RoomContext, _SubDescs}) ->
-    {succeed, true, Props};
-%% TODO is this even needed considering the almost identical clause below?
-attempt(_Owner, Props,
-        _DescSelfForChildren = {describe, _Source, Self, _Context})
-  when Self == self() ->
-    {succeed, true, Props};
-attempt(_Owner, Props,
-        _DescribeForChildren = {describe, _Source, Self, _Context, _SubDescs})
-  when Self == self() ->
+        _DescFromParent = {describe, _Source, OwnerRoom, _RoomContext}) ->
     {succeed, true, Props};
 attempt(_Owner, Props, _Msg) ->
     {succeed, false, Props}.
@@ -158,14 +149,13 @@ succeed(Props, {cleanup, Self}) when Self == self() ->
     %% TODO: kill/disconnect all connected processes
     %% TODO: drop all objects
     {stop, cleanup_succeeded, Props};
-succeed(Props, {describe, Source, Self, Context, SubDescs}) when Self == self() ->
-    describe(Source, Props, Context, SubDescs),
+succeed(Props, {describe, Source, Self, Context}) when Self == self() ->
+    describe(Source, Props, deep, Context),
     Props;
-succeed(Props, {describe, Source, Target, ShallowOrDeep, Context}) ->
+succeed(Props, {describe, Source, Target, Context}) ->
     _ = case is_owner(Target, Props) of
             true ->
-                erlmud_object:attempt(Source, {describe, self(), ShallowOrDeep, Context});
-                describe(Source, Props, Context);
+                describe(Source, Props, shallow, Context);
             _ ->
                 ok
         end,
@@ -189,12 +179,10 @@ attack(Target, Props) ->
     erlmud_object:attempt(Attack, {attack, Attack, self(), Target}),
     [{attack, Attack} | Props].
 
-describe(_Source, _Props, _Context, _NoSubDescs = []) ->
-    ok;
-describe(Source, _Props, Context, SubDescs) ->
-    [_ | TrimmedSubDescs] = lists:reverse(SubDescs),
-    Description = [Context | lists:reverse(TrimmedSubDescs)],
-    erlmud_object:attempt(Source, {send, Source, Description}).
+describe(Source, Props, Depth, Context) ->
+    Name = proplists:get_value(name, Props),
+    NewContext = <<Context/binary, Name/binary, " -> ">>,
+    erlmud_object:attempt(Source, {describe, Source, self(), Depth, NewContext}).
 
 is_owner(MaybeOwner, Props) when is_pid(MaybeOwner) ->
     MaybeOwner == proplists:get_value(owner, Props);
