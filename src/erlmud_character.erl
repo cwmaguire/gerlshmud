@@ -23,6 +23,12 @@
 -export([succeed/2]).
 -export([fail/3]).
 
+-define(ATTEMPT_HANDLERS, [erlmud_handler_room_inject_self,
+                           erlmud_handler_char_inject_self,
+                           erlmud_handler_char_look,
+                           erlmud_handler_self_subscribe,
+                           erlmud_handler_attack_wait]).
+
 id(Props, _Owner, Pid) ->
     "character_" ++ proplists:get_value(name, Props, "NoName") ++ "_" ++ Pid.
 
@@ -37,6 +43,14 @@ set(Type, Obj, Props) ->
 
 get_(Type, Props) ->
     lists:keyfind(Type, 1, Props).
+
+handler_runner(_, Response = {response, _}) ->
+    Response;
+handler_runner(Module, Message) ->
+    Module:handle(Message).
+
+attempt(Owner, Props, Message) ->
+    lists:foldl(fun handler_runner/2, {Owner, Props, Message}, ?ATTEMPT_HANDLERS).
 
 attempt(_Owner, Props, {move, Self, Direction}) when Self == self() ->
     case proplists:get_value(owner, Props) of

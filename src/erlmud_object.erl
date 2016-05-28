@@ -26,6 +26,9 @@
 -export([set/2]).
 -export([props/1]).
 
+%% Util
+-export([has_pid/2]).
+
 %% gen_server.
 -export([init/1]).
 -export([handle_call/3]).
@@ -122,6 +125,11 @@ props(Pid) ->
         _ ->
             []
     end.
+
+%% util
+
+has_pid(Props, Pid) ->
+    lists:any(fun({_, Pid_}) when Pid == Pid_ -> true; (_) -> false end, Props).
 
 %% gen_server.
 
