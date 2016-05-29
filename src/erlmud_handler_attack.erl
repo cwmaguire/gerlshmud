@@ -11,9 +11,9 @@
 %% WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 %% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
--module(erlmud_attack).
+-module(erlmud_handler_attack).
 
--behaviour(erlmud_object).
+-behaviour(erlmud_handler).
 
 %% object behaviour
 -export([id/3]).
