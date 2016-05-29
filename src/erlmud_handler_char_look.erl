@@ -15,6 +15,8 @@
 -behaviour(erlmud_handler).
 
 -export([attempt/1]).
+-export([succeed/1]).
+-export([fail/1]).
 
 attempt({_Owner, Props, {look, Source, TargetName}}) when Source =/= self(),
                                                   is_binary(TargetName) ->
@@ -44,7 +46,7 @@ attempt({OwnerRoom, Props,
         _DescFromParent = {describe, _Source, OwnerRoom, _RoomContext}}) ->
     {succeed, true, Props};
 attempt(_) ->
-    not_interested.
+    undefined.
 
 succeed({Props, {describe, Source, Self, Context}}) when Self == self() ->
     describe(Source, Props, deep, Context),
@@ -57,8 +59,8 @@ succeed({Props, {describe, Source, Target, Context}}) ->
                 ok
         end,
     Props;
-succeed(_) ->
-    undefined.
+succeed({Props, _}) ->
+    Props.
 
 fail({Props, _, _}) ->
     Props.

@@ -11,38 +11,37 @@
 %% WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 %% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
--module(erlmud_handler_char_move).
+-module(erlmud_handler_char_inv).
 -behaviour(erlmud_handler).
 
 -export([attempt/1]).
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({_Owner, Props, {move, Self, _, _}}) when Self == self() ->
-    {succeed, true, Props};
-attempt({_Owner, Props, {move, Self, _, _, _}}) when Self == self() ->
-    {succeed, true, Props};
+attempt(_Owner, Props, {drop, Self, Pid}) when Self == self(), is_pid(Pid) ->
+    case has_pid(Props, Pid) of
+        true ->
+            {owner, Room} = get_(owner, Props),
+            {{resend, Self, {drop, Self, Pid, Room}}, true, Props};
+        _ ->
+            {succeed, _Interested = false, Props}
+    end;
 attempt(_) ->
     undefined.
 
-succeed({Props, {move, Self, Source, Target, _Exit}}) when Self == self() ->
-    log(debug, [<<"moved from ">>, Source, <<" to ">>, Target, <<"\n">>]),
-    log(debug, [<<"setting ">>, Self, <<"'s room to ">>, Target, <<"\n">>]),
-    NewProps = set(owner, Target, Props),
-    log(debug, [<<" finished moving rooms \n">>]),
-    NewProps;
-succeed({Props, {move, Self, Source, Direction}}) when Self == self(), is_atom(Direction) ->
-    log(debug, [<<"succeeded in moving ">>, Direction, <<" from ">>, Source, <<"\n">>]),
+succeed({Props, {describe, Source, Self, Context}}) when Self == self() ->
+    describe(Source, Props, deep, Context),
+    Props;
+succeed({Props, {describe, Source, Target, Context}}) ->
+    _ = case is_owner(Target, Props) of
+            true ->
+                describe(Source, Props, shallow, Context);
+            _ ->
+                ok
+        end,
     Props;
 succeed({Props, _}) ->
     Props.
 
 fail({Props, _, _}) ->
     Props.
-
-set(Type, Obj, Props) ->
-    lists:keystore(Type, 1, Props, {Type, Obj}).
-
-log(Level, IoData) ->
-    erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).
-
