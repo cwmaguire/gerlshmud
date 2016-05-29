@@ -229,18 +229,18 @@ attempt_(Msg,
     State#state{props = Props2}.
 
 run_attempts(Attempt = {_, Props, _}) ->
-    AttemptHandlers = proplists:get_value(attempt_handlers, Props),
-    case lists:foldl(fun attempt_runner/2, {Attempt, undefined}, AttemptHandlers) of
+    Handlers = proplists:get_value(handlers, Props),
+    case lists:foldl(fun handle_attempt/2, {Attempt, undefined}, Handlers) of
         {response, Response} ->
             Response;
         _ ->
             {succeed, false, Props}
     end.
 
-attempt_runner(_, Response = {response, _}) ->
+handle_attempt(_, Response = {response, _}) ->
     Response;
-attempt_runner(Module, Message) ->
-    Module:attempt(Message).
+handle_attempt(HandlerModule, Attempt) ->
+    HandlerModule:attempt(Attempt).
 
 ensure_message(Msg, {A, B, C}) ->
     {A, Msg, B, C};
@@ -341,26 +341,26 @@ next(Procs = #procs{next = NextSet}) ->
     end.
 
 succeed(Message, #state{props = Props}) ->
-    SuccessHandlers = proplists:get_value(success_handlers, Props),
-    {Result, _} = lists:foldl(fun success_runner/2, {Props, Message}, SuccessHandlers),
+    Handlers = proplists:get_value(handlers, Props),
+    {Result, _} = lists:foldl(fun handle_success/2, {Props, Message}, Handlers),
     Result.
 
-success_runner(SuccessHandler, {Result = {stop, _, _}, Message}) ->
+handle_success(_, {Result = {stop, _, _}, Message}) ->
     {Result, Message};
-success_runner(SuccessHandler, {Props, Message}) ->
-    NewProps = SuccessHandler:succeed(Props, Message),
-    {NewProps, Message}.
+handle_success(HandlerModule, Success = {_, Message}) ->
+    Props = HandlerModule:succeed(Success),
+    {Props, Message}.
 
 fail(Reason, Message, #state{props = Props}) ->
-    FailHandlers = proplists:get_value(fail_handlers, Props),
-    {Result, _, _} = lists:foldl(fun fail_runner/2, {Props, Reason, Message}, FailHandlers),
+    Handlers = proplists:get_value(handlers, Props),
+    {Result, _, _} = lists:foldl(fun handle_fail/2, {Props, Reason, Message}, Handlers),
     Result.
 
-fail_runner(SuccessHandler, Stop = {Result = {stop, _}, _, _}) ->
-    Stop;
-fail_runner(FailHandler, {Props, Reason, Message}) ->
-    NewProps = FailHandler:fail(Props, Reason, Message),
-    {NewProps, Reason, Message}.
+handle_fail(_, Response = {{stop, _}, _, _}) ->
+    Response;
+handle_fail(HandlerModule, Failure = {_, Reason, Message}) ->
+    Props = HandlerModule:fail(Failure),
+    {Props, Reason, Message}.
 
 add_(Type, Props, Obj) ->
     case lists:member({Type, Obj}, Props) of
