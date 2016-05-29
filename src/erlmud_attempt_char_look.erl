@@ -11,12 +11,12 @@
 %% WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 %% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
--module(erlmud_handler_char_look).
--behaviour(erlmud_handler).
+-module(erlmud_attempt_char_look).
+-behaviour(erlmud_attempt).
 
--export([handle/1]).
+-export([attempt/1]).
 
-handle({_Owner, Props, {look, Source, TargetName}}) when Source =/= self(),
+attempt({_Owner, Props, {look, Source, TargetName}}) when Source =/= self(),
                                                   is_binary(TargetName) ->
     log(debug, [<<"Checking if name ">>, TargetName, <<" matches">>]),
     SelfName = proplists:get_value(name, Props, <<>>),
@@ -35,12 +35,15 @@ handle({_Owner, Props, {look, Source, TargetName}}) when Source =/= self(),
                  <<".\n">>]),
             {succeed, false, Props}
     end;
-handle({Room = _Owner, Props,
+attempt({Room = _Owner, Props,
         _JustPlainLook = {look, SelfSource}})
   when SelfSource == self() ->
     NewMessage = {look, SelfSource, Room},
     {{resend, SelfSource, NewMessage}, _ShouldSubscribe = false, Props};
-handle(_) ->
+attempt({OwnerRoom, Props,
+        _DescFromParent = {describe, _Source, OwnerRoom, _RoomContext}}) ->
+    {succeed, true, Props};
+attempt(_) ->
     not_interested.
 
 log(Level, IoData) ->

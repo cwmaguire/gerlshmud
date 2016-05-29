@@ -11,6 +11,14 @@
 %% WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 %% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
--module(erlmud_handler).
+-module(erlmud_success_char_attack).
+-behaviour(erlmud_success).
 
--callback handle(pid(), list(), tuple()) -> list().
+-export([succeed/1]).
+
+succeed({Props, {cleanup, Self}}) when Self == self() ->
+    %% TODO: kill/disconnect all connected processes
+    %% TODO: drop all objects
+    {stop, cleanup_succeeded, Props};
+succeed(_) ->
+    undefined.

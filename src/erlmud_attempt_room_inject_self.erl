@@ -11,21 +11,26 @@
 %% WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 %% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
--module(erlmud_handler_attack_wait).
--behaviour(erlmud_handler).
+-module(erlmud_attempt_room_inject_self).
+-behaviour(erlmud_attempt).
 
--export([handle/1]).
+-export([attempt/1]).
 
-handle({_Owner, Props, {calc_next_attack_wait, Attack, Self, Target, Sent, Wait}})
-    when Self == self() ->
-    ObjWait = proplists:get_value(attack_wait, Props, 0),
-    log(debug, [<<"Object attack wait is ">>, ObjWait, <<"\n">>]),
-    {succeed,
-     {calc_next_attack_wait, Attack, Self, Target, Sent, Wait + ObjWait},
-     false,
-     Props};
-handle(_) ->
-    not_interested.
+attempt({_Owner, Props, {move, Self, Direction}}) ->
+    case proplists:get_value(owner, Props) of
+        undefined ->
+            {{fail, <<"Character doesn't have room">>}, false, Props};
+        Room ->
+            {{resend, Self, {move, Self, Room, Direction}}, false, Props}
+    end;
+attempt({_Owner, Props, {drop, Self, Pid}}) when Self == self(), is_pid(Pid) ->
+    case erlmud_object:has_pid(Props, Pid) of
+        true ->
+            {owner, Room} = lists:keyfind(owner, 1, Props),
+            {{resend, Self, {drop, Self, Pid, Room}}, true, Props};
+        _ ->
+            {succeed, _Interested = false, Props}
+    end;
+attempt(_) ->
+    undefined.
 
-log(Level, IoData) ->
-    erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).

@@ -11,20 +11,21 @@
 %% WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 %% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
--module(erlmud_handler_self_subscribe).
--behaviour(erlmud_handler).
+-module(erlmud_attempt_room_inject_self).
+-behaviour(erlmud_attempt).
 
--export([handle/1]).
+-export([attempt/1]).
 
-handle({_Owner, Props, {move, Self, _, _}}) when Self == self() ->
-    {succeed, true, Props};
-handle({_Owner, Props, {move, Self, _, _, _}}) when Self == self() ->
-    {succeed, true, Props};
-handle({_Owner, Props, {attack, Self, _}}) when Self == self() ->
-    {succeed, true, Props};
-handle({_Owner, Props, {stop_attack, Attack}}) ->
-    {succeed, _IsCurrAttack = lists:member({attack, Attack}, Props), Props};
-handle({_Owner, Props, {die, Self}}) when Self == self() ->
-    {succeed, true, Props};
-handle(_) ->
+attempt({_Owner, Props, {calc_next_attack_wait, Attack, Self, Target, Sent, Wait}})
+    when Self == self() ->
+    CharacterWait = proplists:get_value(attack_wait, Props, 0),
+    log(debug, [<<"Character attack wait is ">>, CharacterWait, <<"\n">>]),
+    {succeed,
+     {calc_next_attack_wait, Attack, Self, Target, Sent, Wait + CharacterWait},
+     false,
+     Props};
+attempt(_) ->
     not_interested.
+
+log(Level, IoData) ->
+    erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).

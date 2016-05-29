@@ -220,13 +220,27 @@ attempt_(Msg,
          State = #state{type = Type,
                         props = Props}) ->
     Owner = proplists:get_value(owner, Props),
-    Results = {Result, Msg2, ShouldSubscribe, Props2} = ensure_message(Msg, Type:attempt(Owner, Props, Msg)),
+    Results = {Result, Msg2, ShouldSubscribe, Props2} = ensure_message(Msg, run_attempts({Owner, Props, Msg})),
     log([Type, <<" ">>, self(), <<" {owner, ">>, Owner, <<"} ">>,
          <<"attempt: ">>, Msg, <<" -> ">>,
          ShouldSubscribe, <<", ">>, Result]),
     MergedProcs = merge(self(), Type, Results, Procs),
     _ = handle(Result, Msg2, MergedProcs),
     State#state{props = Props2}.
+
+run_attempts(Attempt = {_, Props, _}) ->
+    AttemptHandlers = proplists:get_value(attempt_handlers, Props),
+    case lists:foldl(fun attempt_runner/2, {Attempt, undefined}, AttemptHandlers) of
+        {response, Response} ->
+            Response;
+        _ ->
+            {succeed, false, Props}
+    end.
+
+attempt_runner(_, Response = {response, _}) ->
+    Response;
+attempt_runner(Module, Message) ->
+    Module:attempt(Message).
 
 ensure_message(Msg, {A, B, C}) ->
     {A, Msg, B, C};
@@ -326,11 +340,27 @@ next(Procs = #procs{next = NextSet}) ->
             {NextProc, Procs#procs{next = ordsets:del_element(NextProc, Next)}}
     end.
 
-succeed(Message, #state{type = Type, props = Props}) ->
-    Type:succeed(Props, Message).
+succeed(Message, #state{props = Props}) ->
+    SuccessHandlers = proplists:get_value(success_handlers, Props),
+    {Result, _} = lists:foldl(fun success_runner/2, {Props, Message}, SuccessHandlers),
+    Result.
 
-fail(Reason, Message, #state{type = Type, props = Props}) ->
-    Type:fail(Props, Reason, Message).
+success_runner(SuccessHandler, {Result = {stop, _, _}, Message}) ->
+    {Result, Message};
+success_runner(SuccessHandler, {Props, Message}) ->
+    NewProps = SuccessHandler:succeed(Props, Message),
+    {NewProps, Message}.
+
+fail(Reason, Message, #state{props = Props}) ->
+    FailHandlers = proplists:get_value(fail_handlers, Props),
+    {Result, _, _} = lists:foldl(fun fail_runner/2, {Props, Reason, Message}, FailHandlers),
+    Result.
+
+fail_runner(SuccessHandler, Stop = {Result = {stop, _}, _, _}) ->
+    Stop;
+fail_runner(FailHandler, {Props, Reason, Message}) ->
+    NewProps = FailHandler:fail(Props, Reason, Message),
+    {NewProps, Reason, Message}.
 
 add_(Type, Props, Obj) ->
     case lists:member({Type, Obj}, Props) of

@@ -29,108 +29,32 @@
                            erlmud_handler_self_subscribe,
                            erlmud_handler_attack_wait]).
 
+-define(SUCCESS_HANDLERS, [erlmud_success_char_move]).
+
 id(Props, _Owner, Pid) ->
     "character_" ++ proplists:get_value(name, Props, "NoName") ++ "_" ++ Pid.
 
 added(_, _) -> ok.
 removed(_, _) -> ok.
 
-has_pid(Props, Pid) ->
-    lists:any(fun({_, Pid_}) when Pid == Pid_ -> true; (_) -> false end, Props).
-
 set(Type, Obj, Props) ->
     lists:keystore(Type, 1, Props, {Type, Obj}).
 
-get_(Type, Props) ->
-    lists:keyfind(Type, 1, Props).
-
-handler_runner(_, Response = {response, _}) ->
+attempt_runner(_, Response = {response, _}) ->
     Response;
-handler_runner(Module, Message) ->
-    Module:handle(Message).
+attempt_runner(Module, Message) ->
+    Module:attempt(Message).
+
+success_runner(_, Response = {response, _}) ->
+    Response;
+success_runner(Module, Message) ->
+    Module:succeed(Message).
 
 attempt(Owner, Props, Message) ->
-    lists:foldl(fun handler_runner/2, {Owner, Props, Message}, ?ATTEMPT_HANDLERS).
+    lists:foldl(fun attempt_runner/2, {Owner, Props, Message}, ?ATTEMPT_HANDLERS).
 
-attempt(_Owner, Props, {move, Self, Direction}) when Self == self() ->
-    case proplists:get_value(owner, Props) of
-        undefined ->
-            {{fail, <<"Character doesn't have room">>}, false, Props};
-        Room ->
-            {{resend, Self, {move, Self, Room, Direction}}, false, Props}
-    end;
-attempt(_Owner, Props, {drop, Self, Pid}) when Self == self(), is_pid(Pid) ->
-    case has_pid(Props, Pid) of
-        true ->
-            {owner, Room} = get_(owner, Props),
-            {{resend, Self, {drop, Self, Pid, Room}}, true, Props};
-        _ ->
-            {succeed, _Interested = false, Props}
-    end;
-attempt(_Owner, Props, {attack, Attack, Attacker, TargetName}) when is_binary(TargetName) ->
-    log(debug, [<<"Checking if name ">>, TargetName, <<" matches">>]),
-    SelfName = proplists:get_value(name, Props, <<>>),
-    case re:run(SelfName, TargetName, [{capture, none}]) of
-        match ->
-            {{resend, Attack, {attack, Attack, Attacker, self()}}, true, Props};
-        _ ->
-            log(debug,
-                [<<"Name ">>,
-                 TargetName,
-                 <<" did not match this character's name: ">>,
-                 SelfName,
-                 <<".\n">>]),
-            {succeed, false, Props}
-    end;
-attempt(_Owner, Props, {calc_next_attack_wait, Attack, Self, Target, Sent, Wait})
-    when Self == self() ->
-    CharacterWait = proplists:get_value(attack_wait, Props, 0),
-    log(debug, [<<"Character attack wait is ">>, CharacterWait, <<"\n">>]),
-    {succeed,
-     {calc_next_attack_wait, Attack, Self, Target, Sent, Wait + CharacterWait},
-     false,
-     Props};
-attempt(_Owner, Props, {move, Self, _, _}) when Self == self() ->
-    {succeed, true, Props};
-attempt(_Owner, Props, {move, Self, _, _, _}) when Self == self() ->
-    {succeed, true, Props};
-attempt(_Owner, Props, {attack, Self, _}) when Self == self() ->
-    {succeed, true, Props};
-attempt(_Owner, Props, {stop_attack, Attack}) ->
-    {succeed, _IsCurrAttack = lists:member({attack, Attack}, Props), Props};
-attempt(_Owner, Props, {die, Self}) when Self == self() ->
-    {succeed, true, Props};
-
-attempt(_Owner, Props, {look, Source, TargetName}) when Source =/= self(),
-                                                  is_binary(TargetName) ->
-    log(debug, [<<"Checking if name ">>, TargetName, <<" matches">>]),
-    SelfName = proplists:get_value(name, Props, <<>>),
-    case re:run(SelfName, TargetName, [{capture, none}, caseless]) of
-        match ->
-            Context = <<SelfName/binary, " -> ">>,
-            NewMessage = {describe, Source, self(), deep, Context},
-            {{resend, Source, NewMessage}, _ShouldSubscribe = true, Props};
-        _ ->
-            ct:pal("Name ~p did not match this character's name ~p~n", [TargetName, SelfName]),
-            log(debug,
-                [<<"Name ">>,
-                 TargetName,
-                 <<" did not match this character's name: ">>,
-                 SelfName,
-                 <<".\n">>]),
-            {succeed, false, Props}
-    end;
-attempt(Room = _Owner, Props,
-        _JustPlainLook = {look, SelfSource})
-  when SelfSource == self() ->
-    NewMessage = {look, SelfSource, Room},
-    {{resend, SelfSource, NewMessage}, _ShouldSubscribe = false, Props};
-
-attempt(OwnerRoom, Props,
-        _DescFromParent = {describe, _Source, OwnerRoom, _RoomContext}) ->
-    {succeed, true, Props};
-attempt(_Owner, Props, _Msg) ->
-    {succeed, false, Props}.
+succeed(Props, Message) ->
+    lists:foldl(fun success_runner/2, {Props, Message}, ?SUCCESS_HANDLERS).
 
 succeed(Props, {move, Self, Source, Target, _Exit}) when Self == self() ->
     log(debug, [<<"moved from ">>, Source, <<" to ">>, Target, <<"\n">>]),

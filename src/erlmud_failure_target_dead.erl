@@ -11,21 +11,16 @@
 %% WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 %% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
--module(erlmud_handler_room_inject_self).
--behaviour(erlmud_handler).
+-module(erlmud_failure_target_dead).
+-behaviour(erlmud_failure).
 
--export([handle/1]).
+-export([fail/1]).
 
-handle({_Owner, Props, {calc_next_attack_wait, Attack, Self, Target, Sent, Wait}})
-    when Self == self() ->
-    CharacterWait = proplists:get_value(attack_wait, Props, 0),
-    log(debug, [<<"Character attack wait is ">>, CharacterWait, <<"\n">>]),
-    {succeed,
-     {calc_next_attack_wait, Attack, Self, Target, Sent, Wait + CharacterWait},
-     false,
-     Props};
-handle(_) ->
-    not_interested.
+fail({Props, target_is_dead, _Message}) ->
+    log(debug, [<<"Stopping because target is dead\n">>]),
+    {stop, Props};
+fail({Props, _, _}) ->
+    Props.
 
 log(Level, IoData) ->
     erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).

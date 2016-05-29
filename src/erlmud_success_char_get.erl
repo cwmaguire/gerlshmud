@@ -11,26 +11,16 @@
 %% WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 %% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
--module(erlmud_handler_room_inject_self).
--behaviour(erlmud_handler).
+-module(erlmud_success_char_get).
+-behaviour(erlmud_success).
 
--export([handle/1]).
+-export([succeed/1]).
 
-handle({_Owner, Props, {move, Self, Direction}}) ->
-    case proplists:get_value(owner, Props) of
-        undefined ->
-            {{fail, <<"Character doesn't have room">>}, false, Props};
-        Room ->
-            {{resend, Self, {move, Self, Room, Direction}}, false, Props}
-    end;
-handle({_Owner, Props, {drop, Self, Pid}}) when Self == self(), is_pid(Pid) ->
-    case erlmud_object:has_pid(Props, Pid) of
-        true ->
-            {owner, Room} = lists:keyfind(owner, 1, Props),
-            {{resend, Self, {drop, Self, Pid, Room}}, true, Props};
-        _ ->
-            {succeed, _Interested = false, Props}
-    end;
-handle(_) ->
-    not_interested.
+succeed({Props, {get, Self, Source, Item}}) when Self == self() ->
+    log(debug, [<<"getting ">>, Item, <<" from ">>, Source, <<"\n\tProps: ">>, Props, <<"\n">>]),
+    Props;
+succeed(_) ->
+    undefined.
 
+log(Level, IoData) ->
+    erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).
