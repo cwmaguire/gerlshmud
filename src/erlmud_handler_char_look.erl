@@ -15,15 +15,16 @@
 -behaviour(erlmud_handler).
 
 -export([attempt/1]).
--export([succeed/1]).
--export([fail/1]).
 
 attempt({_Owner, Props, {look, Source, TargetName}}) when Source =/= self(),
                                                   is_binary(TargetName) ->
+    log(debug, [<<"Checking if name ">>, TargetName, <<" matches">>]),
     SelfName = proplists:get_value(name, Props, <<>>),
-    case self_has_name(SelfName, TargetName) of
+    case re:run(SelfName, TargetName, [{capture, none}, caseless]) of
         match ->
-            inject_self(Source, Props, SelfName);
+            Context = <<SelfName/binary, " -> ">>,
+            NewMessage = {describe, Source, self(), deep, Context},
+            {{resend, Source, NewMessage}, _ShouldSubscribe = true, Props};
         _ ->
             ct:pal("Name ~p did not match this character's name ~p~n", [TargetName, SelfName]),
             log(debug,
@@ -46,7 +47,7 @@ attempt(_) ->
     not_interested.
 
 succeed({Props, {describe, Source, Self, Context}}) when Self == self() ->
-    _ = describe(Source, Props, deep, Context),
+    describe(Source, Props, deep, Context),
     Props;
 succeed({Props, {describe, Source, Target, Context}}) ->
     _ = case is_owner(Target, Props) of
@@ -61,15 +62,6 @@ succeed(_) ->
 
 fail({Props, _, _}) ->
     Props.
-
-self_has_name(SelfName, TargetName) ->
-    log(debug, [<<"Checking if name ">>, TargetName, <<" matches">>]),
-    re:run(SelfName, TargetName, [{capture, none}, caseless]).
-
-inject_self(Source, Props, SelfName) ->
-    Context = <<SelfName/binary, " -> ">>,
-    NewMessage = {describe, Source, self(), deep, Context},
-    {{resend, Source, NewMessage}, _ShouldSubscribe = true, Props}.
 
 describe(Source, Props, Depth, Context) ->
     Name = proplists:get_value(name, Props),
