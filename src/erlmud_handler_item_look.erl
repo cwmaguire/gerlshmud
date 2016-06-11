@@ -77,5 +77,5 @@ prop_description(undefined) ->
 prop_description(Value) when not is_pid(Value) ->
     Value.
 
-is_name(Props, Name) ->
-    match == re:run(proplists:get_value(name, Props, ""), Name, [{capture, none}]).
+log(Terms) ->
+    erlmud_event_log:log(debug, [list_to_binary(atom_to_list(?MODULE)) | Terms]).
