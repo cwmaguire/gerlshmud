@@ -1,18 +1,43 @@
--define(WORLD_1, [{erlmud_room, room_nw, [{exit, exit_ns}, {exit, exit_ew}, {character, player}]},
-                  {erlmud_room, room_s, [{exit, exit_ns}]},
-                  {erlmud_room, room_e, [{exit, exit_ew}]},
+-define(ROOM_HANDLERS, {handlers, [erlmud_handler_room_inject_self,
+                                   erlmud_handler_room_inv,
+                                   erlmud_handler_room_look,
+                                   erlmud_handler_room_move]}).
+-define(CHARACTER_HANDLERS, {handlers, [erlmud_handler_char_attack,
+                                        erlmud_handler_char_look,
+                                        erlmud_handler_char_inv,
+                                        erlmud_handler_char_move]}).
+-define(BODY_PART_HANDLERS, {handlers, [erlmud_handler_body_part_look,
+                                        erlmud_handler_body_part_inv]}).
+-define(ATTRIBUTE_HANDLERS, {handlers, [erlmud_handler_attribute_look]}).
+-define(CONN_HANDLERS, {handlers, [erlmud_handler_conn_enter_world,
+                                   erlmud_handler_conn_move,
+                                   erlmud_handler_conn_send]}).
+-define(EXIT_HANDLERS, {handlers, [erlmud_handler_exit_move]}).
+-define(HITPOINTS_HANDLERS, {handlers, [erlmud_handler_hitpoints_attack]}).
+-define(ITEM_HANDLERS, {handlers, [erlmud_handler_item_attack,
+                                   erlmud_handler_item_look,
+                                   erlmud_handler_item_inv,
+                                   erlmud_handler_item_inject_self]}).
+-define(LIFE_HANDLERS, {handlers, [erlmud_handler_life_attack]}).
+-define(STAT_HANDLERS, {handlers, [erlmud_handler_stat_look]}).
+-define(TEST_CONN_HANDLERS, {handlers, [erlmud_handler_test_connection_attack]}).
+
+-define(WORLD_1, [{erlmud_room, room_nw, [{exit, exit_ns}, {exit, exit_ew}, {character, player}, ?ROOM_HANDLERS]},
+                  {erlmud_room, room_s, [{exit, exit_ns}, ?ROOM_HANDLERS]},
+                  {erlmud_room, room_e, [{exit, exit_ew}, ?ROOM_HANDLERS]},
                   {erlmud_character, player, [{owner, room_nw}]},
                   {erlmud_exit, exit_ns, [{{room, n}, room_nw}, {{room, s}, room_s}]},
                   {erlmud_exit, exit_ew, [{{room, w}, room_nw}, {{room, e}, room_e}, {is_locked, true}]}]).
 
--define(WORLD_2, [{erlmud_room, room, [{player, player}, {item, sword}, {item, apple}]},
+-define(WORLD_2, [{erlmud_room, room, [{player, player}, {item, sword}, {item, apple}, ?ROOM_HANDLERS]},
                   {erlmud_character, player, [{owner, room}, {item, helmet}]},
                   {erlmud_item, sword, [{owner, room}, {name, <<"sword">>}]},
                   {erlmud_item, helmet, [{owner, player}, {name, <<"helmet">>}]},
                   {erlmud_item, apple, [{owner, room}, {name, <<"apple">>}]}]).
 
 -define(WORLD_3, [{erlmud_room, room, [{character, player},
-                                       {character, zombie}]},
+                                       {character, zombie},
+                                       ?ROOM_HANLDERS]},
 
                   {erlmud_character, player, [{owner, room},
                                               {attack_wait, 10},
@@ -39,7 +64,7 @@
                   {erlmud_item, sword, [{dmg, 5},
                                         {owner, zombie}]}]).
 
--define(WORLD_4, [{erlmud_room, room, [{player, player}]},
+-define(WORLD_4, [{erlmud_room, room, [{player, player}, ?ROOM_HANDLERS]},
                   {erlmud_character, player, [{owner, room},
                                               {item, helmet},
                                               {body_part, head}]},
@@ -81,7 +106,8 @@
 -define(WORLD_7, [{erlmud_room, room, [{character, giant},
                                        {name, <<"room">>},
                                        {desc, <<"an empty space">>},
-                                       {item, bread}]},
+                                       {item, bread},
+                                       ?ROOM_HANDLERS]},
 
                   {erlmud_character, player, [{name, <<"Bob">>},
                                               {attribute, height0},
