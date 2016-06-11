@@ -10,56 +10,34 @@
 %% WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 %% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
--module(erlmud_conn_obj).
--behaviour(erlmud_object).
+-module(erlmud_handler_conn_move).
+-behaviour(erlmud_handler).
 
--export([id/3]).
--export([added/2]).
--export([removed/2]).
--export([attempt/3]).
--export([succeed/2]).
--export([fail/3]).
+-export([attempt/1]).
+-export([succeed/1]).
+-export([fail/1]).
 
-
-% erlmud_object behaviours
-
-added(_, _) -> ok.
-removed(_, _) -> ok.
-
-id(_Props, _Owner, Pid) ->
-    "connection_" ++ "_" ++ Pid.
-
-attempt(Player, Props, {send, Player, _Message}) ->
+attempt({Player, Props, {move, Player, _TheVoid = undefined, _To, _NoExit = undefined}}) ->
     {succeed, true, Props};
-attempt(Player, Props, {move, Player, _TheVoid = undefined, _To, _NoExit = undefined}) ->
-    {succeed, true, Props};
-attempt(_OtherPlayer, Props, _Msg) ->
+attempt({_OtherPlayer, Props, _Msg}) ->
     {succeed, false, Props}.
 
 
-succeed(Props, {send, Player, Message}) ->
-    log(debug, [<<"saw send ">>, Player, <<" message: ">>, Message, <<" succeed\n">>]),
-    {Conn} = proplists:get_value(conn, Props),
-    erlmud_conn:handle(Conn, {send, Message}),
-    Props;
-succeed(Props, {move, Player, _TheVoid = undefined, _From, _NoExit = undefined}) ->
+succeed({Props, {move, Player, _TheVoid = undefined, _From, _NoExit = undefined}}) ->
     erlmud_object:add(Player, conn_object, self()),
     log(debug, [<<"Player ">>, Player, <<" successfully entered the world\n">>]),
     Props;
-succeed(Props, _Other) ->
+succeed({Props, _Other}) ->
     Props.
 
-fail(Props, Reason, {enter_world, _Player}) ->
-    Conn = proplists:get_value(conn, Props),
-    Conn ! {disconnect, Reason},
-    Props;
-fail(Props, Reason, {move, _Player, _From, _To, _Exit}) ->
+fail({Props, Reason, {move, _Player, _From, _To, _Exit}}) ->
     {Conn} = proplists:get_value(conn, Props),
     log(debug, [<<"failed to join starting room.">>]),
     Conn ! {disconnect, Reason},
     Props;
-fail(Props, _Reason, _Message) ->
+fail({Props, _Reason, _Message}) ->
     Props.
 
 log(Level, IoData) ->
     erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).
+
