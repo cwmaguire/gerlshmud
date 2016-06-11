@@ -12,9 +12,11 @@
 %% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 -module(erlmud_attempt_room_inject_self).
--behaviour(erlmud_attempt).
+-behaviour(erlmud_handler).
 
 -export([attempt/1]).
+-export([succeed/1]).
+-export([fail/1]).
 
 attempt({_Owner, Props, {move, Self, Direction}}) ->
     case proplists:get_value(owner, Props) of
@@ -31,6 +33,22 @@ attempt({_Owner, Props, {drop, Self, Pid}}) when Self == self(), is_pid(Pid) ->
         _ ->
             {succeed, _Interested = false, Props}
     end;
+attempt({Props, {get, Obj, Pid}}) when is_pid(Pid) ->
+    case erlmud_object:has_pid(Props, Pid) of
+        true ->
+            log([Obj, <<" resending {get, ">>, Obj, <<", ">>, Pid, <<"} as {get, ">>, Obj, <<", ">>, Pid, <<", ">>, self(), <<"}">>]),
+            {{resend, Obj, {get, Obj, Pid, self()}}, true, Props};
+        _ ->
+            {succeed, _Interested = false, Props}
+    end;
 attempt(_) ->
     undefined.
 
+succeed({Props, _}) ->
+    Props.
+
+fail({Props, _, _}) ->
+    Props.
+
+log(Terms) ->
+    erlmud_event_log:log(debug, [list_to_binary(atom_to_list(?MODULE)) | Terms]).

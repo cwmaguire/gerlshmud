@@ -49,11 +49,6 @@
 -type proplist() :: [{atom(), any()}].
 -type attempt() :: {atom(), Pid, Pid, Pid}.
 
--callback id(proplist(), list(), list()) -> list().
--callback attempt(pid(), proplist(), tuple()) ->
-    {succeed | {fail, atom()} | {resend, attempt()}, boolean(), proplist()}.
--callback succeed(proplist(), tuple()) -> proplist().
--callback fail(proplist(), string(), tuple()) -> proplist().
 -callback added(atom(), pid()) -> ok.
 -callback removed(atom(), pid()) -> ok.
 
