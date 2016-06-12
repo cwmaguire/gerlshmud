@@ -47,7 +47,7 @@
                 subs = [] :: ordsets:ordset(pid())}).
 
 -type proplist() :: [{atom(), any()}].
--type attempt() :: {atom(), Pid, Pid, Pid}.
+%-type attempt() :: {atom(), Pid, Pid, Pid}.
 
 -callback added(atom(), pid()) -> ok.
 -callback removed(atom(), pid()) -> ok.
@@ -99,19 +99,19 @@ attempt_after(Millis, Pid, Msg) ->
     log([<<"attempt after ">>, Millis, <<", Pid = ">>, Pid, <<": Msg = ">>, Msg]),
     erlang:send_after(Millis, Pid, {Pid, Msg}).
 
-add(Pid, Type, AddPid) ->
-    send(Pid, {add, Type, AddPid}).
+%add(Pid, Type, AddPid) ->
+    %send(Pid, {add, Type, AddPid}).
 
-remove(_TheVoid = undefined, _CharacterLogginIn, _EntryRoom) ->
-    ok;
-remove(Pid, Type, RemovePid) ->
-    send(Pid, {remove, Type, RemovePid}).
+%remove(_TheVoid = undefined, _CharacterLogginIn, _EntryRoom) ->
+    %ok;
+%remove(Pid, Type, RemovePid) ->
+    %send(Pid, {remove, Type, RemovePid}).
 
-get(Pid, Key) ->
-    gen_server:call(Pid, {get, Key}).
+%get(Pid, Key) ->
+    %gen_server:call(Pid, {get, Key}).
 
-set(Pid, Prop) ->
-    send(Pid, {set, Prop}).
+%set(Pid, Prop) ->
+    %send(Pid, {set, Prop}).
 
 props(Pid) ->
     case is_process_alive(Pid) of
@@ -145,10 +145,11 @@ handle_cast(Msg, State) ->
 handle_cast_({populate, ProcIds}, State = #state{props = Props}) ->
     log([<<"populate on ">>, self()]),
     {noreply, State#state{props = populate_(Props, ProcIds)}};
-handle_cast_({add, AddType, Pid}, State) ->
-    Props2 = add_(AddType, State#state.props, Pid),
-    (State#state.type):added(AddType, Pid),
-    {noreply, State#state{props = Props2}};
+%% Going to have to find a different way to add things
+%handle_cast_({add, AddType, Pid}, State) ->
+    %Props2 = add_(AddType, State#state.props, Pid),
+    %(State#state.type):added(AddType, Pid),
+    %{noreply, State#state{props = Props2}};
 handle_cast_({remove, RemType, Pid}, State) ->
     Props2 = remove_(RemType, Pid, State#state.props),
     (State#state.type):removed(RemType, Pid),

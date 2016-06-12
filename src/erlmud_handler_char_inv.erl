@@ -18,22 +18,28 @@
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({_Owner, Props, {drop, Self, Pid}}) when Self == self(), is_pid(Pid) ->
+attempt({_Owner, Props, {Self, drop, Pid}}) when Self == self(), is_pid(Pid) ->
     case object_object:has_pid(Props, Pid) of
         true ->
             Room = proplists:get_value(owner, Props),
-            {{resend, Self, {drop, Self, Pid, Room}}, true, Props};
+            {{resend, Self, {Self, drop, Pid, to, Room}}, true, Props};
         _ ->
             {succeed, _Interested = false, Props}
     end;
 attempt(_) ->
     undefined.
 
-succeed({Props, {get, Self, Source, Item}}) when Self == self() ->
-    log(debug, [<<"getting ">>, Item, <<" from ">>, Source, <<"\n\tProps: ">>, Props, <<"\n">>]),
-    Props;
+succeed({Props, {Self, remove, Item, from, BodyPart}}) when Self == self() ->
+    log(debug, [<<"Removing ">>, Item, <<" from body part ">>, BodyPart, <<" into general inventory.\n\tProps: ">>, Props, <<"\n">>]),
+    [{item, Item} | Props];
+succeed({Props, {Self, get, Item, from, Source}}) when Self == self() ->
+    log(debug, [<<"Getting ">>, Item, <<" from ">>, Source, <<"\n\tProps: ">>, Props, <<"\n">>]),
+    [{item, Item} | Props];
 succeed({Props, _}) ->
     Props.
 
 fail({Props, _, _}) ->
     Props.
+
+log(Level, IoData) ->
+    erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).

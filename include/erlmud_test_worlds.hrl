@@ -6,18 +6,18 @@
                                         erlmud_handler_char_look,
                                         erlmud_handler_char_inv,
                                         erlmud_handler_char_move]}).
--define(BODY_PART_HANDLERS, {handlers, [erlmud_handler_body_part_look,
-                                        erlmud_handler_body_part_inv]}).
--define(ATTRIBUTE_HANDLERS, {handlers, [erlmud_handler_attribute_look]}).
--define(CONN_HANDLERS, {handlers, [erlmud_handler_conn_enter_world,
-                                   erlmud_handler_conn_move,
-                                   erlmud_handler_conn_send]}).
--define(EXIT_HANDLERS, {handlers, [erlmud_handler_exit_move]}).
--define(HITPOINTS_HANDLERS, {handlers, [erlmud_handler_hitpoints_attack]}).
 -define(ITEM_HANDLERS, {handlers, [erlmud_handler_item_attack,
                                    erlmud_handler_item_look,
                                    erlmud_handler_item_inv,
                                    erlmud_handler_item_inject_self]}).
+-define(CONN_HANDLERS, {handlers, [erlmud_handler_conn_enter_world,
+                                   erlmud_handler_conn_move,
+                                   erlmud_handler_conn_send]}).
+-define(BODY_PART_HANDLERS, {handlers, [erlmud_handler_body_part_look,
+                                        erlmud_handler_body_part_inv]}).
+-define(ATTRIBUTE_HANDLERS, {handlers, [erlmud_handler_attribute_look]}).
+-define(EXIT_HANDLERS, {handlers, [erlmud_handler_exit_move]}).
+-define(HITPOINTS_HANDLERS, {handlers, [erlmud_handler_hitpoints_attack]}).
 -define(LIFE_HANDLERS, {handlers, [erlmud_handler_life_attack]}).
 -define(STAT_HANDLERS, {handlers, [erlmud_handler_stat_look]}).
 -define(TEST_CONN_HANDLERS, {handlers, [erlmud_handler_test_connection_attack]}).
@@ -30,10 +30,10 @@
                   {erlmud_exit, exit_ew, [{{room, w}, room_nw}, {{room, e}, room_e}, {is_locked, true}]}]).
 
 -define(WORLD_2, [{erlmud_room, room, [{player, player}, {item, sword}, {item, apple}, ?ROOM_HANDLERS]},
-                  {erlmud_character, player, [{owner, room}, {item, helmet}]},
-                  {erlmud_item, sword, [{owner, room}, {name, <<"sword">>}]},
-                  {erlmud_item, helmet, [{owner, player}, {name, <<"helmet">>}]},
-                  {erlmud_item, apple, [{owner, room}, {name, <<"apple">>}]}]).
+                  {erlmud_character, player, [{owner, room}, {item, helmet}, ?CHARACTER_HANLDERS]},
+                  {erlmud_item, sword, [{owner, room}, {name, <<"sword">>}, ?ITEM_HANDLERS]},
+                  {erlmud_item, helmet, [{owner, player}, {name, <<"helmet">>}, ?ITEM_HANDLERS]},
+                  {erlmud_item, apple, [{owner, room}, {name, <<"apple">>}, ?ITEM_HANDLERS]}]).
 
 -define(WORLD_3, [{erlmud_room, room, [{character, player},
                                        {character, zombie},
@@ -43,59 +43,74 @@
                                               {attack_wait, 10},
                                               {item, fist},
                                               {hitpoints, p_hp},
-                                              {life, p_life}]},
+                                              {life, p_life},
+                                              ?CHARACTER_HANDLERS]},
                   {erlmud_hitpoints, p_hp, [{hitpoints, 1000},
-                                            {owner, player}]},
+                                            {owner, player},
+                                            ?HITPOINTS_HANDLERS]},
                   {erlmud_life, p_life, [{is_alive, true},
-                                         {owner, player}]},
+                                         {owner, player},
+                                         ?LIFE_HANDLERS]},
                   {erlmud_item, fist, [{dmg, 5},
-                                       {owner, player}]},
+                                       {owner, player},
+                                       ?LIFE_HANDLERS]},
 
                   {erlmud_character, zombie, [{owner, room},
                                               {attack_wait, 10},
                                               {item, sword},
                                               {name, <<"zombie">>},
                                               {hitpoints, z_hp},
-                                              {life, z_life}]},
+                                              {life, z_life},
+                                              ?CHARACTER_HANDLERS]},
                   {erlmud_hitpoints, z_hp, [{hitpoints, 10},
-                                            {owner, zombie}]},
+                                            {owner, zombie},
+                                            ?HITPOINTS_HANDLERS]},
                   {erlmud_life, z_life, [{is_alive, true},
                                          {owner, zombie}]},
                   {erlmud_item, sword, [{dmg, 5},
-                                        {owner, zombie}]}]).
+                                        {owner, zombie},
+                                        ?ITEM_HANDLERS]}]).
 
 -define(WORLD_4, [{erlmud_room, room, [{player, player}, ?ROOM_HANDLERS]},
                   {erlmud_character, player, [{owner, room},
                                               {item, helmet},
-                                              {body_part, head}]},
-                  {erlmud_body_part, head, [{name, <<"head">>}, {owner, player}]},
-                  {erlmud_item, helmet, [{name, <<"helmet">>}, {owner, player}]}]).
+                                              {body_part, head},
+                                              ?CHARACTER_HANDLERS]},
+                  {erlmud_body_part, head, [{name, <<"head">>}, {owner, player}, ?BODY_PART_HANDLERS]},
+                  {erlmud_item, helmet, [{name, <<"helmet">>}, {owner, player}, ?ITEM_HANDERS]}]).
 
 -define(WORLD_5, [{erlmud_character, player, [{item, helmet},
                                               {body_part, head1},
-                                              {body_part, finger1}]},
+                                              {body_part, finger1},
+                                              ?ITEM_HANDERS]},
                   {erlmud_body_part, head1, [{name, <<"head">>},
                                              {owner, player},
-                                             {body_part, head}]},
+                                             {body_part, head},
+                                             ?BODY_PART_HANDLERS]},
                   {erlmud_body_part, finger1, [{name, <<"finger">>},
                                                {owner, player},
-                                               {body_part, finger}]},
+                                               {body_part, finger},
+                                               ?BODY_PART_HANDLERS]},
                   {erlmud_item, helmet, [{owner, player},
                                          {name, <<"helmet">>},
-                                         {body_parts, [head, hand]}]}]).
+                                         {body_parts, [head, hand]},
+                                         ?ITEM_HANDLERS]}]).
 
 -define(WORLD_6, [{erlmud_character, player, [{body_part, finger1},
                                               {body_part, finger2},
                                               {item, ring1},
-                                              {item, ring2}]},
+                                              {item, ring2},
+                                              ?ITEM_HANDERS]},
                   {erlmud_body_part, finger1, [{name, <<"finger1">>},
                                                {owner, player},
                                                {max_items, 1},
-                                               {body_part, finger}]},
+                                               {body_part, finger},
+                                               ?BODY_PART_HANDLERS]},
                   {erlmud_body_part, finger2, [{name, <<"finger2">>},
                                                {owner, player},
                                                {max_items, 1},
-                                               {body_part, finger}]},
+                                               {body_part, finger}
+                                               ?BODY_PART_HANDLERS]},
                   {erlmud_item, ring1, [{owner, player},
                                         {name, <<"ring1">>},
                                         {body_parts, [finger]}]},
@@ -113,27 +128,32 @@
                                               {attribute, height0},
                                               {attribute, weight0},
                                               {attribute, gender0},
-                                              {attribute, race0}]},
+                                              {attribute, race0},
+                                              ?CHARACTER_HANDLERS]},
 
                   {erlmud_attribute, height0, [{owner, player},
                                                {type, height},
                                                {value, <<"2.2">>},
-                                               {desc, [value, <<"m tall">>]}]},
+                                               {desc, [value, <<"m tall">>]},
+                                               ?ATTRIBUTE_HANDLERS]},
 
                   {erlmud_attribute, weight0, [{owner, player},
                                                {type, weight},
                                                {value, <<"128">>},
-                                               {desc, <<"weighs ">>, value, <<"kg">>}]},
+                                               {desc, <<"weighs ">>, value, <<"kg">>},
+                                               ?ATTRIBUTE_HANDLERS]},
 
                   {erlmud_attribute, gender0, [{owner, player},
                                                {type, gender},
                                                {value, <<"female">>},
-                                               {desc, [value]}]},
+                                               {desc, [value]},
+                                               ?ATTRIBUTE_HANDLERS]},
 
                   {erlmud_attribute, race0, [{owner, player},
                                              {type, race},
                                              {value, <<"human">>},
-                                             {desc, [value]}]},
+                                             {desc, [value]},
+                                             ?ATTRIBUTE_HANDLERS]},
 
                   {erlmud_character, giant, [{owner, room},
                                              {name, <<"Pete">>},
@@ -145,27 +165,32 @@
                                              {attribute, height1},
                                              {attribute, weight1},
                                              {attribute, gender1},
-                                             {attribute, race1}]},
+                                             {attribute, race1},
+                                             ?CHARACTER_HANDLERS]},
 
                   {erlmud_attribute, height1, [{owner, giant},
                                                {type, height},
                                                {value, <<"4.0">>},
-                                               {desc, [value, <<"m tall">>]}]},
+                                               {desc, [value, <<"m tall">>]},
+                                               ?ATTRIBUTE_HANDLERS]},
 
                   {erlmud_attribute, weight1, [{owner, giant},
                                                {type, weight},
                                                {value, <<"400.0">>},
-                                               {desc, [<<"weighs ">>, value, <<"kg">>]}]},
+                                               {desc, [<<"weighs ">>, value, <<"kg">>]},
+                                               ?ATTRIBUTE_HANDLERS]},
 
                   {erlmud_attribute, gender1, [{owner, giant},
                                                {type, gender},
                                                {value, <<"male">>},
-                                               {desc, [value]}]},
+                                               {desc, [value]},
+                                               ?ATTRIBUTE_HANDLERS]},
 
                   {erlmud_attribute, race1, [{owner, giant},
                                              {type, race},
                                              {value, <<"giant">>},
-                                             {desc, [value]}]},
+                                             {desc, [value]},
+                                             ?ATTRIBUTE_HANDLERS]},
 
                   {erlmud_body_part, legs0, %% if we name this 'legs' then 'legs' will be known as
                                             %% as an object ID. If 'legs' is an object identifier
@@ -175,29 +200,36 @@
                                               [{name, <<"legs">>},
                                                {owner, giant},
                                                {max_items, 1},
-                                               {body_part, legs}]},
+                                               {body_part, legs},
+                                               ?BODY_PART_HANDLERS]},
                   {erlmud_body_part, hands0,   [{name, <<"hands">>},
                                                 {owner, giant},
                                                 {max_items, 1},
-                                                {body_part, hands}]},
+                                                {body_part, hands},
+                                                ?BODY_PART_HANDLERS]},
 
                   {erlmud_item, pants, [{owner, giant},
                                         {body_parts, [legs]},
                                         {name, <<"pants_">>},
-                                        {desc, <<"pants">>}]},
+                                        {desc, <<"pants">>},
+                                        ?ITEM_HANDERS]},
                   {erlmud_item, sword, [{owner, giant},
                                         {body_parts, [hands]},
                                         {name, <<"sword_">>},
-                                        {desc, <<"sword">>}]},
+                                        {desc, <<"sword">>},
+                                        ?ITEM_HANDERS]},
                   {erlmud_item, scroll, [{owner, giant},
                                          {body_parts, []},
                                          {name, <<"scroll_">>},
-                                         {desc, <<"scroll">>}]},
+                                         {desc, <<"scroll">>},
+                                         ?ITEM_HANDERS]},
                   {erlmud_item, shoes, [{owner, giant},
                                         {body_parts, [feet]},
                                         {name, <<"shoes_">>},
-                                        {desc, <<"shoes">>}]},
+                                        {desc, <<"shoes">>},
+                                        ?ITEM_HANDERS]},
                   {erlmud_item, bread, [{owner, room},
                                         {name, <<"bread_">>},
-                                        {desc, <<"a loaf of bread">>}]}
+                                        {desc, <<"a loaf of bread">>},
+                                        ?ITEM_HANDERS]}
                  ]).

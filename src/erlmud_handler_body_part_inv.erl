@@ -18,45 +18,61 @@
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({Owner, Props, {Action, Owner, Item, BodyPartName}})
+attempt({Owner, Props, {add, Item, to, BodyPartName, from, Owner}})
   when is_pid(Item) andalso
-       is_binary(BodyPartName) andalso
-       (Action == add orelse
-        Action == remove) ->
+       is_binary(BodyPartName) ->
     case is_match(Props, BodyPartName) of
         true ->
-            NewMessage = {Action, Item, self()},
+            NewMessage = {add, Item, to, self(), from, Owner},
             Result = {resend, Owner, NewMessage},
             {Result, _Subscribe = true, Props};
         _ ->
             {succeed, _Subscribe = false, Props}
     end;
-attempt({_Owner, Props, {Action, Item, Self}})
-  when Self == self() andalso
-       is_pid(Item) andalso
-       (Action == add orelse
-        Action == remove) ->
-    case can(Action, Props, Item) of
+attempt({Owner, Props, {Owner, remove, Item, from, BodyPartName}})
+  when is_pid(Item) andalso
+       is_binary(BodyPartName) ->
+    case is_match(Props, BodyPartName) of
+        true ->
+            NewMessage = {Owner, remove, Item, from, self()},
+            Result = {resend, Owner, NewMessage},
+            {Result, _Subscribe = true, Props};
+        _ ->
+            {succeed, _Subscribe = false, Props}
+    end;
+attempt({_Owner, Props, {add, Item, to, Self}})
+  when Self == self() andalso is_pid(Item) ->
+    case can(add, Props, Item) of
         {false, Reason} ->
             {{fail, Reason}, _Subscribe = false, Props};
         _ ->
             {succeed, _Subscribe = true, Props}
     end;
-attempt({Owner, Props, {add, Owner, Item}}) ->
+attempt({Owner, Props, {remove, Item, from, Self}})
+  when Self == self() andalso is_pid(Item) ->
+    case can(remove, Props, Item) of
+        {false, Reason} ->
+            {{fail, Reason}, _Subscribe = false, Props};
+        _ ->
+            %% Remove the item and add it to the owner
+            NewMessage = {Owner, remove, Item, from, self()},
+            Result = {resend, Owner, NewMessage},
+            {Result, _Subscribe = true, Props}
+    end;
+attempt({Owner, Props, {add, Item, from, Owner}}) ->
     case is_pid(Item) andalso
-         has_owner(Item, Owner) andalso
          can_add(Props, Item) of
         true ->
-            NewMessage = {add, Item, self()},
+            NewMessage = {add, Item, to, self(), from, Owner},
             Result = {resend, Owner, NewMessage},
             {Result, _Subscribe = true, Props};
         _ ->
             {succeed, _Subscribe = false, Props}
     end;
-attempt({Owner, Props, {remove, Owner, Item}}) ->
+attempt({Owner, Props, {Owner, remove, Item}}) ->
     case {item, Item} == lists:keyfind(Item, 2, Props) of
         true ->
-            NewMessage = {remove, Item, self()},
+            NewMessage = {Owner, remove, Item, from, self()},
             Result = {resend, Owner, NewMessage},
             {Result, _Subscribe = true, Props};
         _ ->
@@ -65,24 +81,15 @@ attempt({Owner, Props, {remove, Owner, Item}}) ->
 attempt(_) ->
     undefined.
 
-succeed({Props, {add, Item, Self}}) when Self == self(), is_pid(Item) ->
-    Owner = proplists:get_value(owner, Props),
-    erlmud_object:remove(Owner, item, Item),
-    erlmud_object:set(Item, {owner, self()}),
+succeed({Props, {add, Item, to, Self, from, _Owner}}) when Self == self(), is_pid(Item) ->
     [{item, Item} | Props];
-succeed({Props, {remove, Item, Self}}) when Self == self(), is_pid(Item) ->
-    Owner = proplists:get_value(owner, Props),
-    erlmud_object:add(Owner, item, Item),
-    erlmud_object:set(Item, {owner, Owner}),
+succeed({Props, {_Owner, remove, Item, from, Self}}) when Self == self(), is_pid(Item) ->
     lists:keydelete(Item, 2, Props);
 succeed({Props, _}) ->
     Props.
 
 fail({Props, _, _}) ->
     Props.
-
-has_owner(Item, Owner) when is_pid(Item) ->
-    [Owner] == erlmud_object:get(Item, owner).
 
 is_match(Props, Name) ->
     match == re:run(proplists:get_value(name, Props, <<>>), Name, [{capture, none}]).

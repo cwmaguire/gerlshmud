@@ -18,20 +18,23 @@
 -export([succeed/1]).
 -export([fail/1]).
 
+%% Track the current owner. When the 'add' succeeds the current owner can remove
+%% it from its properties.
+attempt({Owner, Props, {add, Self, to, Target}}) when Self == self(), Owner /= Target ->
+    NewMessage = {add, Self, to, Target, from, Owner},
+    Result = {resend, Owner, NewMessage},
+    {Result, _Subscribe = true, Props};
 attempt(_) ->
     undefined.
 
-succeed({Props, {get, Receiver, Self, Owner}}) when Self == self() ->
-    move(Props, Owner, Receiver);
-succeed({Props, {drop, Owner, Self, Receiver}}) when Self == self() ->
-    move(Props, Owner, Receiver);
+succeed({Props, {Receiver, get, Self, from, _Owner}}) when Self == self() ->
+    lists:keystore(owner, 1, Props, {owner, Receiver});
+
+succeed({Props, {_Owner, drop, Self, to, Receiver}}) when Self == self() ->
+    lists:keystore(owner, 1, Props, {owner, Receiver});
+
 succeed({Props, _}) ->
     Props.
 
 fail({Props, _, _}) ->
     Props.
-
-move(Props, Owner, Receiver) ->
-    gen_server:cast(Owner, {remove, item, self()}),
-    gen_server:cast(Receiver, {add, item, self()}),
-    lists:keystore(owner, 1, Props, {owner, Receiver}).
