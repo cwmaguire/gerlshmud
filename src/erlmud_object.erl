@@ -20,10 +20,10 @@
 -export([attempt/2]).
 -export([attempt/3]).
 -export([attempt_after/3]).
--export([add/3]).
--export([remove/3]).
--export([get/2]).
--export([set/2]).
+%-export([add/3]).
+%-export([remove/3]).
+%-export([get/2]).
+%-export([set/2]).
 -export([props/1]).
 
 %% Util
@@ -150,10 +150,10 @@ handle_cast_({populate, ProcIds}, State = #state{props = Props}) ->
     %Props2 = add_(AddType, State#state.props, Pid),
     %(State#state.type):added(AddType, Pid),
     %{noreply, State#state{props = Props2}};
-handle_cast_({remove, RemType, Pid}, State) ->
-    Props2 = remove_(RemType, Pid, State#state.props),
-    (State#state.type):removed(RemType, Pid),
-    {noreply, State#state{props = Props2}};
+%handle_cast_({remove, RemType, Pid}, State) ->
+    %Props2 = remove_(RemType, Pid, State#state.props),
+    %(State#state.type):removed(RemType, Pid),
+    %{noreply, State#state{props = Props2}};
 handle_cast_({set, Prop = {K, _}}, State = #state{props = Props}) ->
     {noreply, State#state{props = lists:keystore(K, 1, Props, Prop)}};
 handle_cast_({attempt, Msg, Procs}, State) ->
@@ -358,19 +358,19 @@ handle_fail(HandlerModule, Failure = {_, Reason, Message}) ->
     Props = HandlerModule:fail(Failure),
     {Props, Reason, Message}.
 
-add_(Type, Props, Obj) ->
-    case lists:member({Type, Obj}, Props) of
-        false ->
-            [{Type, Obj} | Props];
-        true ->
-            Props
-    end.
+%add_(Type, Props, Obj) ->
+    %case lists:member({Type, Obj}, Props) of
+        %false ->
+            %[{Type, Obj} | Props];
+        %true ->
+            %Props
+    %end.
 
-remove_(RemType, Obj, Props) ->
-    log([<<"Props before removing ">>, RemType, <<" ">>, Obj, <<": ">>, Props]),
-    NewProps = [Prop || Prop <- Props, Prop /= {RemType, Obj}],
-    log([<<"Props after removing ">>, RemType, <<" ">>, Obj, <<": ">>, NewProps]),
-    NewProps.
+%remove_(RemType, Obj, Props) ->
+    %log([<<"Props before removing ">>, RemType, <<" ">>, Obj, <<": ">>, Props]),
+    %NewProps = [Prop || Prop <- Props, Prop /= {RemType, Obj}],
+    %log([<<"Props after removing ">>, RemType, <<" ">>, Obj, <<": ">>, NewProps]),
+    %NewProps.
 
 log(To, Stage, Msg, Procs) when is_tuple(Msg) ->
     erlmud_event_log:log(To,

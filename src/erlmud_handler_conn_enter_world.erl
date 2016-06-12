@@ -10,34 +10,22 @@
 %% WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 %% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
--module(erlmud_handler_conn_move).
+-module(erlmud_handler_conn_enter_world).
 -behaviour(erlmud_handler).
 
 -export([attempt/1]).
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({Player, Props, {move, Player, _TheVoid = undefined, _To, _NoExit = undefined}}) ->
-    {succeed, true, Props};
 attempt({_OtherPlayer, Props, _Msg}) ->
     {succeed, false, Props}.
 
-
-succeed({Props, {move, Player, _TheVoid = undefined, _From, _NoExit = undefined}}) ->
-    erlmud_object:add(Player, conn_object, self()),
-    log(debug, [<<"Player ">>, Player, <<" successfully entered the world\n">>]),
-    Props;
 succeed({Props, _Other}) ->
     Props.
 
-fail({Props, Reason, {move, _Player, _From, _To, _Exit}}) ->
-    {Conn} = proplists:get_value(conn, Props),
-    log(debug, [<<"failed to join starting room.">>]),
+fail({Props, Reason, {enter_world, _Player}}) ->
+    Conn = proplists:get_value(conn, Props),
     Conn ! {disconnect, Reason},
     Props;
 fail({Props, _Reason, _Message}) ->
     Props.
-
-log(Level, IoData) ->
-    erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).
-
