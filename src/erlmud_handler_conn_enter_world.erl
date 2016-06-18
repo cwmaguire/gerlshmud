@@ -17,8 +17,8 @@
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({_OtherPlayer, Props, _Msg}) ->
-    {succeed, false, Props}.
+attempt(_) ->
+    undefined.
 
 succeed({Props, _Other}) ->
     Props.

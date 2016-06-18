@@ -25,8 +25,8 @@ attempt({Owner, Props, {describe, _Source, Owner, deep, _Context}}) ->
 attempt({Owner, Props, {describe, _Source, Owner, shallow, _Context}}) ->
     ShouldSubscribe = _AttributeIsRace = race == proplists:get_value(type, Props),
     {succeed, ShouldSubscribe, Props};
-attempt({_Owner, Props, _Msg}) ->
-    {succeed, false, Props}.
+attempt(_) ->
+    undefined.
 
 succeed({Props, {describe, Source, _Owner, _Depth, Context}}) ->
     describe(Source, Props, Context),

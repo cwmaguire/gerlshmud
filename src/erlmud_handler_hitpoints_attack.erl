@@ -24,8 +24,8 @@
 
 attempt({Owner, Props, {damage, _Att, _Src, Owner, _Dmg}}) ->
     {succeed, true, Props};
-attempt({_Owner, Props, _Msg}) ->
-    {succeed, false, Props}.
+attempt(_) ->
+    undefined.
 
 succeed({Props, Msg = {damage, Attack, Source, Owner, Damage}}) ->
     log([<<"saw ">>, Msg, <<"succeed">>]),

@@ -44,8 +44,8 @@ attempt({_Owner, Props, {calc_hit, Self, _, _}}) when Self == self() ->
         _ ->
             {succeed, true, Props}
     end;
-attempt({_Owner, Props, _Msg}) ->
-    {succeed, false, Props}.
+attempt(_) ->
+    undefined.
 
 succeed({Props, {Action, NotSelf, Owner, Target}}) when Action == move orelse
                                              (Action == attack andalso

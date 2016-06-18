@@ -19,8 +19,8 @@
 
 attempt({Player, Props, {move, Player, _TheVoid = undefined, _To, _NoExit = undefined}}) ->
     {succeed, true, Props};
-attempt({_OtherPlayer, Props, _Msg}) ->
-    {succeed, false, Props}.
+attempt(_) ->
+    undefined.
 
 
 succeed({Props, {move, Player, _TheVoid = undefined, _From, _NoExit = undefined}}) ->

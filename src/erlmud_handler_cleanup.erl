@@ -22,7 +22,6 @@
 attempt(_) ->
     undefined.
 
-
 succeed({Props, {cleanup, Self}}) when Self == self() ->
     %% TODO: kill/disconnect all connected processes
     %% TODO: drop all objects

@@ -23,7 +23,7 @@
 %-export([add/3]).
 %-export([remove/3]).
 %-export([get/2]).
-%-export([set/2]).
+-export([set/2]).
 -export([props/1]).
 
 %% Util
@@ -110,8 +110,8 @@ attempt_after(Millis, Pid, Msg) ->
 %get(Pid, Key) ->
     %gen_server:call(Pid, {get, Key}).
 
-%set(Pid, Prop) ->
-    %send(Pid, {set, Prop}).
+set(Pid, Prop) ->
+    send(Pid, {set, Prop}).
 
 props(Pid) ->
     case is_process_alive(Pid) of
@@ -201,7 +201,7 @@ maybe_attempt(Msg,
               Procs = #procs{room = Room},
               State = #state{type = erlmud_exit, props = Props})
         when Room  /= undefined ->
-    _ = case erlmud_exit:is_attached_to_room(Props, Room) of
+    _ = case exit_has_room(Props, Room) of
             true ->
                 attempt_(Msg, Procs, State);
             false ->
@@ -211,12 +211,22 @@ maybe_attempt(Msg,
 maybe_attempt(Msg, Procs, State) ->
     attempt_(Msg, Procs, State).
 
+exit_has_room(Props, Room) ->
+    HasRoom = fun({{room, _}, R}) ->
+                  R == Room;
+                 (_) ->
+                  false
+              end,
+    lists:any(HasRoom, Props).
+
 attempt_(Msg,
          Procs,
          State = #state{type = Type,
                         props = Props}) ->
     Owner = proplists:get_value(owner, Props),
-    Results = {Result, Msg2, ShouldSubscribe, Props2} = ensure_message(Msg, run_attempts({Owner, Props, Msg})),
+    %% So far it looks like nothing actually changes the object properties on attempt
+    %% but I'm leaving it in for now
+    Results = {Result, Msg2, ShouldSubscribe, Props2} = ensure_message(Msg, run_handlers({Owner, Props, Msg})),
     log([Type, <<" ">>, self(), <<" {owner, ">>, Owner, <<"} ">>,
          <<"attempt: ">>, Msg, <<" -> ">>,
          ShouldSubscribe, <<", ">>, Result]),
@@ -224,19 +234,19 @@ attempt_(Msg,
     _ = handle(Result, Msg2, MergedProcs),
     State#state{props = Props2}.
 
-run_attempts(Attempt = {_, Props, _}) ->
+run_handlers(Attempt = {_, Props, _}) ->
     Handlers = proplists:get_value(handlers, Props),
-    case lists:foldl(fun handle_attempt/2, {Attempt, undefined}, Handlers) of
-        {response, Response} ->
-            Response;
-        _ ->
-            {succeed, false, Props}
-    end.
+    handle_attempt(Handlers, Attempt).
 
-handle_attempt(_, Response = {response, _}) ->
-    Response;
-handle_attempt(HandlerModule, Attempt) ->
-    HandlerModule:attempt(Attempt).
+handle_attempt([], {_, Props, _}) ->
+    _DefaultResponse = {succeed, false, Props};
+handle_attempt([Handler | Handlers], Attempt) ->
+    case Handler:attempt(Attempt) of
+        undefined ->
+            handle_attempt(Handlers, Attempt);
+        Result ->
+            Result
+    end.
 
 ensure_message(Msg, {A, B, C}) ->
     {A, Msg, B, C};

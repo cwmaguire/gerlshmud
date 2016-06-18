@@ -18,10 +18,10 @@
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({Props, {look, _Source, Self}}) when Self == self() ->
+attempt({_Owner, Props, {look, _Source, Self}}) when Self == self() ->
     {succeed, true, Props};
-attempt({Props, _}) ->
-    {succeed, false, Props}.
+attempt(_) ->
+    undefined.
 
 succeed({Props, {look, Player, Self}}) when Self == self() ->
     log([<<"Process ">>, Player, <<" looked at me">>]),

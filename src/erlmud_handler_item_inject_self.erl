@@ -18,6 +18,7 @@
 -export([succeed/1]).
 -export([fail/1]).
 
+%attempt({_Owner, Props, {Action, Obj, ItemName, BodyPart}})
 attempt({_Owner, Props, {Action, Obj, ItemName, BodyPart}})
   when is_binary(ItemName) andalso
        (Action == add orelse
@@ -30,10 +31,10 @@ attempt({_Owner, Props, {Action, Obj, ItemName, BodyPart}})
         _ ->
             {succeed, _Subscribe = false, Props}
     end;
-attempt({_Owner, Props, {Action, Owner, ItemName}}) when is_binary(ItemName) ->
+attempt({_Owner, Props, {Owner, Action, ItemName}}) when is_binary(ItemName) ->
     case is_name(Props, ItemName) of
         true ->
-            NewMessage = {Action, Owner, self()},
+            NewMessage = {Owner, Action, self()},
             Result = {resend, Owner, NewMessage},
             {Result, _Subscribe = true, Props};
         _ ->

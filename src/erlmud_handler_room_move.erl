@@ -18,10 +18,10 @@
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({Props, {move, _Obj, Source, Target, _Exit}}) when Source == self(); Target == self() ->
+attempt({_Owner, Props, {move, _Obj, Source, Target, _Exit}}) when Source == self(); Target == self() ->
     {succeed, true, Props};
-attempt({Props, _}) ->
-    {succeed, false, Props}.
+attempt(_) ->
+    undefined.
 
 succeed({Props, {move, Obj, Self, Target, _Exit}}) when Self == self() ->
     log([Obj, <<" went to ">>, Target]),

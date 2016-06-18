@@ -33,7 +33,7 @@ attempt({_Owner, Props, {drop, Self, Pid}}) when Self == self(), is_pid(Pid) ->
         _ ->
             {succeed, _Interested = false, Props}
     end;
-attempt({Props, {get, Obj, Pid}}) when is_pid(Pid) ->
+attempt({_Owner, Props, {get, Obj, Pid}}) when is_pid(Pid) ->
     case erlmud_object:has_pid(Props, Pid) of
         true ->
             log([Obj, <<" resending {get, ">>, Obj, <<", ">>, Pid, <<"} as {get, ">>, Obj, <<", ">>, Pid, <<", ">>, self(), <<"}">>]),

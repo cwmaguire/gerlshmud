@@ -20,18 +20,13 @@
 
 %% Track the current owner. When the 'add' succeeds the current owner can remove
 %% it from its properties.
-attempt({Owner, Props, {add, Self, to, Target}}) when Self == self(), Owner /= Target ->
-    NewMessage = {add, Self, to, Target, from, Owner},
-    Result = {resend, Owner, NewMessage},
-    {Result, _Subscribe = true, Props};
+attempt({Owner, Props, {move, item, Self, from, Owner, to, Target}}) when Self == self(), Owner /= Target ->
+    {succeed, true, Props};
 attempt(_) ->
     undefined.
 
-succeed({Props, {Receiver, get, Self, from, _Owner}}) when Self == self() ->
-    lists:keystore(owner, 1, Props, {owner, Receiver});
-
-succeed({Props, {_Owner, drop, Self, to, Receiver}}) when Self == self() ->
-    lists:keystore(owner, 1, Props, {owner, Receiver});
+succeed({Props, {move, item, Self, from, _Source, to, Target}}) when Self == self() ->
+    lists:keystore(owner, 1, Props, {owner, Target});
 
 succeed({Props, _}) ->
     Props.

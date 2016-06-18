@@ -18,6 +18,13 @@
 -export([succeed/1]).
 -export([fail/1]).
 
+attempt({_Owner, Props, {move, Self, Direction}}) when Self == self() ->
+    case proplists:get_value(owner, Props) of
+        undefined ->
+            {{fail, <<"Character doesn't have room">>}, false, Props};
+        Room ->
+            {{resend, Self, {move, Self, Room, Direction}}, false, Props}
+    end;
 attempt({_Owner, Props, {move, Self, _, _}}) when Self == self() ->
     {succeed, true, Props};
 attempt({_Owner, Props, {move, Self, _, _, _}}) when Self == self() ->

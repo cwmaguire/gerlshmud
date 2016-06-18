@@ -25,9 +25,9 @@
 -define(WORLD_1, [{erlmud_room, room_nw, [{exit, exit_ns}, {exit, exit_ew}, {character, player}, ?ROOM_HANDLERS]},
                   {erlmud_room, room_s, [{exit, exit_ns}, ?ROOM_HANDLERS]},
                   {erlmud_room, room_e, [{exit, exit_ew}, ?ROOM_HANDLERS]},
-                  {erlmud_character, player, [{owner, room_nw}]},
-                  {erlmud_exit, exit_ns, [{{room, n}, room_nw}, {{room, s}, room_s}]},
-                  {erlmud_exit, exit_ew, [{{room, w}, room_nw}, {{room, e}, room_e}, {is_locked, true}]}]).
+                  {erlmud_character, player, [{owner, room_nw}, ?CHARACTER_HANDLERS]},
+                  {erlmud_exit, exit_ns, [{{room, n}, room_nw}, {{room, s}, room_s}, ?EXIT_HANDLERS]},
+                  {erlmud_exit, exit_ew, [{{room, w}, room_nw}, {{room, e}, room_e}, {is_locked, true}, ?EXIT_HANDLERS]}]).
 
 -define(WORLD_2, [{erlmud_room, room, [{player, player}, {item, sword}, {item, apple}, ?ROOM_HANDLERS]},
                   {erlmud_character, player, [{owner, room}, {item, helmet}, ?CHARACTER_HANDLERS]},
@@ -66,7 +66,7 @@
                                             {owner, zombie},
                                             ?HITPOINTS_HANDLERS]},
                   {erlmud_life, z_life, [{is_alive, true},
-                                         {owner, zombie}]},
+                                         {owner, zombie}, ?LIFE_HANDLERS]},
                   {erlmud_item, sword, [{dmg, 5},
                                         {owner, zombie},
                                         ?ITEM_HANDLERS]}]).

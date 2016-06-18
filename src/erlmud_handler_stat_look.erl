@@ -21,8 +21,8 @@
 
 attempt({Owner, Props, {look, _Source, Owner, _Context}}) ->
     {succeed, true, Props};
-attempt({_Owner, Props, _Msg}) ->
-    {succeed, false, Props}.
+attempt(_) ->
+    undefined.
 
 succeed({Props, {look, Source, Target, Context}}) ->
     _ = case is_owner(Target, Props) of

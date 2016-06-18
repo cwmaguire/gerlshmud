@@ -19,8 +19,8 @@
 
 attempt({Player, Props, {send, Player, _Message}}) ->
     {succeed, true, Props};
-attempt({_OtherPlayer, Props, _Msg}) ->
-    {succeed, false, Props}.
+attempt(_) ->
+    undefined.
 
 
 succeed({Props, {send, Player, Message}}) ->

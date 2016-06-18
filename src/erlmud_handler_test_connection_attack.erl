@@ -109,8 +109,8 @@ attempt({Owner, Props, {calc_hit, Attack, Attacker, Owner, _}}) ->
         _ ->
             {succeed, false, Props}
     end;
-attempt({_Owner, Props, _Msg}) ->
-    {succeed, false, Props}.
+attempt(_) ->
+    undefined.
 
 succeed({Props, {killed, _Attack, _Source, Owner}}) ->
     %log("Character ~p killed by ~p, sending die: ~p~nprops: ~p~n",

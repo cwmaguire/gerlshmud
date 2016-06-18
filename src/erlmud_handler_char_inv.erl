@@ -18,23 +18,31 @@
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({_Owner, Props, {Self, drop, Pid}}) when Self == self(), is_pid(Pid) ->
-    case object_object:has_pid(Props, Pid) of
+attempt({_Owner, Props, {Self, drop, Item}}) when Self == self(), is_pid(Item) ->
+    case erlmud_object:has_pid(Props, Item) of
         true ->
             Room = proplists:get_value(owner, Props),
-            {{resend, Self, {Self, drop, Pid, to, Room}}, true, Props};
+            %{{resend, Self, {Self, drop, Pid, to, Room}}, true, Props};
+            {{resend, Self, {move, item, Item, from, Self, to, Room}}, true, Props};
         _ ->
             {succeed, _Interested = false, Props}
     end;
+attempt({_Owner, Props, {move, item, _Item, from, Self, to, _Room}}) when Self == self() ->
+    {succeed, true, Props};
+attempt({_Owner, Props, {move, item, _Item, from, _Room, to, Self}}) when Self == self() ->
+    {succeed, true, Props};
 attempt(_) ->
     undefined.
 
 succeed({Props, {Self, remove, Item, from, BodyPart}}) when Self == self() ->
     log(debug, [<<"Removing ">>, Item, <<" from body part ">>, BodyPart, <<" into general inventory.\n\tProps: ">>, Props, <<"\n">>]),
     [{item, Item} | Props];
-succeed({Props, {Self, get, Item, from, Source}}) when Self == self() ->
+succeed({Props, {move, item, Item, from, Source, to, Self}}) when Self == self() ->
     log(debug, [<<"Getting ">>, Item, <<" from ">>, Source, <<"\n\tProps: ">>, Props, <<"\n">>]),
     [{item, Item} | Props];
+succeed({Props, {move, item, Item, from, Self, to, Target}}) when Self == self() ->
+    log(debug, [<<"Moving ">>, Item, <<" to ">>, Target, <<"\n\tProps: ">>, Props, <<"\n">>]),
+    lists:keydelete(Item, 2, Props);
 succeed({Props, _}) ->
     Props.
 

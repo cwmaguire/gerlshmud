@@ -37,8 +37,8 @@ succeed({Props, {describe, Source, Target, _Deep, AncestorsContext}}) ->
                 ok
         end,
     Props;
-succeed({Props, _}) ->
-    Props.
+succeed(_) ->
+    undefined.
 
 fail({Props, _, _}) ->
     Props.
