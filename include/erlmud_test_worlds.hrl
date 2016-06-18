@@ -5,7 +5,8 @@
 -define(CHARACTER_HANDLERS, {handlers, [erlmud_handler_char_attack,
                                         erlmud_handler_char_look,
                                         erlmud_handler_char_inv,
-                                        erlmud_handler_char_move]}).
+                                        erlmud_handler_char_move,
+                                        erlmud_handler_char_inject_self]}).
 -define(ITEM_HANDLERS, {handlers, [erlmud_handler_item_attack,
                                    erlmud_handler_item_look,
                                    erlmud_handler_item_inv,
@@ -53,7 +54,7 @@
                                          ?LIFE_HANDLERS]},
                   {erlmud_item, fist, [{dmg, 5},
                                        {owner, player},
-                                       ?LIFE_HANDLERS]},
+                                       ?ITEM_HANDLERS]},
 
                   {erlmud_character, zombie, [{owner, room},
                                               {attack_wait, 10},

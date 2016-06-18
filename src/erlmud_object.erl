@@ -75,7 +75,9 @@ id(_Id = undefined, Type, Props) ->
                     List
             end,
     PidString = pid_to_list(self()),
-    Type:id(Props, Owner, PidString);
+    % TODO: there are no type modules anymore. Maybe an ID handler?
+    % or maybe have erlmud_object generate the IDs? (I like handler better after 2 seconds thought.)
+    %Type:id(Props, Owner, PidString);
 id(Id, _, _) ->
     Id.
 
@@ -258,7 +260,7 @@ handle({resend, Target, Msg}, OrigMsg, _NoProcs) ->
     log([<<"resending ">>, OrigMsg, <<" as ">>, Msg]),
     send(Target, {attempt, Msg, #procs{}});
 handle({fail, Reason}, Msg, Procs = #procs{subs = Subs}) ->
-    log([<<"failing msg: ">>, Msg, <<" with reaons: ">>, Reason, <<" subs: ">>, Subs]),
+    log([<<"failing msg: ">>, Msg, <<" with reasons: ">>, Reason, <<" subs: ">>, Subs]),
     [send(Sub, {fail, Reason, Msg}, Procs) || Sub <- Subs];
 handle(succeed, Msg, Procs = #procs{subs = Subs}) ->
     _ = case next(Procs) of

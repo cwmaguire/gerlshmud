@@ -27,9 +27,10 @@ attempt({_Owner, Props, {calc_next_attack_wait, Attack, Self, Target, Sent, Wait
      {calc_next_attack_wait, Attack, Self, Target, Sent, Wait + ObjWait},
      false,
      Props};
+attempt({_Owner, Props, {attack, Self, _Target}}) when Self == self() ->
+    {succeed, true, Props};
 attempt(_) ->
     undefined.
-
 
 succeed({Props, {attack, Self, Target}}) when Self == self() ->
     log(debug, [<<"{attack, self(), ">>,

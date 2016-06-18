@@ -83,8 +83,8 @@ attempt({Owner, Props, Msg}) when Owner == element(2, Msg) ->
             {succeed, _Subscribe = false, Props};
         false ->
             AliveOrDead = case IsAlive of true -> "alive"; false -> "dead" end,
-            FailMsg = lists:flatten(io_lib:format("~p cannot ~p when ~p~n",
-                                                  [Owner, Action, AliveOrDead])),
+            FailMsg = iolist_to_binary(
+                        io_lib:format("~p cannot ~p when ~p~n", [Owner, Action, AliveOrDead])),
             {{fail, FailMsg}, _Subscribe = false, Props}
     end;
 attempt({Owner, Props, {calc_hit, Attack, Attacker, Owner, _}}) ->

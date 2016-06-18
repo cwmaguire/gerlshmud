@@ -9,8 +9,9 @@
 %all() -> [look_player].
 %all() -> [look_room].
 %all() -> [player_move].
-all() -> [player_drop_item].
+%all() -> [player_drop_item].
 %all() -> [look_room, look_player, look_player_clothed].
+all() -> [player_attack].
 %all() ->
     %[player_move,
      %player_move_fail,
