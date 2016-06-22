@@ -11,7 +11,8 @@
 %all() -> [player_move].
 %all() -> [player_drop_item].
 %all() -> [look_room, look_player, look_player_clothed].
-all() -> [player_attack].
+%all() -> [player_attack].
+all() -> [one_sided_fight].
 %all() ->
     %[player_move,
      %player_move_fail,
@@ -138,6 +139,7 @@ one_sided_fight(Config) ->
     Player = erlmud_index:get(player),
     Zombie = erlmud_index:get(zombie),
     attempt(Config, Player, {attack, Player, <<"zombie">>}),
+    ?WAIT100,
     ?WAIT100,
     1000 = val(hitpoints, p_hp),
     true = val(is_alive, p_life),

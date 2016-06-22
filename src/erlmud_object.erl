@@ -61,20 +61,8 @@ start_link(Id, Type, Props) ->
     erlmud_index:put(id(Id, Type, Props), Pid),
     {ok, Pid}.
 
-id(_Id = undefined, Type, Props) ->
-    Owner = case proplists:get_value(owner, Props, "NoOwner") of
-                Pid when is_pid(Pid) ->
-                    pid_to_list(Pid);
-                Atom when is_atom(Atom) ->
-                    atom_to_list(Atom);
-                Binary when is_binary(Binary) ->
-                    Binary;
-                List when is_list(List) ->
-                    error_logger:info_msg("Parent property of ~p is a list: ~p; all text should be binary.~n",
-                           [self(), List]),
-                    List
-            end,
-    PidString = pid_to_list(self()),
+id(_Id = undefined, Type, _Props) ->
+    _PidString = atom_to_list(Type) ++ pid_to_list(self());
     % TODO: there are no type modules anymore. Maybe an ID handler?
     % or maybe have erlmud_object generate the IDs? (I like handler better after 2 seconds thought.)
     %Type:id(Props, Owner, PidString);

@@ -18,7 +18,6 @@
 -export([succeed/1]).
 -export([fail/1]).
 
-
 attempt({_Owner, Props, {calc_next_attack_wait, Attack, Self, Target, Sent, Wait}})
     when Self == self() ->
     ObjWait = proplists:get_value(attack_wait, Props, 0),
@@ -28,6 +27,8 @@ attempt({_Owner, Props, {calc_next_attack_wait, Attack, Self, Target, Sent, Wait
      false,
      Props};
 attempt({_Owner, Props, {attack, Self, _Target}}) when Self == self() ->
+    {succeed, true, Props};
+attempt({_Owner, Props, {calc_hit, _Attack, Self, _Target, _HitRoll}}) when Self == self() ->
     {succeed, true, Props};
 attempt(_) ->
     undefined.
@@ -48,13 +49,17 @@ succeed({Props, {die, Self}}) when Self == self() ->
 succeed({Props, _}) ->
     Props.
 
+fail({Props, target_is_dead, {calc_hit, _, _, _, _}}) ->
+    Attack = proplists:get_value(attack, Props),
+    log(debug, [<<"Remove attack ">>, Attack, <<"because target is dead">>]),
+    lists:keydelete(attack, 1, Props);
 fail({Props, _, _}) ->
     Props.
 
 attack(Target, Props) ->
     Args = [_Id = undefined,
             _Type = erlmud_attack,
-            _Props = [{owner, self()}, {target, Target}]],
+            _Props = [{owner, self()}, {target, Target}, {handlers, [erlmud_handler_attack]}]],
     {ok, Attack} = supervisor:start_child(erlmud_object_sup, Args),
     log(debug, [<<"Attack ">>, Attack, <<" started, sending attempt\n">>]),
     erlmud_object:attempt(Attack, {attack, Attack, self(), Target}),
