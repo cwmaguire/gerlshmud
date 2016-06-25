@@ -133,6 +133,7 @@ handle_cast(Msg, State) ->
     handle_cast_(Msg, State).
 
 handle_cast_({populate, ProcIds}, State = #state{props = Props}) ->
+    ct:pal("populate on ~p", [self()]),
     log([<<"populate on ">>, self()]),
     {noreply, State#state{props = populate_(Props, ProcIds)}};
 %% Going to have to find a different way to add things
@@ -336,7 +337,7 @@ next(Procs = #procs{next = NextSet}) ->
             {NextProc, Procs#procs{next = ordsets:del_element(NextProc, Next)}}
     end.
 
-succeed(Message, #state{props = Props}) ->
+succeed(Message, State = #state{props = Props}) ->
     Handlers = proplists:get_value(handlers, Props),
     {Result, _} = lists:foldl(fun handle_success/2, {Props, Message}, Handlers),
     Result.

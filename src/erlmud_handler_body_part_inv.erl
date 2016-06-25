@@ -14,85 +14,51 @@
 -module(erlmud_handler_body_part_inv).
 -behaviour(erlmud_handler).
 
+-export([can_add/2]).
+
 -export([attempt/1]).
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({Owner, Props, {add, Item, to, BodyPartName, from, Owner}})
-  when is_pid(Item) andalso
-       is_binary(BodyPartName) ->
-    case is_match(Props, BodyPartName) of
+attempt({Owner, Props, {move, Item, from, Self, to, Owner}})
+  when Self == self(),
+       is_pid(Item) ->
+    case {item, Item} == lists:keyfind(Item, 2, Props) of
         true ->
-            NewMessage = {add, Item, to, self(), from, Owner},
-            Result = {resend, Owner, NewMessage},
-            {Result, _Subscribe = true, Props};
+            {succeed, _Subscribe = true, Props};
         _ ->
             {succeed, _Subscribe = false, Props}
     end;
-attempt({Owner, Props, {Owner, remove, Item, from, BodyPartName}})
-  when is_pid(Item) andalso
-       is_binary(BodyPartName) ->
-    case is_match(Props, BodyPartName) of
-        true ->
-            NewMessage = {Owner, remove, Item, from, self()},
-            Result = {resend, Owner, NewMessage},
-            {Result, _Subscribe = true, Props};
-        _ ->
-            {succeed, _Subscribe = false, Props}
-    end;
-attempt({_Owner, Props, {add, Item, to, Self}})
-  when Self == self() andalso is_pid(Item) ->
-    case can(add, Props, Item) of
+attempt({Owner, Props, {move, Item, from, Owner, to, Self}})
+  when Self == self(),
+       is_pid(Item) ->
+    NewMessage = {move, Item, from, Owner, to, Self, item_body_parts},
+    Result = {resend, Owner, NewMessage},
+    {Result, _Subscribe = true, Props};
+attempt({Owner, Props, {move, Item, from, Owner, to, Self, ItemBodyParts}})
+  when Self == self(),
+       is_pid(Item),
+       is_list(ItemBodyParts) ->
+    case can(add, Props, ItemBodyParts) of
         {false, Reason} ->
             {{fail, Reason}, _Subscribe = false, Props};
         _ ->
             {succeed, _Subscribe = true, Props}
     end;
-attempt({Owner, Props, {remove, Item, from, Self}})
-  when Self == self() andalso is_pid(Item) ->
-    case can(remove, Props, Item) of
-        {false, Reason} ->
-            {{fail, Reason}, _Subscribe = false, Props};
-        _ ->
-            %% Remove the item and add it to the owner
-            NewMessage = {Owner, remove, Item, from, self()},
-            Result = {resend, Owner, NewMessage},
-            {Result, _Subscribe = true, Props}
-    end;
-attempt({Owner, Props, {add, Item, from, Owner}}) ->
-    case is_pid(Item) andalso
-         can_add(Props, Item) of
-        true ->
-            NewMessage = {add, Item, to, self(), from, Owner},
-            Result = {resend, Owner, NewMessage},
-            {Result, _Subscribe = true, Props};
-        _ ->
-            {succeed, _Subscribe = false, Props}
-    end;
-attempt({Owner, Props, {Owner, remove, Item}}) ->
-    case {item, Item} == lists:keyfind(Item, 2, Props) of
-        true ->
-            NewMessage = {Owner, remove, Item, from, self()},
-            Result = {resend, Owner, NewMessage},
-            {Result, _Subscribe = true, Props};
-        _ ->
-            {succeed, _Subscribe = false, Props}
-    end;
 attempt(_) ->
     undefined.
 
-succeed({Props, {add, Item, to, Self, from, _Owner}}) when Self == self(), is_pid(Item) ->
+succeed({Props, {move, Item, from, _OldOwner, to, Self, _ItemBodyParts}})
+  when Self == self() ->
     [{item, Item} | Props];
-succeed({Props, {_Owner, remove, Item, from, Self}}) when Self == self(), is_pid(Item) ->
+succeed({Props, {move, Item, from, Self, to, _NewOwner}})
+  when Self == self() ->
     lists:keydelete(Item, 2, Props);
 succeed({Props, _}) ->
     Props.
 
 fail({Props, _, _}) ->
     Props.
-
-is_match(Props, Name) ->
-    match == re:run(proplists:get_value(name, Props, <<>>), Name, [{capture, none}]).
 
 can(add, Props, Item) ->
     can_add(Props, Item);
@@ -112,15 +78,15 @@ can_add([Fun | Funs], Props, Item, true) ->
 can_remove(_Props, _Item) ->
     true.
 
-can_add(Props, Item) ->
+can_add(Props, ItemBodyParts) ->
     can_add([fun has_matching_body_part/2,
-             fun has_space/2], Props, Item, true).
+             fun has_space/2], Props, ItemBodyParts, true).
 
-has_matching_body_part(Props, Item) ->
+has_matching_body_part(Props, ItemBodyParts) ->
     BodyPart = proplists:get_value(body_part, Props, any),
     %% TODO Remove synchronous gen_server call: have the item send it's
     %% body parts when it sees it's name and replaces it with it's PID.
-    ItemBodyParts = lists:flatten(erlmud_object:get(Item, body_parts)),
+    %ItemBodyParts = lists:flatten(erlmud_object:get(Item, body_parts)),
     log(debug, [<<"has_matching_body_part(">>, BodyPart,
          ", ", ItemBodyParts, "):",
          " {", BodyPart,

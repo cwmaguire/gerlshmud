@@ -43,7 +43,13 @@ succeed({Props, {attack, Self, Target}}) when Self == self() ->
     attack(Target, lists:keydelete(attack, 1, Props));
 succeed({Props, {stop_attack, AttackPid}}) ->
     log(debug, [<<"Character ">>, self(), <<" attack ">>, AttackPid, <<" stopped; remove (if applicable) from props:\n\t">>, Props, <<"\n">>]),
-    lists:filter(fun({attack, Pid}) when Pid == AttackPid -> false; (_) -> true end, Props);
+    lists:filter(fun({attack, {Pid, _}})
+                       when Pid == AttackPid ->
+                         false;
+                    (_) ->
+                         true
+                 end,
+                 Props);
 succeed({Props, {die, Self}}) when Self == self() ->
     lists:keydelete(attack, 1, Props);
 succeed({Props, _}) ->
@@ -58,12 +64,12 @@ fail({Props, _, _}) ->
 
 attack(Target, Props) ->
     Args = [_Id = undefined,
-            _Type = erlmud_attack,
+            _Type = erlmud_attack, %% doesn't matter?
             _Props = [{owner, self()}, {target, Target}, {handlers, [erlmud_handler_attack]}]],
     {ok, Attack} = supervisor:start_child(erlmud_object_sup, Args),
     log(debug, [<<"Attack ">>, Attack, <<" started, sending attempt\n">>]),
     erlmud_object:attempt(Attack, {attack, Attack, self(), Target}),
-    [{attack, Attack} | Props].
+    [{attack, {Attack, Target}} | Props].
 
 log(Level, IoData) ->
     erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).

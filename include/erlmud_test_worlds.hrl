@@ -15,7 +15,8 @@
                                    erlmud_handler_conn_move,
                                    erlmud_handler_conn_send]}).
 -define(BODY_PART_HANDLERS, {handlers, [erlmud_handler_body_part_look,
-                                        erlmud_handler_body_part_inv]}).
+                                        erlmud_handler_body_part_inv,
+                                        erlmud_handler_body_part_inject_self]}).
 -define(ATTRIBUTE_HANDLERS, {handlers, [erlmud_handler_attribute_look]}).
 -define(EXIT_HANDLERS, {handlers, [erlmud_handler_exit_move]}).
 -define(HITPOINTS_HANDLERS, {handlers, [erlmud_handler_hitpoints_attack]}).
@@ -62,11 +63,7 @@
                                               {name, <<"zombie">>},
                                               {hitpoints, z_hp},
                                               {life, z_life},
-                                              {handlers, [erlmud_handler_char_attack,
-                                                          erlmud_handler_char_look,
-                                                          erlmud_handler_char_inv,
-                                                          erlmud_handler_char_move,
-                                                          erlmud_handler_char_inject_self]}]},
+                                              ?CHARACTER_HANDLERS]},
                   {erlmud_hitpoints, z_hp, [{hitpoints, 10},
                                             {owner, zombie},
                                             ?HITPOINTS_HANDLERS]},
@@ -79,10 +76,14 @@
 -define(WORLD_4, [{erlmud_room, room, [{player, player}, ?ROOM_HANDLERS]},
                   {erlmud_character, player, [{owner, room},
                                               {item, helmet},
-                                              {body_part, head},
+                                              {body_part, head1},
                                               ?CHARACTER_HANDLERS]},
-                  {erlmud_body_part, head, [{name, <<"head">>}, {owner, player}, ?BODY_PART_HANDLERS]},
-                  {erlmud_item, helmet, [{name, <<"helmet">>}, {owner, player}, ?ITEM_HANDLERS]}]).
+                  {erlmud_body_part, head1, [{name, <<"head">>},
+                                             {body_part, head},
+                                             {owner, player}, ?BODY_PART_HANDLERS]},
+                  {erlmud_item, helmet, [{name, <<"helmet">>},
+                                         {owner, player},
+                                         {body_parts, [head]}, ?ITEM_HANDLERS]}]).
 
 -define(WORLD_5, [{erlmud_character, player, [{item, helmet},
                                               {body_part, head1},

@@ -19,38 +19,31 @@
 -export([fail/1]).
 
 %attempt({_Owner, Props, {Action, Obj, ItemName, BodyPart}})
-attempt({_Owner, Props, {Action, Obj, ItemName, BodyPart}})
+
+attempt({_Owner, Props, {Object, Action, ItemName}})
   when is_binary(ItemName) andalso
-       (Action == add orelse
-        Action == remove) ->
+       Action == get; Action == drop ->
     case is_name(Props, ItemName) of
         true ->
-            NewMessage = {Action, Obj, self(), BodyPart},
-            Result = {resend, Obj, NewMessage},
+            NewMessage = {Object, Action, self()},
+            %% resending to source is kind of arbitrary:
+            %% Target might have initiated the move.
+            Result = {resend, Object, NewMessage},
             {Result, true, Props};
         _ ->
             {succeed, _Subscribe = false, Props}
     end;
-attempt({_Owner, Props, {Owner, Action, ItemName}}) when is_binary(ItemName) ->
+attempt({_Owner, Props, {move, ItemName, from, Source, to, Target}})
+  when is_binary(ItemName) ->
     case is_name(Props, ItemName) of
         true ->
-            NewMessage = {Owner, Action, self()},
-            Result = {resend, Owner, NewMessage},
-            {Result, _Subscribe = true, Props};
+            NewMessage = {move, self(), from, Source, to, Target},
+            %% resending to source is kind of arbitrary:
+            %% Target might have initiated the move.
+            Result = {resend, Source, NewMessage},
+            {Result, true, Props};
         _ ->
             {succeed, _Subscribe = false, Props}
-    end;
-attempt({_Owner, Props, {Action, Obj, ItemName}})
-  when is_binary(ItemName) andalso
-       (Action == get orelse
-        Action == drop) ->
-    case is_name(Props, ItemName) of
-        true ->
-            NewMessage = {Action, Obj, self()},
-            Result = {resend, Obj, NewMessage},
-            {Result, _Subscribe = true, Props};
-        _ ->
-            {succeed, false, Props}
     end;
 attempt(_) ->
     undefined.

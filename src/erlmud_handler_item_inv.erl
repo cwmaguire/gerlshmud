@@ -20,13 +20,33 @@
 
 %% Track the current owner. When the 'add' succeeds the current owner can remove
 %% it from its properties.
-attempt({Owner, Props, {move, item, Self, from, Owner, to, Target}}) when Self == self(), Owner /= Target ->
+attempt({Owner, Props, {move, Self, from, Owner, to, Target, item_body_parts}})
+  when Self == self(),
+       Owner /= Target,
+       is_pid(Target) ->
+    BodyParts = proplists:get_value(body_parts, Props, []),
+    NewMessage = {move, Self, from, Owner, to, Target, BodyParts},
+    Result = {resend, Owner, NewMessage},
+    {Result, _Subscribe = true, Props};
+attempt({Owner, Props, {move, Self, from, Owner, to, Target}})
+  when Self == self(),
+       Owner /= Target,
+       is_pid(Target) ->
+    {succeed, true, Props};
+attempt({Owner, Props, {move, Self, from, Owner, to, Target, _ItemBodyParts}})
+  when Self == self(),
+       Owner /= Target,
+       is_pid(Target) ->
     {succeed, true, Props};
 attempt(_) ->
     undefined.
 
-succeed({Props, {move, item, Self, from, _Source, to, Target}}) when Self == self() ->
-    lists:keystore(owner, 1, Props, {owner, Target});
+succeed({Props, {move, Self, from, _OldOwner, to, NewOwner}})
+  when Self == self() ->
+    lists:keystore(owner, 1, Props, {owner, NewOwner});
+succeed({Props, {move, Self, from, _OldOwner, to, NewOwner, _ItemBodyParts}})
+  when Self == self() ->
+    lists:keystore(owner, 1, Props, {owner, NewOwner});
 
 succeed({Props, _}) ->
     Props.
