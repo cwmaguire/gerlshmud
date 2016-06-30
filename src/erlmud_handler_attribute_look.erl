@@ -11,40 +11,31 @@
 %% WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 %% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
--module(erlmud_attribute).
+-module(erlmud_handler_attribute_look).
 
--behaviour(erlmud_object).
+-behaviour(erlmud_handler).
 
 %% object behaviour
--export([id/3]).
--export([added/2]).
--export([removed/2]).
--export([attempt/3]).
--export([succeed/2]).
--export([fail/3]).
+-export([attempt/1]).
+-export([succeed/1]).
+-export([fail/1]).
 
-id(_Props, _Owner, Pid) ->
-    "attribute_" ++ Pid.
-
-added(_, _) -> ok.
-removed(_, _) -> ok.
-
-attempt(Owner, Props, {describe, _Source, Owner, deep, _Context}) ->
+attempt({Owner, Props, {describe, _Source, Owner, deep, _Context}}) ->
     {succeed, true, Props};
-attempt(Owner, Props, {describe, _Source, Owner, shallow, _Context}) ->
+attempt({Owner, Props, {describe, _Source, Owner, shallow, _Context}}) ->
     ShouldSubscribe = _AttributeIsRace = race == proplists:get_value(type, Props),
     {succeed, ShouldSubscribe, Props};
-attempt(_Owner, Props, _Msg) ->
-    {succeed, false, Props}.
+attempt(_) ->
+    undefined.
 
-succeed(Props, {describe, Source, _Owner, _Depth, Context}) ->
+succeed({Props, {describe, Source, _Owner, _Depth, Context}}) ->
     describe(Source, Props, Context),
     Props;
-succeed(Props, Msg) ->
+succeed({Props, Msg}) ->
     log([<<"saw unmatched msg ">>, Msg, <<" succeed">>]),
     Props.
 
-fail(Props, _Reason, _Msg) ->
+fail({Props, _Reason, _Msg}) ->
     Props.
 
 describe(Source, Props, Context) ->

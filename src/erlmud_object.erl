@@ -20,11 +20,14 @@
 -export([attempt/2]).
 -export([attempt/3]).
 -export([attempt_after/3]).
--export([add/3]).
--export([remove/3]).
--export([get/2]).
+%-export([add/3]).
+%-export([remove/3]).
+%-export([get/2]).
 -export([set/2]).
 -export([props/1]).
+
+%% Util
+-export([has_pid/2]).
 
 %% gen_server.
 -export([init/1]).
@@ -44,13 +47,8 @@
                 subs = [] :: ordsets:ordset(pid())}).
 
 -type proplist() :: [{atom(), any()}].
--type attempt() :: {atom(), Pid, Pid, Pid}.
+%-type attempt() :: {atom(), Pid, Pid, Pid}.
 
--callback id(proplist(), list(), list()) -> list().
--callback attempt(pid(), proplist(), tuple()) ->
-    {succeed | {fail, atom()} | {resend, attempt()}, boolean(), proplist()}.
--callback succeed(proplist(), tuple()) -> proplist().
--callback fail(proplist(), string(), tuple()) -> proplist().
 -callback added(atom(), pid()) -> ok.
 -callback removed(atom(), pid()) -> ok.
 
@@ -63,21 +61,11 @@ start_link(Id, Type, Props) ->
     erlmud_index:put(id(Id, Type, Props), Pid),
     {ok, Pid}.
 
-id(_Id = undefined, Type, Props) ->
-    Owner = case proplists:get_value(owner, Props, "NoOwner") of
-                Pid when is_pid(Pid) ->
-                    pid_to_list(Pid);
-                Atom when is_atom(Atom) ->
-                    atom_to_list(Atom);
-                Binary when is_binary(Binary) ->
-                    Binary;
-                List when is_list(List) ->
-                    error_logger:info_msg("Parent property of ~p is a list: ~p; all text should be binary.~n",
-                           [self(), List]),
-                    List
-            end,
-    PidString = pid_to_list(self()),
-    Type:id(Props, Owner, PidString);
+id(_Id = undefined, Type, _Props) ->
+    _PidString = atom_to_list(Type) ++ pid_to_list(self());
+    % TODO: there are no type modules anymore. Maybe an ID handler?
+    % or maybe have erlmud_object generate the IDs? (I like handler better after 2 seconds thought.)
+    %Type:id(Props, Owner, PidString);
 id(Id, _, _) ->
     Id.
 
@@ -101,16 +89,16 @@ attempt_after(Millis, Pid, Msg) ->
     log([<<"attempt after ">>, Millis, <<", Pid = ">>, Pid, <<": Msg = ">>, Msg]),
     erlang:send_after(Millis, Pid, {Pid, Msg}).
 
-add(Pid, Type, AddPid) ->
-    send(Pid, {add, Type, AddPid}).
+%add(Pid, Type, AddPid) ->
+    %send(Pid, {add, Type, AddPid}).
 
-remove(_TheVoid = undefined, _CharacterLogginIn, _EntryRoom) ->
-    ok;
-remove(Pid, Type, RemovePid) ->
-    send(Pid, {remove, Type, RemovePid}).
+%remove(_TheVoid = undefined, _CharacterLogginIn, _EntryRoom) ->
+    %ok;
+%remove(Pid, Type, RemovePid) ->
+    %send(Pid, {remove, Type, RemovePid}).
 
-get(Pid, Key) ->
-    gen_server:call(Pid, {get, Key}).
+%get(Pid, Key) ->
+    %gen_server:call(Pid, {get, Key}).
 
 set(Pid, Prop) ->
     send(Pid, {set, Prop}).
@@ -122,6 +110,11 @@ props(Pid) ->
         _ ->
             []
     end.
+
+%% util
+
+has_pid(Props, Pid) ->
+    lists:any(fun({_, Pid_}) when Pid == Pid_ -> true; (_) -> false end, Props).
 
 %% gen_server.
 
@@ -140,16 +133,18 @@ handle_cast(Msg, State) ->
     handle_cast_(Msg, State).
 
 handle_cast_({populate, ProcIds}, State = #state{props = Props}) ->
+    ct:pal("populate on ~p", [self()]),
     log([<<"populate on ">>, self()]),
     {noreply, State#state{props = populate_(Props, ProcIds)}};
-handle_cast_({add, AddType, Pid}, State) ->
-    Props2 = add_(AddType, State#state.props, Pid),
-    (State#state.type):added(AddType, Pid),
-    {noreply, State#state{props = Props2}};
-handle_cast_({remove, RemType, Pid}, State) ->
-    Props2 = remove_(RemType, Pid, State#state.props),
-    (State#state.type):removed(RemType, Pid),
-    {noreply, State#state{props = Props2}};
+%% Going to have to find a different way to add things
+%handle_cast_({add, AddType, Pid}, State) ->
+    %Props2 = add_(AddType, State#state.props, Pid),
+    %(State#state.type):added(AddType, Pid),
+    %{noreply, State#state{props = Props2}};
+%handle_cast_({remove, RemType, Pid}, State) ->
+    %Props2 = remove_(RemType, Pid, State#state.props),
+    %(State#state.type):removed(RemType, Pid),
+    %{noreply, State#state{props = Props2}};
 handle_cast_({set, Prop = {K, _}}, State = #state{props = Props}) ->
     {noreply, State#state{props = lists:keystore(K, 1, Props, Prop)}};
 handle_cast_({attempt, Msg, Procs}, State) ->
@@ -197,7 +192,7 @@ maybe_attempt(Msg,
               Procs = #procs{room = Room},
               State = #state{type = erlmud_exit, props = Props})
         when Room  /= undefined ->
-    _ = case erlmud_exit:is_attached_to_room(Props, Room) of
+    _ = case exit_has_room(Props, Room) of
             true ->
                 attempt_(Msg, Procs, State);
             false ->
@@ -207,22 +202,59 @@ maybe_attempt(Msg,
 maybe_attempt(Msg, Procs, State) ->
     attempt_(Msg, Procs, State).
 
+exit_has_room(Props, Room) ->
+    HasRoom = fun({{room, _}, R}) ->
+                  R == Room;
+                 (_) ->
+                  false
+              end,
+    lists:any(HasRoom, Props).
+
 attempt_(Msg,
          Procs,
          State = #state{type = Type,
                         props = Props}) ->
     Owner = proplists:get_value(owner, Props),
-    Results = {Result, Msg2, ShouldSubscribe, Props2} = ensure_message(Msg, Type:attempt(Owner, Props, Msg)),
+    %% So far it looks like nothing actually changes the object properties on attempt
+    %% but I'm leaving it in for now
+    {Handler, Results = {Result, Msg2, ShouldSubscribe, Props2}} = ensure_message(Msg, run_handlers({Owner, Props, Msg})),
     log([Type, <<" ">>, self(), <<" {owner, ">>, Owner, <<"} ">>,
-         <<"attempt: ">>, Msg, <<" -> ">>,
-         ShouldSubscribe, <<", ">>, Result]),
+         Handler, <<"attempt: ">>, Msg, <<" -> ">>,
+         ShouldSubscribe, <<", ">>, binary_fail_reason(Result)]),
     MergedProcs = merge(self(), Type, Results, Procs),
     _ = handle(Result, Msg2, MergedProcs),
     State#state{props = Props2}.
 
-ensure_message(Msg, {A, B, C}) ->
-    {A, Msg, B, C};
-ensure_message(_, T = {_, NewMsg, _, _}) ->
+binary_fail_reason({fail, Reason}) when is_list(Reason) ->
+    {fail, list_to_binary(Reason)};
+binary_fail_reason({fail, Reason}) when is_atom(Reason) ->
+    {fail, atom_to_binary(Reason, utf8)};
+binary_fail_reason(Any = {fail, _}) ->
+    Any;
+binary_fail_reason(Reason) when is_list(Reason) ->
+    list_to_binary(Reason);
+binary_fail_reason(Reason) when is_atom(Reason) ->
+    atom_to_binary(Reason, utf8);
+binary_fail_reason(Any) ->
+    Any.
+
+run_handlers(Attempt = {_, Props, _}) ->
+    Handlers = proplists:get_value(handlers, Props),
+    handle_attempt(Handlers, Attempt).
+
+handle_attempt([], {_, Props, _}) ->
+    _DefaultResponse = {no_handler, {succeed, false, Props}};
+handle_attempt([Handler | Handlers], Attempt) ->
+    case Handler:attempt(Attempt) of
+        undefined ->
+            handle_attempt(Handlers, Attempt);
+        Result ->
+            {Handler, Result}
+    end.
+
+ensure_message(Msg, {Handler, {A, B, C}}) ->
+    {Handler, {A, Msg, B, C}};
+ensure_message(_, T = {_, {_, NewMsg, _, _}}) ->
     log([<<"New message: ">>, NewMsg]),
     T.
 
@@ -230,7 +262,9 @@ handle({resend, Target, Msg}, OrigMsg, _NoProcs) ->
     log([<<"resending ">>, OrigMsg, <<" as ">>, Msg]),
     send(Target, {attempt, Msg, #procs{}});
 handle({fail, Reason}, Msg, Procs = #procs{subs = Subs}) ->
-    log([<<"failing msg: ">>, Msg, <<" with reaons: ">>, Reason, <<" subs: ">>, Subs]),
+    log([<<"failing msg: ">>, Msg,
+         <<" with reasons: ">>, binary_fail_reason(Reason),
+         <<" subs: ">>, Subs]),
     [send(Sub, {fail, Reason, Msg}, Procs) || Sub <- Subs];
 handle(succeed, Msg, Procs = #procs{subs = Subs}) ->
     _ = case next(Procs) of
@@ -318,25 +352,41 @@ next(Procs = #procs{next = NextSet}) ->
             {NextProc, Procs#procs{next = ordsets:del_element(NextProc, Next)}}
     end.
 
-succeed(Message, #state{type = Type, props = Props}) ->
-    Type:succeed(Props, Message).
+succeed(Message, #state{props = Props}) ->
+    Handlers = proplists:get_value(handlers, Props),
+    {Result, _} = lists:foldl(fun handle_success/2, {Props, Message}, Handlers),
+    Result.
 
-fail(Reason, Message, #state{type = Type, props = Props}) ->
-    Type:fail(Props, Reason, Message).
+handle_success(_, {Result = {stop, _, _}, Message}) ->
+    {Result, Message};
+handle_success(HandlerModule, Success = {_, Message}) ->
+    Props = HandlerModule:succeed(Success),
+    {Props, Message}.
 
-add_(Type, Props, Obj) ->
-    case lists:member({Type, Obj}, Props) of
-        false ->
-            [{Type, Obj} | Props];
-        true ->
-            Props
-    end.
+fail(Reason, Message, #state{props = Props}) ->
+    Handlers = proplists:get_value(handlers, Props),
+    {Result, _, _} = lists:foldl(fun handle_fail/2, {Props, Reason, Message}, Handlers),
+    Result.
 
-remove_(RemType, Obj, Props) ->
-    log([<<"Props before removing ">>, RemType, <<" ">>, Obj, <<": ">>, Props]),
-    NewProps = [Prop || Prop <- Props, Prop /= {RemType, Obj}],
-    log([<<"Props after removing ">>, RemType, <<" ">>, Obj, <<": ">>, NewProps]),
-    NewProps.
+handle_fail(_, Response = {{stop, _}, _, _}) ->
+    Response;
+handle_fail(HandlerModule, Failure = {_, Reason, Message}) ->
+    Props = HandlerModule:fail(Failure),
+    {Props, Reason, Message}.
+
+%add_(Type, Props, Obj) ->
+    %case lists:member({Type, Obj}, Props) of
+        %false ->
+            %[{Type, Obj} | Props];
+        %true ->
+            %Props
+    %end.
+
+%remove_(RemType, Obj, Props) ->
+    %log([<<"Props before removing ">>, RemType, <<" ">>, Obj, <<": ">>, Props]),
+    %NewProps = [Prop || Prop <- Props, Prop /= {RemType, Obj}],
+    %log([<<"Props after removing ">>, RemType, <<" ">>, Obj, <<": ">>, NewProps]),
+    %NewProps.
 
 log(To, Stage, Msg, Procs) when is_tuple(Msg) ->
     erlmud_event_log:log(To,

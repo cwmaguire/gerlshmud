@@ -11,81 +11,68 @@
 %% WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 %% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
--module(erlmud_attack_behaviour).
+-module(erlmud_handler_counterattack).
+-behaviour(erlmud_handler).
 
--behaviour(erlmud_object).
+-export([attempt/1]).
+-export([succeed/1]).
+-export([fail/1]).
 
-%% object behaviour
--export([id/3]).
--export([added/2]).
--export([removed/2]).
--export([attempt/3]).
--export([succeed/2]).
--export([fail/3]).
-
-id(_Props, Owner, Pid) ->
-    "behaviour_for_" ++ Owner ++ "_" ++ Pid.
-
-added(_, _) -> ok.
-removed(_, _) -> ok.
-
-attempt(Owner, Props, {damage, _Att, _Src, Owner, _Dmg}) ->
+attempt({_Owner, Props, {damage, _Att, _Src, Self, _Dmg}}) when Self == self() ->
+    log([<<"caught damager attempt">>]),
     {succeed, true, Props};
-attempt(Owner, Props, {attack, _Att, Owner, _Target}) ->
+attempt({_Owner, Props, {attack, _Att, Self, _Target}}) when Self == self() ->
+    log([<<"caught attack attempt">>]),
     {succeed, true, Props};
-attempt(Owner, Props, {stop_attack, Attack, Owner, _Target}) ->
+attempt({_Owner, Props, {stop_attack, Attack, Self, _Target}}) when Self == self() ->
+    log([<<"caught stop_attack attempt">>]),
     case [Pid || {attack, Pid, _} <- Props, Pid == Attack] of
         [_ | _] ->
             lists:keydelete(attack, 1, Props);
         _ ->
             Props
     end;
-attempt(_, Props, _) ->
-    {succeed, false, Props}.
+attempt({_Owner, _Props, Attempt}) ->
+    log([self(), <<" caught attempt but not subscribing">>, Attempt]),
+    undefined.
 
-succeed(Props, {attack, Attack, Attacker, Target}) ->
-    case proplists:get_value(owner, Props) of
-        Owner when Owner == Attacker ->
-            lists:keystore(attack, 1, Props, {attack, Attack, Target});
-        _ ->
-            Props
-    end;
+%succeed({Props, {attack, Attack, Self, Target}}) when Self == self() ->
+    %% I'm guessing this replaces the {attack, AttackPid} property
+    %% that erlmud_handler_char_attack adds
+    %% (previously erlmud_character)
+    %% No, this was it's own process so it had it's own
+    %% properties.
+    %lists:keystore(attack, 1, Props, {attack, {Attack, Target}});
 %% should we always counter-attack the most recent attacker?
 %% That should be an option for the particular behaviour to decide:
 %% a particularly tenacious enemy will stick to one attacker; a less decisive
 %% enemy might keep switching to attack the most recent thing that attacked it.
 %% (e.g. something stupid, or with a short memory)
-succeed(Props, {damage, _Att, Attacker, Owner, _Dmg}) ->
-    log([<<"caught damage succeeded ">>, Attacker, <<" ">>, Owner]),
+succeed({Props, {damage, _Att, Attacker, Self, _Dmg}}) when Self == self() ->
+    log([<<"caught damage succeeded ">>]),
 
     %% pitbull attack: stick with first character that damages us
     %% TODO: make sure the attack originates from something we can attack back,
     %%       not a poison or extreme cold or something.
-    _ = case [Attack || Attack = {attack, _, _} <- Props] of
-        [] ->
+    Attack = proplists:get_value(attack, Props),
+    Target = proplists:get_value(target, Props),
+    _ = case is_pid(Attack) andalso is_pid(Target) of
+        false ->
             log([<<"no attacks yet, attack back props: ">>, Props]),
             AttackWait = proplists:get_value(attack_wait, Props, 1000),
             erlmud_object:attempt_after(AttackWait,
-                                        Owner,
-                                        {attack, Owner, Attacker});
-        _ ->
-            log([<<"already attacking something, stick with it props: ">>, Props]),
+                                        self(),
+                                        {attack, self(), Attacker});
+        true ->
+            log([<<"already attacking ">>, Target, <<" with ">>, Attack, <<". Stick with it. Props: ">>, Props]),
             ok
     end,
     Props;
-%% If we have an attack that stopped, remove it
-succeed(Props, {stop_attack, AttackPid}) ->
-    case [Attack || {attack, Attack, _} <- Props, Attack == AttackPid] of
-        [_ | _] ->
-            lists:keydelete(attack, 1, Props);
-        _ ->
-            Props
-    end;
-succeed(Props, Msg) ->
-    log([<<"saw ">>, Msg, <<" succeed with props ">>, Props]),
+succeed({Props, _}) ->
+    log([<<"Counterattack saw some success">>]),
     Props.
 
-fail(Props, Result, Msg) ->
+fail({Props, Result, Msg}) ->
     log([<<"result: ">>, Result, <<" message: ">>, Msg]),
     Props.
 

@@ -11,46 +11,25 @@
 %% WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 %% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
--module(erlmud_exit).
+-module(erlmud_handler_exit_move).
 
--behaviour(erlmud_object).
+-behaviour(erlmud_handler).
 
-%% object behaviour
--export([id/3]).
--export([added/2]).
--export([removed/2]).
--export([attempt/3]).
--export([succeed/2]).
--export([fail/3]).
+-export([attempt/1]).
+-export([succeed/1]).
+-export([fail/1]).
 
-%% internal
--export([is_attached_to_room/2]).
+%id(Props, _Owner, Pid) ->
+    %Directions = [atom_to_list(Dir) || {{room, Dir}, _} <- Props],
+    %"exit_" ++ string:join(Directions, "_") ++ "_" ++ Pid.
 
-id(Props, _Owner, Pid) ->
-    Directions = [atom_to_list(Dir) || {{room, Dir}, _} <- Props],
-    "exit_" ++ string:join(Directions, "_") ++ "_" ++ Pid.
-
-added(_, _) -> ok.
-removed(_, _) -> ok.
-
-is_attached_to_room(Props, Room) ->
-    HasRoom = fun({{room, _}, R}) ->
-                  R == Room;
-                 (_) ->
-                  false
-              end,
-    lists:any(HasRoom, Props).
-
-attempt(_Owner, Props, Msg) ->
-    attempt(Props, Msg).
-
-attempt(Props, {move, Obj, FromRoom, Exit}) when is_atom(Exit) ->
+attempt({_Owner, Props, {move, Obj, FromRoom, Exit}}) when is_atom(Exit) ->
     %% If I have an exit to the Source room and a _different_ exit with name Exit
     %% then I should translate the message to a {move, Obj, Source, Target} message.
     log([<<"Process ">>, Obj, <<"wants to leave room ">>, FromRoom, <<" via exit ">>, Exit, <<"\n">>]),
     Rooms = [Room || Room = {_, FromRoom_} <- Props, FromRoom_ == FromRoom],
     move(Props, Obj, Rooms, Exit);
-attempt(Props, {move, Mover, Source, Target, Self}) when Self == self() ->
+attempt({_Owner, Props, {move, Mover, Source, Target, Self}}) when Self == self() ->
     log([<<"Process ">>, Mover, <<" wants to leave room ">>, Source, <<" for ">>, Target, <<"\n">>]),
     case blocked_reason(Props) of
         {blocked_because, Reason} ->
@@ -58,14 +37,14 @@ attempt(Props, {move, Mover, Source, Target, Self}) when Self == self() ->
         not_blocked ->
             {succeed, true, Props}
     end;
-attempt(Props, _Msg) ->
-    {succeed, false, Props}.
+attempt(_) ->
+    undefined.
 
-succeed(Props, Message) ->
+succeed({Props, Message}) ->
     log([<<"Message ">>, Message, <<" succeeded">>]),
     Props.
 
-fail(Props, Result, Msg) ->
+fail({Props, Result, Msg}) ->
     log([Result, <<" message: ">>, Msg]),
     Props.
 

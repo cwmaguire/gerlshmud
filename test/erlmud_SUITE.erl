@@ -5,12 +5,6 @@
 
 -define(WAIT100, receive after 100 -> ok end).
 
-%all() -> [look_player, look_player_clothed].
-%all() -> [look_player].
-%all() -> [look_room].
-%all() -> [player_move].
-%all() -> [player_drop_item].
-%all() -> [look_room, look_player, look_player_clothed].
 all() ->
     [player_move,
      player_move_fail,
@@ -22,6 +16,7 @@ all() ->
      one_sided_fight,
      counterattack_behaviour,
      player_wield,
+     player_wield_first_available,
      player_wield_missing_body_part,
      player_wield_wrong_body_part,
      player_wield_body_part_is_full,
@@ -43,8 +38,15 @@ end_per_testcase(_, _Config) ->
     application:stop(erlmud).
 
 val(Key, Obj) ->
-    Val = proplists:get_value(Key, get_props(Obj)),
-    ct:pal("~p for ~p is ~p~n", [Key, Obj, Val]),
+    Props = case get_props(Obj) of
+                undefined ->
+                    ct:pal("erlmud_SUITE:val/2: props for ~p undefined", [Obj]),
+                    [];
+                Props_ ->
+                    Props_
+            end,
+    Val = proplists:get_value(Key, Props),
+    ct:pal("erlmud_SUITE:val/2: ~p for ~p is ~p~n", [Key, Obj, Val]),
     Val.
 
 all(Key, Obj) ->
@@ -53,14 +55,13 @@ all(Key, Obj) ->
 has(Val, Obj) ->
     false /= lists:keyfind(Val, 2, get_props(Obj)).
 
+get_props(undefined) ->
+    [];
 get_props(Obj) when is_atom(Obj) ->
     Pid = erlmud_index:get(Obj),
-    Props = get_props(Pid),
-    ct:pal("Pid for ~p is ~p, props are ~p~n", [Obj, Pid, Props]),
-    Props;
-get_props(Pid) ->
+    get_props(Pid);
+get_props(Pid) when is_pid(Pid) ->
     {_, _, Props} = sys:get_state(Pid),
-    ct:pal("returning ~p from sys:get_state(~p)~n", [Props, Pid]),
     Props.
 
 player_move(Config) ->
@@ -102,15 +103,17 @@ player_move_exit_locked(Config) ->
 player_get_item(Config) ->
     start(?WORLD_2),
     Player = erlmud_index:get(player),
-    Item = erlmud_index:get(item),
-    attempt(Config, Player, {get, Player, <<"sword">>}),
+    Sword = erlmud_index:get(sword),
+    attempt(Config, Player, {Player, get, <<"sword">>}),
     ?WAIT100,
-    has(Item, player).
+    true = has(Sword, player).
 
 player_drop_item(Config) ->
     start(?WORLD_2),
     Player = erlmud_index:get(player),
-    attempt(Config, Player, {drop, Player, <<"helmet">>}),
+    Helmet = erlmud_index:get(helmet),
+    true = has(Helmet, player),
+    attempt(Config, Player, {Player, drop, <<"helmet">>}),
     ?WAIT100,
     [] = all(item, Player).
 
@@ -125,18 +128,22 @@ player_attack(Config) ->
 player_attack_wait(Config) ->
     start(?WORLD_3),
     Player = erlmud_index:get(player),
+    Zombie = erlmud_index:get(zombie),
     erlmud_object:set(Player, {attack_wait, 10000}),
     attempt(Config, Player, {attack, Player, <<"zombie">>}),
     ?WAIT100,
     5 = val(hitpoints, z_hp),
     true = val(is_alive, z_life),
-    true = is_pid(val(attack, Player)).
+    Attack = val(attack, Player),
+    Zombie = val(target, Player),
+    true = is_pid(Attack).
 
 one_sided_fight(Config) ->
     start(?WORLD_3),
     Player = erlmud_index:get(player),
     Zombie = erlmud_index:get(zombie),
     attempt(Config, Player, {attack, Player, <<"zombie">>}),
+    ?WAIT100,
     ?WAIT100,
     1000 = val(hitpoints, p_hp),
     true = val(is_alive, p_life),
@@ -150,13 +157,13 @@ counterattack_behaviour(Config) ->
     Player = erlmud_index:get(player),
     erlmud_object:set(Player, {attack_wait, 20}),
     Zombie = erlmud_index:get(zombie),
-    Behaviour = start_obj(behaviour,
-                          erlmud_attack_behaviour,
-                          [{owner, Zombie},
-                           {attack_wait, 10}]),
-    erlmud_object:set(Zombie, {behaviours, [Behaviour]}),
+    Handlers = val(handlers, zombie),
+    ct:pal("Zombie handlers: ~n\t~p~n", [Handlers]),
+    erlmud_object:set(Zombie, {handlers, [erlmud_handler_counterattack | Handlers]}),
+    ?WAIT100,
     attempt(Config, Player, {attack, Player, <<"zombie">>}),
-    receive after 200 -> ok end,
+    ?WAIT100,
+    ?WAIT100,
     true = 1000 > val(hitpoints, p_hp),
     true = val(is_alive, p_life),
     undefined = val(attack, Player),
@@ -169,32 +176,43 @@ player_wield(Config) ->
     start(?WORLD_4),
     Player = erlmud_index:get(player),
     Helmet = erlmud_index:get(helmet),
-    attempt(Config, Player, {add, Player, <<"helmet">>, <<"head">>}),
+    Helmet = val(item, Player),
+    attempt(Config, Player, {move, <<"helmet">>, from, Player, to, <<"head">>}),
     ?WAIT100,
-    Helmet = val(item, head).
+    undefined = val(item, Player),
+    Helmet = val(item, head1).
+
+player_wield_first_available(Config) ->
+    start(?WORLD_4),
+    Player = erlmud_index:get(player),
+    Helmet = erlmud_index:get(helmet),
+    attempt(Config, Player, {move, <<"helmet">>, from, Player, to, first_available_body_part}),
+    ?WAIT100,
+    undefined = val(item, Player),
+    Helmet = val(item, head1).
 
 player_wield_missing_body_part(Config) ->
     start(?WORLD_4),
     Player = erlmud_index:get(player),
     Helmet = erlmud_index:get(helmet),
-    attempt(Config, Player, {add, Player, <<"helmet">>, <<"finger">>}),
+    attempt(Config, Player, {move, <<"helmet">>, from, Player, to, <<"finger">>}),
     ?WAIT100,
-    undefined = val(item, head),
+    undefined = val(item, head1),
     Helmet = val(item, player),
-    attempt(Config, Player, {add, Player, <<"helmet">>, <<"head">>}),
+    attempt(Config, Player, {move, <<"helmet">>, from, Player, to, <<"head">>}),
     ?WAIT100,
-    Helmet = val(item, head),
+    Helmet = val(item, head1),
     undefined = val(item, player).
 
 player_wield_wrong_body_part(Config) ->
     start(?WORLD_5),
     Player = erlmud_index:get(player),
     Helmet = erlmud_index:get(helmet),
-    attempt(Config, Player, {add, Player, <<"helmet">>, <<"finger">>}),
+    attempt(Config, Player, {move, <<"helmet">>, from, Player, to, <<"finger">>}),
     ?WAIT100,
     undefined = val(item, head1),
     Helmet = val(item, player),
-    attempt(Config, Player, {add, Player, <<"helmet">>, <<"head">>}),
+    attempt(Config, Player, {move, <<"helmet">>, from, Player, to, <<"head">>}),
     ?WAIT100,
     Helmet = val(item, head1),
     undefined = val(item, player).
@@ -207,17 +225,17 @@ player_wield_body_part_is_full(Config) ->
     [Ring1, Ring2] = all(item, player),
     [] = all(item, finger1),
     [] = all(item, finger2),
-    attempt(Config, Player, {add, Player, <<"ring1">>, <<"finger1">>}),
+    attempt(Config, Player, {move, <<"ring1">>, from, Player, to, <<"finger1">>}),
     ?WAIT100,
     [Ring2] = all(item, player),
     [Ring1] = all(item, finger1),
     [] = all(item, finger2),
-    attempt(Config, Player, {add, Player, <<"ring2">>, <<"finger1">>}),
+    attempt(Config, Player, {move, <<"ring2">>, from, Player, to, <<"finger1">>}),
     ?WAIT100,
     [Ring2] = all(item, player),
     [Ring1] = all(item, finger1),
     [] = all(item, finger2),
-    attempt(Config, Player, {add, Player, <<"ring2">>}),
+    attempt(Config, Player, {move, <<"ring2">>, from, Player, to, first_available_body_part}),
     ?WAIT100,
     [] = all(item, player),
     [Ring1] = all(item, finger1),
@@ -227,24 +245,24 @@ player_remove(Config) ->
     start(?WORLD_4),
     Player = erlmud_index:get(player),
     Helmet = erlmud_index:get(helmet),
-    attempt(Config, Player, {add, Player, <<"helmet">>, <<"head">>}),
+    attempt(Config, Player, {move, <<"helmet">>, from, Player, to, <<"head">>}),
     ?WAIT100,
     undefined = val(item, player),
-    Helmet = val(item, head),
-    attempt(Config, Player, {remove, Player, <<"helmet">>, <<"head">>}),
+    Helmet = val(item, head1),
+    attempt(Config, Player, {move, <<"helmet">>, from, <<"head">>, to, Player}),
     ?WAIT100,
     Helmet = val(item, player),
-    undefined = val(item, head),
-    attempt(Config, Player, {add, Player, <<"helmet">>, <<"head">>}),
+    undefined = val(item, head1),
+    attempt(Config, Player, {move, <<"helmet">>, from, Player, to, <<"head">>}),
     ?WAIT100,
     undefined = val(item, player),
-    Helmet = val(item, head),
-    attempt(Config, Player, {remove, Player, <<"helmet">>}),
+    Helmet = val(item, head1),
+    attempt(Config, Player, {move, <<"helmet">>, from, current_body_part, to, Player}),
     ?WAIT100,
     Helmet = val(item, player),
-    undefined = val(item, head).
+    undefined = val(item, head1).
 
-look_player(Config) ->
+look_player(_Config) ->
     start(?WORLD_7),
     erlmud_test_socket:send(<<"AnyLoginWillDo">>),
     erlmud_test_socket:send(<<"AnyPasswordWillDo">>),
@@ -268,26 +286,26 @@ look_player_clothed(Config) ->
     erlmud_test_socket:send(<<"AnyLoginWillDo">>),
     erlmud_test_socket:send(<<"AnyPasswordWillDo">>),
     Giant = erlmud_index:get(giant),
-    attempt(Config, Giant, {add, Giant, <<"pants">>, <<"legs">>}),
+    attempt(Config, Giant, {move, <<"pants">>, from, Giant, to, <<"legs">>}),
     ?WAIT100,
     erlmud_test_socket:send(<<"look pete">>),
     ?WAIT100,
     ClothedDescriptions = erlmud_test_socket:messages(),
+    ct:pal("ClothedDescriptions: ~p", [ClothedDescriptions]),
     ExpectedDescriptions =
         lists:sort([<<"Pete -> hands">>,
                     <<"Pete -> legs">>,
                     <<"Pete -> legs -> pants_: pants">>,
                     <<"Pete -> sword_: sword">>,
-                    <<"Pete -> scroll_: scroll">>]),
+                    <<"Pete -> scroll_: scroll">>,
+                    <<"Pete -> giant">>,
+                    <<"Pete -> weighs 400.0kg">>,
+                    <<"Pete -> 4.0m tall">>,
+                    <<"Pete -> male">>]),
 
-    [MainDesc = <<"Pete -> ", AttributeDescs/binary>>] =
-        sets:to_list(sets:subtract(sets:from_list(ClothedDescriptions),
-                                   sets:from_list(ExpectedDescriptions))),
-    RestDescs = [X || X <- ClothedDescriptions, X /= MainDesc],
-    ExpectedParts = lists:sort([<<"4.0m tall">>, <<"weighs 400.0kg">>, <<"male">>, <<"giant">>]),
-    Parts = lists:sort(binary:split(AttributeDescs, [<<", ">>], [global])),
-    Parts = ExpectedParts,
-    ExpectedDescriptions = lists:sort(RestDescs).
+
+
+    ExpectedDescriptions = lists:sort(ClothedDescriptions).
 
 look_room(_Config) ->
     start(?WORLD_7),
@@ -307,7 +325,8 @@ look_room(_Config) ->
 
 start(Objects) ->
     IdPids = [{Id, start_obj(Id, Type, Props)} || {Type, Id, Props} <- Objects],
-    _Objs = [erlmud_object:populate(Pid, IdPids) || {_, Pid} <- IdPids].
+    _Objs = [erlmud_object:populate(Pid, IdPids) || {_, Pid} <- IdPids],
+    timer:sleep(100).
 
 start_obj(Id, Type, Props) ->
     {ok, Pid} = supervisor:start_child(erlmud_object_sup, [Id, Type, Props]),

@@ -11,85 +11,74 @@
 %% WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 %% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
--module(erlmud_attack).
+-module(erlmud_handler_attack).
 
--behaviour(erlmud_object).
+-behaviour(erlmud_handler).
 
 %% object behaviour
--export([id/3]).
--export([added/2]).
--export([removed/2]).
--export([attempt/3]).
--export([succeed/2]).
--export([fail/3]).
+-export([attempt/1]).
+-export([succeed/1]).
+-export([fail/1]).
 
 -define(PROPS, [{hit, 0}, {miss, 0}]).
 
-id(_Props, Owner, Pid) ->
-    "attack_by_" ++ Owner ++ "_" ++ Pid.
-
-added(_, _) -> ok.
-removed(_, _) -> ok.
-
-attempt(Owner, Props, {move, Owner, _Src, _Target}) ->
+attempt({Owner, Props, {move, Owner, _Src, _Target}}) ->
     {succeed, true, Props};
-attempt(Owner, Props, {attack, NotSelf, Owner, _Target}) when self() /= NotSelf ->
+attempt({Owner, Props, {attack, NotSelf, Owner, _Target}}) when self() /= NotSelf ->
     {succeed, true, Props};
 %% die means that our character has died
-attempt(Owner, Props, {die, Owner}) ->
+attempt({Owner, Props, {die, Owner}}) ->
     {succeed, true, Props};
-attempt(Owner, Props, {Action, Self, Owner, Target})
+attempt({Owner, Props, {Action, Self, Owner, Target}})
   when Self == self(),
        is_pid(Target) ->
     ShouldSubscribe = lists:member(Action, [attack, calc_hit, calc_damage, damage, killed]),
     {succeed, ShouldSubscribe, Props};
-attempt(Owner, Props, {stop_attack, Owner}) ->
+attempt({Owner, Props, {stop_attack, Owner}}) ->
     {succeed, _Subscribe = true, Props};
-attempt(_Owner, Props, Msg) ->
-    attempt(Props, Msg).
 
-attempt(Props, {calc_hit, Self, _, _}) when Self == self() ->
+attempt({_Owner, Props, {calc_hit, Self, _, _}}) when Self == self() ->
     case proplists:get_value(done, Props) of
         true ->
             {fail, "It's dead Jim"};
         _ ->
             {succeed, true, Props}
     end;
-attempt(Props, _) ->
-    {succeed, false, Props}.
+attempt(_) ->
+    undefined.
 
-succeed(Props, {Action, NotSelf, Owner, Target}) when Action == move orelse
+succeed({Props, {Action, NotSelf, Owner, Target}}) when Action == move orelse
                                              (Action == attack andalso
                                               NotSelf /= self()) ->
   erlmud_object:attempt(self(), {stop_attack, self(), Owner, Target}),
   Props;
-succeed(Props, {attack, Self, _Source, UnknownTargetName})
+succeed({Props, {attack, Self, _Source, UnknownTargetName}})
   when is_list(UnknownTargetName),
        Self == self() ->
     %% Attack failed (no one was self-identified as the target)
     %% TODO: output something to the client like "You swing at imaginary adversaries"
     %%       _if_ this is a player
     Props;
-succeed(Props, {attack, Self, Source, Target}) when is_pid(Target), Self == self() ->
+succeed({Props, {attack, Self, Source, Target}}) when is_pid(Target), Self == self() ->
     erlmud_object:attempt(self(), {calc_hit, self(), Source, Target, 1}),
     lists:keystore(target, 1, Props, {target, Target});
-succeed(Props, {calc_hit, Self, Source, Target, HitScore})
+succeed({Props, {calc_hit, Self, Source, Target, HitScore}})
   when is_pid(Target),
        Self == self(),
        HitScore > 0 ->
     erlmud_object:attempt(self(), {calc_damage, self(), Source, Target, 0}),
     Props;
-succeed(Props, {calc_hit, Self, Source, Target, _Miss})
+succeed({Props, {calc_hit, Self, Source, Target, _Miss}})
   when is_pid(Target),
        Self == self() ->
     attack_again(Source, Target),
     Props;
-succeed(Props, {calc_damage, Self, Source, Target, Damage})
+succeed({Props, {calc_damage, Self, Source, Target, Damage}})
   when Self == self(),
        Damage > 0 ->
     erlmud_object:attempt(self(), {damage, self(), Source, Target, Damage}),
     Props;
-succeed(Props, {calc_damage, Self, Source, Target, _NoDamage})
+succeed({Props, {calc_damage, Self, Source, Target, _NoDamage}})
   when Self == self() ->
     %% Attack failed (No damage was done)
     %% TODO: output something to the client like
@@ -97,7 +86,7 @@ succeed(Props, {calc_damage, Self, Source, Target, _NoDamage})
     %%       _if_ this is a player
     attack_again(Source, Target),
     Props;
-succeed(Props, {damage, Self, Source, Target, _Damage})
+succeed({Props, {damage, Self, Source, Target, _Damage}})
   when Self == self() ->
     %% Attack succeeded
     %% TODO: tell the user
@@ -105,26 +94,26 @@ succeed(Props, {damage, Self, Source, Target, _Damage})
     %% and died if necessary.
     attack_again(Source, Target),
     Props;
-succeed(Props, {calc_next_attack_wait, Self, Source, Target, Sent, Wait}) ->
+succeed({Props, {calc_next_attack_wait, Self, Source, Target, Sent, Wait}}) ->
     erlmud_object:attempt_after(milis_remaining(Sent, now(), Wait),
                                 self(),
                                 {calc_hit, Self, Source, Target, 1}),
     Props;
-succeed(Props, {die, _Owner}) ->
+succeed({Props, {die, _Owner}}) ->
     erlmud_object:attempt(self(), {stop_attack, self()}),
     Props;
-succeed(Props, {stop_attack, Self}) when Self == self() ->
+succeed({Props, {stop_attack, Self}}) when Self == self() ->
     {stop, stop_attack, Props};
 
-succeed(Props, Msg) ->
+succeed({Props, Msg}) ->
     log([<<"saw ">>, Msg, <<" succeed">>]),
     Props.
 
-fail(Props, target_is_dead, _Message) ->
+fail({Props, target_is_dead, _Message}) ->
     log([<<"Stopping because target is dead">>]),
     erlmud_object:attempt(self(), {stop_attack, self()}),
     Props;
-fail(Props, _Reason, _Message) ->
+fail({Props, _Reason, _Message}) ->
     Props.
 
 attack_again(Source, Target) ->

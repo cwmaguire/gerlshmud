@@ -68,7 +68,11 @@ password(_Event = Password, StateData = #state{login = Login,
 
             RoomPid = erlmud_index:get(room),
             PlayerPid = erlmud_index:get(player),
-            ConnProps = [{owner, PlayerPid}, {owner, RoomPid}, {conn, {self()}}],
+            ConnProps = [{owner, PlayerPid},
+                         {room, RoomPid},
+                         {conn, {self()}},
+                         {handlers, [erlmud_handler_conn_enter_world,
+                                     erlmud_handler_conn_send]}],
 
             % The conn object can add the player to the room and if that fails
             % then the conn object can tell the conn to disconnect.
@@ -76,7 +80,8 @@ password(_Event = Password, StateData = #state{login = Login,
                                                       [undefined, erlmud_conn_obj, ConnProps]),
             %ct:pal("erlmud_conn:password -> started ConnObj ~p with props ~p~n", [ConnObjPid, ConnProps]),
 
-            Message = {move, PlayerPid, _From = undefined, RoomPid, _Exit = undefined},
+            %Message = {move, PlayerPid, _From = undefined, RoomPid, _Exit = undefined},
+            Message = {enter_world, PlayerPid, RoomPid, ConnObjPid},
             ConnObjPid ! {ConnObjPid, Message},
             %erlmud_object:attempt(ConnObjPid, {move, PlayerPid, _From = undefined, RoomPid, _Target = undefined}),
 

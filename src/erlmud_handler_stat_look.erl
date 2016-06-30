@@ -11,33 +11,20 @@
 %% WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 %% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
--module(erlmud_stat).
+-module(erlmud_handler_stat_look).
 
--behaviour(erlmud_object).
+-behaviour(erlmud_handler).
 
-%% object behaviour
--export([id/3]).
--export([added/2]).
--export([removed/2]).
--export([attempt/3]).
--export([succeed/2]).
--export([fail/3]).
+-export([attempt/1]).
+-export([succeed/1]).
+-export([fail/1]).
 
-id(Props, _Owner, Pid) ->
-    "stat_" ++ proplists:get_value(name, Props, "NoName") ++ "_" ++ Pid.
-
-added(_, _) -> ok.
-removed(_, _) -> ok.
-
-set(Key, Obj, Props) ->
-    lists:keystore(Key, 1, Props, {Key, Obj}).
-
-attempt(Owner, Props, {look, _Source, Owner, _Context}) ->
+attempt({Owner, Props, {look, _Source, Owner, _Context}}) ->
     {succeed, true, Props};
-attempt(_Owner, Props, _Msg) ->
-    {succeed, false, Props}.
+attempt(_) ->
+    undefined.
 
-succeed(Props, {look, Source, Target, Context}) ->
+succeed({Props, {look, Source, Target, Context}}) ->
     _ = case is_owner(Target, Props) of
             true ->
                 describe(Source, Props, Context);
@@ -45,11 +32,11 @@ succeed(Props, {look, Source, Target, Context}) ->
                 ok
         end,
     Props;
-succeed(Props, Msg) ->
+succeed({Props, Msg}) ->
     log([<<"saw ">>, Msg, <<" succeed with props ">>, Props]),
     Props.
 
-fail(Props, Result, Msg) ->
+fail({Props, Result, Msg}) ->
     log([<<"result: ">>, Result, <<" message: ">>, Msg]),
     Props.
 
@@ -57,11 +44,6 @@ is_owner(MaybeOwner, Props) when is_pid(MaybeOwner) ->
     MaybeOwner == proplists:get_value(owner, Props);
 is_owner(_, _) ->
     false.
-
-move(Props, Owner, Receiver) ->
-    gen_server:cast(Owner, {remove, item, self()}),
-    gen_server:cast(Receiver, {add, item, self()}),
-    set(owner, Receiver, Props).
 
 describe(Source, Props, Context) ->
     Description = description(Props),

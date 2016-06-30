@@ -81,7 +81,8 @@ handle_cast({old_log, Pid, Msg, Params}, State) ->
 handle_cast({log, Level, Pid, Terms}, State) ->
     try
     IoData = [[io(maybe_name(Term)), " "] || Term <- flatten(Terms)],
-    Props = erlmud_object:props(Pid),
+    %Props = erlmud_object:props(Pid),
+    Props = props(Pid),
     PropsWithNames = [{K, io(maybe_name(V))} || {K, V} <- Props],
     ok = file:write(State#state.html_file,
                     spans(["log", Level, io(erlmud_index:get(Pid))],
@@ -165,6 +166,15 @@ terminate(Reason, State) ->
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
+
+props(Pid) ->
+    case erlmud_object:props(Pid) of
+        undefined ->
+            io:format(user, "Pid ~p has no props!", [Pid]),
+            [];
+        Props ->
+            Props
+    end.
 
 get_log_path() ->
     case os:getenv("ERLMUD_LOG_PATH") of

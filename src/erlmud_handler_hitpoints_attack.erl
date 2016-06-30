@@ -11,36 +11,29 @@
 %% WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 %% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
--module(erlmud_hitpoints).
+-module(erlmud_handler_hitpoints_attack).
 
--behaviour(erlmud_object).
+-behaviour(erlmud_handler).
 
-%% object behaviour
--export([id/3]).
--export([added/2]).
--export([removed/2]).
--export([attempt/3]).
--export([succeed/2]).
--export([fail/3]).
+-export([attempt/1]).
+-export([succeed/1]).
+-export([fail/1]).
 
-id(_Props, Owner, Pid) ->
-    "hp_of_" ++ Owner ++ "_" ++ Pid.
+%id(_Props, Owner, Pid) ->
+    %"hp_of_" ++ Owner ++ "_" ++ Pid.
 
-added(_, _) -> ok.
-removed(_, _) -> ok.
-
-attempt(Owner, Props, {damage, _Att, _Src, Owner, _Dmg}) ->
+attempt({Owner, Props, {damage, _Att, _Src, Owner, _Dmg}}) ->
     {succeed, true, Props};
-attempt(_Owner, Props, _Msg) ->
-    {succeed, false, Props}.
+attempt(_) ->
+    undefined.
 
-succeed(Props, Msg = {damage, Attack, Source, Owner, Damage}) ->
+succeed({Props, Msg = {damage, Attack, Source, Owner, Damage}}) ->
     log([<<"saw ">>, Msg, <<"succeed">>]),
     take_damage(Attack, Source, Owner, Damage, Props);
-succeed(Props, _Msg) ->
+succeed({Props, _Msg}) ->
     Props.
 
-fail(Props, Message, _Reason) ->
+fail({Props, Message, _Reason}) ->
     log([<<"saw ">>, Message, <<" fail with props ">>, Props]),
     Props.
 

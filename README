@@ -6,6 +6,10 @@ Events propagate through the graph.
 Events succeed or fail.
 Events can be: generated, resent, failed, passed, subscribed to.
 
+How it Works:
+https://www.youtube.com/watch?v=dcuv_M4Po0g
+
+
 Introduction:
 
 Any event in the MUD is first proposed as an attempt.
@@ -161,7 +165,7 @@ wait for any
 other.
 
 
-Videos:
+Older Videos:
 Jun 20, 2015 - How attacks work: https://youtu.be/oSG1EXPMJVw
 Jun 20, 2015 - How messages work: https://youtu.be/6t7YSnSBaJ8
 
