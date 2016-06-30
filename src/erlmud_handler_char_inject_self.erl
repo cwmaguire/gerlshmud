@@ -29,6 +29,9 @@ attempt({_Owner, Props, {attack, Attacker, TargetName}})
         _ ->
             {succeed, _Subscribe = false, Props}
     end;
+attempt({Owner, Props, {look, Self}}) when Self == self() ->
+    NewMessage = {look, Self, Owner},
+    {{resend, Self, NewMessage}, _ShouldSubscribe = false, Props};
 attempt(_) ->
     undefined.
 

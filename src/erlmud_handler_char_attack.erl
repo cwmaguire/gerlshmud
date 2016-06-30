@@ -30,6 +30,8 @@ attempt({_Owner, Props, {attack, Self, _Target}}) when Self == self() ->
     {succeed, true, Props};
 attempt({_Owner, Props, {calc_hit, _Attack, Self, _Target, _HitRoll}}) when Self == self() ->
     {succeed, true, Props};
+attempt({_Onwer, Props, {die, Self}}) when Self == self() ->
+    {succeed, true, Props};
 attempt(_) ->
     undefined.
 
@@ -51,7 +53,7 @@ succeed({Props, {stop_attack, AttackPid}}) ->
                  end,
                  Props);
 succeed({Props, {die, Self}}) when Self == self() ->
-    lists:keydelete(attack, 1, Props);
+    lists:keydelete(attack, 1, lists:keydelete(target, 1, Props));
 succeed({Props, _}) ->
     Props.
 
@@ -69,7 +71,7 @@ attack(Target, Props) ->
     {ok, Attack} = supervisor:start_child(erlmud_object_sup, Args),
     log(debug, [<<"Attack ">>, Attack, <<" started, sending attempt\n">>]),
     erlmud_object:attempt(Attack, {attack, Attack, self(), Target}),
-    [{attack, {Attack, Target}} | Props].
+    [{attack, Attack}, {target, Target} | Props].
 
 log(Level, IoData) ->
     erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).

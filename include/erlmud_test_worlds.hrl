@@ -6,7 +6,8 @@
                                         erlmud_handler_char_look,
                                         erlmud_handler_char_inv,
                                         erlmud_handler_char_move,
-                                        erlmud_handler_char_inject_self]}).
+                                        erlmud_handler_char_inject_self,
+                                        erlmud_handler_char_enter_world]}).
 -define(ITEM_HANDLERS, {handlers, [erlmud_handler_item_attack,
                                    erlmud_handler_item_look,
                                    erlmud_handler_item_inv,
@@ -88,7 +89,7 @@
 -define(WORLD_5, [{erlmud_character, player, [{item, helmet},
                                               {body_part, head1},
                                               {body_part, finger1},
-                                              ?ITEM_HANDLERS]},
+                                              ?CHARACTER_HANDLERS]},
                   {erlmud_body_part, head1, [{name, <<"head">>},
                                              {owner, player},
                                              {body_part, head},
@@ -106,7 +107,7 @@
                                               {body_part, finger2},
                                               {item, ring1},
                                               {item, ring2},
-                                              ?ITEM_HANDLERS]},
+                                              ?CHARACTER_HANDLERS]},
                   {erlmud_body_part, finger1, [{name, <<"finger1">>},
                                                {owner, player},
                                                {max_items, 1},

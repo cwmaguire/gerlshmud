@@ -22,12 +22,11 @@
 %% it from its properties.
 attempt({Owner, Props, {move, Self, from, Owner, to, Target, item_body_parts}})
   when Self == self(),
-       Owner /= Target,
-       is_pid(Target) ->
+       Owner /= Target ->
     BodyParts = proplists:get_value(body_parts, Props, []),
     NewMessage = {move, Self, from, Owner, to, Target, BodyParts},
     Result = {resend, Owner, NewMessage},
-    {Result, _Subscribe = true, Props};
+    {Result, _Subscribe = false, Props};
 attempt({Owner, Props, {move, Self, from, Owner, to, Target}})
   when Self == self(),
        Owner /= Target,

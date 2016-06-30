@@ -38,9 +38,9 @@ attempt({_Owner, Props, {move, ItemName, from, Source, to, Target}})
     case is_name(Props, ItemName) of
         true ->
             NewMessage = {move, self(), from, Source, to, Target},
-            %% resending to source is kind of arbitrary:
-            %% Target might have initiated the move.
-            Result = {resend, Source, NewMessage},
+            %% send to self() since we _know_ that's a PID.
+            %% Source might be a binary name
+            Result = {resend, self(), NewMessage},
             {Result, true, Props};
         _ ->
             {succeed, _Subscribe = false, Props}

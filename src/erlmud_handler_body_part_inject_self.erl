@@ -41,11 +41,21 @@ attempt({Owner, Props, {move, Item, from, BodyPartName, to, Owner}})
         _ ->
             {succeed, _Subscribe = false, Props}
     end;
-attempt({Owner, Props, {move, Item, from, Owner, to, first_available_body_part}}) ->
-    case is_pid(Item) andalso
-         %% Not sure if I should just move this clause over to
-         %% erlmud_handler_body_part_inv
-         erlmud_handler_body_part_inv:can_add(Props, Item) of
+attempt({Owner, Props, {move, Item, from, Owner,
+                        to, first_available_body_part}})
+  when is_pid(Item) ->
+    NewMessage = {move, Item, from, Owner,
+                  to, first_available_body_part,
+                  item_body_parts},
+    Result = {resend, Owner, NewMessage},
+    {Result, _Subscribe = true, Props};
+attempt({Owner, Props, {move, Item, from, Owner,
+                        to, first_available_body_part,
+                        ItemBodyParts}})
+  when is_pid(Item),
+       is_list(ItemBodyParts) ->
+    %% Not sure if I should just move this clause over to erlmud_handler_body_part_inv
+    case erlmud_handler_body_part_inv:can_add(Props, ItemBodyParts) of
         true ->
             NewMessage = {move, Item, from, Owner, to, self()},
             Result = {resend, Owner, NewMessage},
@@ -58,7 +68,7 @@ attempt({Owner, Props, {move, Item, from, current_body_part, to, Owner}}) ->
     %% be owned by  a room, character, another item, etc.
     case {item, Item} == lists:keyfind(Item, 2, Props) of
         true ->
-            NewMessage = {move, item, from, self(), to, Owner},
+            NewMessage = {move, Item, from, self(), to, Owner},
             Result = {resend, Owner, NewMessage},
             {Result, _Subscribe = true, Props};
         _ ->

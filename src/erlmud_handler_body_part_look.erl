@@ -31,7 +31,7 @@ succeed({Props, {describe, Source, Target, _Deep, AncestorsContext}}) ->
                 describe(Source, Props, AncestorsContext),
                 Name = proplists:get_value(name, Props, undefined),
                 BodyPartContext = <<Name/binary, " -> ">>,
-                NewMessage = {describe, Source, self(), <<AncestorsContext/binary, BodyPartContext/binary>>, []},
+                NewMessage = {describe, Source, self(), deep, <<AncestorsContext/binary, BodyPartContext/binary>>},
                 erlmud_object:attempt(Source, NewMessage);
             _ ->
                 ok

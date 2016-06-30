@@ -17,9 +17,14 @@
 -export([succeed/1]).
 -export([fail/1]).
 
+attempt({Owner, Props, {enter_world, Owner, _Room, Self}}) when Self == self() ->
+    {succeed, true, Props};
 attempt(_) ->
     undefined.
 
+succeed({Props, {enter_world, Player, _Room, _Conn}}) ->
+    log(debug, [<<"Player ">>, self(), <<" successfully entered the world\n">>]),
+    [{owner, Player} | Props];
 succeed({Props, _Other}) ->
     Props.
 
@@ -29,3 +34,6 @@ fail({Props, Reason, {enter_world, _Player}}) ->
     Props;
 fail({Props, _Reason, _Message}) ->
     Props.
+
+log(Level, IoData) ->
+    erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).

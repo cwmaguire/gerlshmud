@@ -23,12 +23,7 @@
 attempt({Owner, Props, {move, Item, from, Self, to, Owner}})
   when Self == self(),
        is_pid(Item) ->
-    case {item, Item} == lists:keyfind(Item, 2, Props) of
-        true ->
-            {succeed, _Subscribe = true, Props};
-        _ ->
-            {succeed, _Subscribe = false, Props}
-    end;
+    {succeed, has_item(Item, Props), Props};
 attempt({Owner, Props, {move, Item, from, Owner, to, Self}})
   when Self == self(),
        is_pid(Item) ->
@@ -54,14 +49,20 @@ succeed({Props, {move, Item, from, _OldOwner, to, Self, _ItemBodyParts}})
 succeed({Props, {move, Item, from, Self, to, _NewOwner}})
   when Self == self() ->
     lists:keydelete(Item, 2, Props);
+succeed({Props, {move, Item, from, Self, to, _NewOwner, _ItemBodyParts}})
+  when Self == self() ->
+    lists:keydelete(Item, 2, Props);
 succeed({Props, _}) ->
     Props.
 
 fail({Props, _, _}) ->
     Props.
 
-can(add, Props, Item) ->
-    can_add(Props, Item);
+has_item(Item, Props) ->
+    {item, Item} == lists:keyfind(Item, 2, Props).
+
+can(add, Props, ItemBodyParts) ->
+    can_add(Props, ItemBodyParts);
 can(remove, Props, Item) ->
     can_remove(Props, Item).
 
@@ -69,11 +70,13 @@ can_add([], _, _, Result) ->
     log(debug, [<<"can_add([], _, _, ">>, Result ,<<")">>]),
     Result;
 can_add(_, _, _, {false, Reason}) ->
-    log(debug, [<<"can_add([_ | _], _, _, {false, ">>, Reason,<<"})">>]),
+    log(debug, [<<"can_add([_ | _], _, _, {false, ">>, list_to_binary(Reason),<<"})">>]),
     {false, Reason};
-can_add([Fun | Funs], Props, Item, true) ->
-    log(debug, [<<"can_add([">>, Fun, <<" | ">>, Funs, <<"], ">>, Props, <<", ">>, Item, <<", true)">>]),
-    can_add(Funs, Props, Item, Fun(Props, Item)).
+can_add([Fun | Funs], Props, ItemBodyParts, true) ->
+    log(debug, [<<"can_add([">>, Fun, <<" | ">>,
+                Funs, <<"], ">>, Props, <<", ">>,
+                ItemBodyParts, <<", true)">>]),
+    can_add(Funs, Props, ItemBodyParts, Fun(Props, ItemBodyParts)).
 
 can_remove(_Props, _Item) ->
     true.
@@ -84,13 +87,9 @@ can_add(Props, ItemBodyParts) ->
 
 has_matching_body_part(Props, ItemBodyParts) ->
     BodyPart = proplists:get_value(body_part, Props, any),
-    %% TODO Remove synchronous gen_server call: have the item send it's
-    %% body parts when it sees it's name and replaces it with it's PID.
-    %ItemBodyParts = lists:flatten(erlmud_object:get(Item, body_parts)),
     log(debug, [<<"has_matching_body_part(">>, BodyPart,
-         ", ", ItemBodyParts, "):",
-         " {", BodyPart,
-         lists:member(BodyPart, ItemBodyParts), "}"]),
+         <<", [">>, ItemBodyParts, <<"]):">>,
+         lists:member(BodyPart, ItemBodyParts)]),
     case {BodyPart, lists:member(BodyPart, ItemBodyParts)} of
         {any, _} ->
             true;

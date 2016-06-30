@@ -217,31 +217,44 @@ attempt_(Msg,
     Owner = proplists:get_value(owner, Props),
     %% So far it looks like nothing actually changes the object properties on attempt
     %% but I'm leaving it in for now
-    Results = {Result, Msg2, ShouldSubscribe, Props2} = ensure_message(Msg, run_handlers({Owner, Props, Msg})),
+    {Handler, Results = {Result, Msg2, ShouldSubscribe, Props2}} = ensure_message(Msg, run_handlers({Owner, Props, Msg})),
     log([Type, <<" ">>, self(), <<" {owner, ">>, Owner, <<"} ">>,
-         <<"attempt: ">>, Msg, <<" -> ">>,
-         ShouldSubscribe, <<", ">>, Result]),
+         Handler, <<"attempt: ">>, Msg, <<" -> ">>,
+         ShouldSubscribe, <<", ">>, binary_fail_reason(Result)]),
     MergedProcs = merge(self(), Type, Results, Procs),
     _ = handle(Result, Msg2, MergedProcs),
     State#state{props = Props2}.
+
+binary_fail_reason({fail, Reason}) when is_list(Reason) ->
+    {fail, list_to_binary(Reason)};
+binary_fail_reason({fail, Reason}) when is_atom(Reason) ->
+    {fail, atom_to_binary(Reason, utf8)};
+binary_fail_reason(Any = {fail, _}) ->
+    Any;
+binary_fail_reason(Reason) when is_list(Reason) ->
+    list_to_binary(Reason);
+binary_fail_reason(Reason) when is_atom(Reason) ->
+    atom_to_binary(Reason, utf8);
+binary_fail_reason(Any) ->
+    Any.
 
 run_handlers(Attempt = {_, Props, _}) ->
     Handlers = proplists:get_value(handlers, Props),
     handle_attempt(Handlers, Attempt).
 
 handle_attempt([], {_, Props, _}) ->
-    _DefaultResponse = {succeed, false, Props};
+    _DefaultResponse = {no_handler, {succeed, false, Props}};
 handle_attempt([Handler | Handlers], Attempt) ->
     case Handler:attempt(Attempt) of
         undefined ->
             handle_attempt(Handlers, Attempt);
         Result ->
-            Result
+            {Handler, Result}
     end.
 
-ensure_message(Msg, {A, B, C}) ->
-    {A, Msg, B, C};
-ensure_message(_, T = {_, NewMsg, _, _}) ->
+ensure_message(Msg, {Handler, {A, B, C}}) ->
+    {Handler, {A, Msg, B, C}};
+ensure_message(_, T = {_, {_, NewMsg, _, _}}) ->
     log([<<"New message: ">>, NewMsg]),
     T.
 
@@ -249,7 +262,9 @@ handle({resend, Target, Msg}, OrigMsg, _NoProcs) ->
     log([<<"resending ">>, OrigMsg, <<" as ">>, Msg]),
     send(Target, {attempt, Msg, #procs{}});
 handle({fail, Reason}, Msg, Procs = #procs{subs = Subs}) ->
-    log([<<"failing msg: ">>, Msg, <<" with reasons: ">>, Reason, <<" subs: ">>, Subs]),
+    log([<<"failing msg: ">>, Msg,
+         <<" with reasons: ">>, binary_fail_reason(Reason),
+         <<" subs: ">>, Subs]),
     [send(Sub, {fail, Reason, Msg}, Procs) || Sub <- Subs];
 handle(succeed, Msg, Procs = #procs{subs = Subs}) ->
     _ = case next(Procs) of
@@ -337,7 +352,7 @@ next(Procs = #procs{next = NextSet}) ->
             {NextProc, Procs#procs{next = ordsets:del_element(NextProc, Next)}}
     end.
 
-succeed(Message, State = #state{props = Props}) ->
+succeed(Message, #state{props = Props}) ->
     Handlers = proplists:get_value(handlers, Props),
     {Result, _} = lists:foldl(fun handle_success/2, {Props, Message}, Handlers),
     Result.

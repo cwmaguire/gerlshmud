@@ -33,7 +33,7 @@ attempt({_Owner, Props, {stop_attack, Attack, Self, _Target}}) when Self == self
             Props
     end;
 attempt({_Owner, _Props, Attempt}) ->
-    log([<<"caught attemp but not subscribing">>, Attempt]),
+    log([self(), <<" caught attempt but not subscribing">>, Attempt]),
     undefined.
 
 %succeed({Props, {attack, Attack, Self, Target}}) when Self == self() ->
@@ -50,20 +50,21 @@ attempt({_Owner, _Props, Attempt}) ->
 %% (e.g. something stupid, or with a short memory)
 succeed({Props, {damage, _Att, Attacker, Self, _Dmg}}) when Self == self() ->
     log([<<"caught damage succeeded ">>]),
-    %log([<<"caught damage succeeded ">>, Attacker, <<" ">>, Owner]),
 
     %% pitbull attack: stick with first character that damages us
     %% TODO: make sure the attack originates from something we can attack back,
     %%       not a poison or extreme cold or something.
-    _ = case [Attack || Attack = {attack, {_, _}} <- Props] of
-        [] ->
+    Attack = proplists:get_value(attack, Props),
+    Target = proplists:get_value(target, Props),
+    _ = case is_pid(Attack) andalso is_pid(Target) of
+        false ->
             log([<<"no attacks yet, attack back props: ">>, Props]),
             AttackWait = proplists:get_value(attack_wait, Props, 1000),
             erlmud_object:attempt_after(AttackWait,
                                         self(),
                                         {attack, self(), Attacker});
-        _ ->
-            log([<<"already attacking something, stick with it. Props: ">>, Props]),
+        true ->
+            log([<<"already attacking ">>, Target, <<" with ">>, Attack, <<". Stick with it. Props: ">>, Props]),
             ok
     end,
     Props;
