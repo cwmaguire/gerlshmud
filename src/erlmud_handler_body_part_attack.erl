@@ -11,29 +11,35 @@
 %% WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 %% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
--module(erlmud_handler_char_attack).
+-module(erlmud_handler_body_part_attack).
 -behaviour(erlmud_handler).
 
 -export([attempt/1]).
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({_Owner, Props, {calc_next_attack_wait, Attack, Self, Target, Sent, Wait}})
-    when Self == self() ->
-    ObjWait = proplists:get_value(attack_wait, Props, 0),
-    log(debug, [<<"Object attack wait is ">>, ObjWait, <<"\n">>]),
-    {succeed,
-     {calc_next_attack_wait, Attack, Self, Target, Sent, Wait + ObjWait},
-     false,
-     Props};
 attempt({_Owner, Props, {attack, Self, Target}})
   when Self == self(),
        is_pid(Target) ->
     {succeed, true, Props};
 attempt({_Owner, Props, {calc_hit, _Attack, Self, _Target, _HitRoll}}) when Self == self() ->
     {succeed, true, Props};
-attempt({_Onwer, Props, {die, Self}}) when Self == self() ->
+attempt({_Owner, Props, {die, Self}}) when Self == self() ->
     {succeed, true, Props};
+attempt({Owner, Props, {gather_body_parts, Attack,
+                        Owner, Target,
+                        OwnerBodyParts, TargetBodyParts}}) ->
+    NewMessage = {gather_body_parts, Attack,
+                  Owner, Target,
+                  [self() | OwnerBodyParts], TargetBodyParts},
+    {succeed, NewMessage, true, Props};
+attempt({Owner, Props, {gather_body_parts, Attack,
+                        Source, Owner,
+                        SourceBodyParts, OwnerBodyParts}}) ->
+    NewMessage = {gather_body_parts, Attack,
+                  Source, Owner,
+                  SourceBodyParts, [self() | OwnerBodyParts]},
+    {succeed, NewMessage, true, Props};
 attempt(_) ->
     undefined.
 
@@ -68,12 +74,7 @@ fail({Props, _, _}) ->
 
 attack(Target, Props) ->
     Args = [_Id = undefined,
-            _Type = erlmud_attack, %% doesn't matter?
-            _Props = [{owner, self()},
-                      {target, Target},
-                      {name, <<"attack">>},
-                      {handlers, [erlmud_handler_attack,
-                                  erlmud_handler_set_character]}]],
+            _Props = [{owner, self()}, {target, Target}, {name, <<"attack">>}, {handlers, [erlmud_handler_attack]}]],
     {ok, Attack} = supervisor:start_child(erlmud_object_sup, Args),
     log(debug, [<<"Attack ">>, Attack, <<" started, sending attempt\n">>]),
     erlmud_object:attempt(Attack, {attack, Attack, self(), Target}),

@@ -15,7 +15,7 @@
 -behaviour(gen_server).
 
 %% API.
--export([start_link/3]).
+-export([start_link/2]).
 -export([populate/2]).
 -export([attempt/2]).
 -export([attempt/3]).
@@ -37,8 +37,7 @@
 -export([terminate/2]).
 -export([code_change/3]).
 
--record(state, {type :: atom(),
-                props :: list(tuple())}).
+-record(state, {props :: list(tuple())}).
 
 -record(procs, {limit = undefined :: undefined | {atom(), integer(), atom()},
                 room = undefined :: pid(),
@@ -54,18 +53,15 @@
 
 %% API.
 
--spec start_link(any(), atom(), proplist()) -> {ok, pid()}.
-start_link(Id, Type, Props) ->
+-spec start_link(any(), proplist()) -> {ok, pid()}.
+start_link(Id, Props) ->
     %ct:pal("erlmud_obj:start_link(~p, ~p, ~p)~n", [Id, Type, Props]),
-    {ok, Pid} = gen_server:start_link(?MODULE, {Type, Props}, []),
-    erlmud_index:put(id(Id, Type, Props), Pid),
+    {ok, Pid} = gen_server:start_link(?MODULE, Props, []),
+    erlmud_index:put(id(Id, Pid, Props), Pid),
     {ok, Pid}.
 
-id(_Id = undefined, Type, _Props) ->
-    _PidString = atom_to_list(Type) ++ pid_to_list(self());
-    % TODO: there are no type modules anymore. Maybe an ID handler?
-    % or maybe have erlmud_object generate the IDs? (I like handler better after 2 seconds thought.)
-    %Type:id(Props, Owner, PidString);
+id(_Id = undefined, Pid, Props) ->
+    _PidString = pid_to_list(Pid) ++ "___" ++ binary_to_list(proplists:get_value(name, Props, <<"_">>));
 id(Id, _, _) ->
     Id.
 
@@ -118,9 +114,9 @@ has_pid(Props, Pid) ->
 
 %% gen_server.
 
-init({Type, Props}) ->
+init(Props) ->
     process_flag(trap_exit, true),
-    {ok, #state{type = Type, props = Props}}.
+    {ok, #state{props = Props}}.
 
 handle_call(props, _From, State) ->
     {reply, State#state.props, State};
@@ -136,19 +132,11 @@ handle_cast_({populate, ProcIds}, State = #state{props = Props}) ->
     ct:pal("populate on ~p", [self()]),
     log([<<"populate on ">>, self()]),
     {noreply, State#state{props = populate_(Props, ProcIds)}};
-%% Going to have to find a different way to add things
-%handle_cast_({add, AddType, Pid}, State) ->
-    %Props2 = add_(AddType, State#state.props, Pid),
-    %(State#state.type):added(AddType, Pid),
-    %{noreply, State#state{props = Props2}};
-%handle_cast_({remove, RemType, Pid}, State) ->
-    %Props2 = remove_(RemType, Pid, State#state.props),
-    %(State#state.type):removed(RemType, Pid),
-    %{noreply, State#state{props = Props2}};
 handle_cast_({set, Prop = {K, _}}, State = #state{props = Props}) ->
     {noreply, State#state{props = lists:keystore(K, 1, Props, Prop)}};
-handle_cast_({attempt, Msg, Procs}, State) ->
-    {noreply, maybe_attempt(Msg, Procs, State)};
+handle_cast_({attempt, Msg, Procs}, State = #state{props = Props}) ->
+    IsExit = proplists:get_value(is_exit, Props, false),
+    {noreply, maybe_attempt(Msg, Procs, IsExit, State)};
 handle_cast_({fail, Reason, Msg}, State) ->
     case fail(Reason, Msg, State) of
         {stop, Props} ->
@@ -190,7 +178,8 @@ code_change(_OldVsn, State, _Extra) ->
 
 maybe_attempt(Msg,
               Procs = #procs{room = Room},
-              State = #state{type = erlmud_exit, props = Props})
+              _IsExit = true,
+              State = #state{props = Props})
         when Room  /= undefined ->
     _ = case exit_has_room(Props, Room) of
             true ->
@@ -199,7 +188,7 @@ maybe_attempt(Msg,
                 _ = handle(succeed, Msg, done(self(), Procs), Props),
                 State
         end;
-maybe_attempt(Msg, Procs, State) ->
+maybe_attempt(Msg, Procs, _, State) ->
     attempt_(Msg, Procs, State).
 
 exit_has_room(Props, Room) ->
@@ -212,18 +201,20 @@ exit_has_room(Props, Room) ->
 
 attempt_(Msg,
          Procs,
-         State = #state{type = Type,
-                        props = Props}) ->
+         State = #state{props = Props}) ->
     Owner = proplists:get_value(owner, Props),
     %% So far it looks like nothing actually changes the object properties on attempt
     %% but I'm leaving it in for now
     {Handler, Results = {Result, Msg2, ShouldSubscribe, Props2}} = ensure_message(Msg, run_handlers({Owner, Props, Msg})),
-    log([Type, <<" ">>, self(), <<" {owner, ">>, Owner, <<"} ">>,
+    log([self(), <<" {owner, ">>, Owner, <<"} ">>,
          Handler, <<"attempt: ">>, Msg, <<" -> ">>,
          ShouldSubscribe, <<", ">>, binary_fail_reason(Result)]),
-    MergedProcs = merge(self(), Type, Results, Procs),
+    MergedProcs = merge(self(), is_room(Props), Results, Procs),
     _ = handle(Result, Msg2, MergedProcs, Props2),
     State#state{props = Props2}.
+
+is_room(Props) ->
+    proplists:get_value(is_room, Props, false).
 
 binary_fail_reason({fail, Reason}) when is_list(Reason) ->
     {fail, list_to_binary(Reason)};
@@ -245,6 +236,9 @@ run_handlers(Attempt = {_, Props, _}) ->
 handle_attempt([], {_, Props, _}) ->
     _DefaultResponse = {no_handler, {succeed, false, Props}};
 handle_attempt([Handler | Handlers], Attempt) ->
+    %{_, Props, _} = Attempt,
+    %Name = proplists:get_value(name, Props, "___"),
+    %log([Name, self(), <<" running handler ">>, Handler]),
     case Handler:attempt(Attempt) of
         undefined ->
             handle_attempt(Handlers, Attempt);
@@ -330,8 +324,8 @@ merge(_, _, {{resend, _, _, _}, _, _, _}, _) ->
     undefined;
 merge(_, _, {{broadcast, _}, _, _, _}, _) ->
     undefined;
-merge(Self, erlmud_room, Results, Procs = #procs{room = undefined}) ->
-    merge(Self, erlmud_room, Results, Procs#procs{room = Self});
+merge(Self, IsRoom = true, Results, Procs = #procs{room = undefined}) ->
+    merge(Self, IsRoom, Results, Procs#procs{room = Self});
 merge(Self, _, {_, _, ShouldSubscribe, Props}, Procs = #procs{}) ->
     merge_(Self,
            sub(Procs, ShouldSubscribe),
@@ -384,20 +378,6 @@ handle_fail(_, Response = {{stop, _}, _, _}) ->
 handle_fail(HandlerModule, Failure = {_, Reason, Message}) ->
     Props = HandlerModule:fail(Failure),
     {Props, Reason, Message}.
-
-%add_(Type, Props, Obj) ->
-    %case lists:member({Type, Obj}, Props) of
-        %false ->
-            %[{Type, Obj} | Props];
-        %true ->
-            %Props
-    %end.
-
-%remove_(RemType, Obj, Props) ->
-    %log([<<"Props before removing ">>, RemType, <<" ">>, Obj, <<": ">>, Props]),
-    %NewProps = [Prop || Prop <- Props, Prop /= {RemType, Obj}],
-    %log([<<"Props after removing ">>, RemType, <<" ">>, Obj, <<": ">>, NewProps]),
-    %NewProps.
 
 log(To, Stage, Msg, Procs) when is_tuple(Msg) ->
     erlmud_event_log:log(To,

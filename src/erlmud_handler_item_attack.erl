@@ -36,13 +36,9 @@ attempt({_Owner, Props, {calc_damage, Attack, Source, Target, Damage}}) ->
 
            undefined
     end;
-    %UpdatedDmg = Damage + proplists:get_value(dmg, Props, 0),
-    %UpdatedMsg = {calc_damage, Attack, Owner, Target, UpdatedDmg},
-    %{succeed, UpdatedMsg, false, Props};
 attempt({_, _, Msg}) ->
    log(debug, [<<"erlmud_handler_item_attack did not handle ">>,
                Msg]),
-
     undefined.
 
 succeed({Props, _}) ->

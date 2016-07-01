@@ -44,6 +44,11 @@ attempt({_Owner, Props, {calc_hit, Self, _, _}}) when Self == self() ->
         _ ->
             {succeed, true, Props}
     end;
+attempt({_Owner, Props, {gather_body_parts, Self,
+                         _Source, _Target,
+                         _SourceBodyParts, _TargetBodyParts}})
+  when Self == self() ->
+    {succeed, true, Props};
 attempt(_) ->
     undefined.
 
@@ -60,8 +65,16 @@ succeed({Props, {attack, Self, _Source, UnknownTargetName}})
     %%       _if_ this is a player
     Props;
 succeed({Props, {attack, Self, Source, Target}}) when is_pid(Target), Self == self() ->
-    erlmud_object:attempt(self(), {calc_hit, self(), Source, Target, 1}),
+    erlmud_object:attempt(self(), {gather_body_parts, self(), Source, Target, _Source = [], _Target = []}),
     lists:keystore(target, 1, Props, {target, Target});
+succeed({Props, {gather_body_parts, Self,
+                 Source, Target,
+                 SourceBodyParts, TargetBodyParts}})
+  when Self == self() ->
+    erlmud_object:attempt(self(), {calc_hit, self(),
+                                   Source, Target,
+                                   SourceBodyParts, TargetBodyParts}),
+    Props;
 succeed({Props, {calc_hit, Self, Source, Target, HitScore}})
   when is_pid(Target),
        Self == self(),

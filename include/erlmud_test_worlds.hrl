@@ -3,6 +3,7 @@
                                    erlmud_handler_room_look,
                                    erlmud_handler_room_move,
                                    erlmud_handler_set_character]}).
+
 -define(CHARACTER_HANDLERS, {handlers, [erlmud_handler_char_attack,
                                         erlmud_handler_char_look,
                                         erlmud_handler_char_inv,
@@ -10,29 +11,38 @@
                                         erlmud_handler_char_inject_self,
                                         erlmud_handler_char_enter_world,
                                         erlmud_handler_set_character]}).
+
 -define(ITEM_HANDLERS, {handlers, [erlmud_handler_item_attack,
                                    erlmud_handler_item_look,
                                    erlmud_handler_item_inv,
                                    erlmud_handler_item_inject_self,
                                    erlmud_handler_set_character]}).
+
 -define(CONN_HANDLERS, {handlers, [erlmud_handler_conn_enter_world,
                                    erlmud_handler_conn_move,
                                    erlmud_handler_conn_send,
                                    erlmud_handler_set_character]}).
+
 -define(BODY_PART_HANDLERS, {handlers, [erlmud_handler_body_part_look,
                                         erlmud_handler_body_part_inv,
                                         erlmud_handler_body_part_inject_self,
                                         erlmud_handler_set_character]}).
+
 -define(ATTRIBUTE_HANDLERS, {handlers, [erlmud_handler_attribute_look,
                                         erlmud_handler_set_character]}).
+
 -define(EXIT_HANDLERS, {handlers, [erlmud_handler_exit_move,
                                    erlmud_handler_set_character]}).
+
 -define(HITPOINTS_HANDLERS, {handlers, [erlmud_handler_hitpoints_attack,
                                         erlmud_handler_set_character]}).
+
 -define(LIFE_HANDLERS, {handlers, [erlmud_handler_life_attack,
                                    erlmud_handler_set_character]}).
+
 -define(STAT_HANDLERS, {handlers, [erlmud_handler_stat_look,
                                    erlmud_handler_set_character]}).
+
 -define(TEST_CONN_HANDLERS, {handlers, [erlmud_handler_test_connection_attack,
                                         erlmud_handler_set_character]}).
 
@@ -257,6 +267,116 @@
                                         ?ITEM_HANDLERS]}
                  ]).
 
+-define(WORLD_8, [{room, [{is_room, true},
+                          {character, giant},
+                          {character, player},
+                          {name, <<"room">>},
+                          {desc, <<"an empty space">>},
+                          ?ROOM_HANDLERS]},
+
+                  {player, [{name, <<"Bob">>},
+                            {owner, room},
+                            {attribute, strength},
+                            {attribute, dexterity},
+                            {item, force_field},
+                            {item, shield},
+                            {body_part, back0},
+                            {body_part, hand0},
+                            ?CHARACTER_HANDLERS]},
+
+                  {p_hp, [{hitpoints, 10},
+                          {owner, player},
+                          ?HITPOINTS_HANDLERS]},
+
+                  {p_life, [{is_alive, true},
+                            {owner, player},
+                            ?LIFE_HANDLERS]},
+
+                  {force_field, [{owner, player},
+                                 {body_parts, [back]},
+                                 {name, <<"force field">>},
+                                 {desc, [name]},
+                                 {defence_damage_modifier, -100},
+                                 ?ITEM_HANDLERS]},
+
+                  {shield, [{owner, player},
+                            {body_parts, [hand]},
+                            {name, <<"shield">>},
+                            {desc, [name]},
+                            {defence_hit_modifier, -100},
+                            ?ITEM_HANDLERS]},
+
+                  {strenth0, [{owner, player},
+                              {type, strength},
+                              {value, 17},
+                              {attack_damage_modifier, 100},
+                              {desc, [<<"strength ">>, value]},
+                              ?ATTRIBUTE_HANDLERS]},
+
+                  {dex0, [{owner, player},
+                          {type, dexterity},
+                          {value, 15},
+                          {attack_hit_modifier, 100},
+                          {desc, [<<"dexterity ">>, value]},
+                          ?ATTRIBUTE_HANDLERS]},
+
+                  {hand0,   [{name, <<"left hand">>},
+                             {owner, player},
+                             {body_part, hand},
+                             ?BODY_PART_HANDLERS]},
+
+                  {back0,   [{name, <<"back">>},
+                             {owner, player},
+                             {body_part, back},
+                             ?BODY_PART_HANDLERS]},
+
+                  {giant, [{owner, room},
+                           {name, <<"Pete">>},
+                           {body_part, hand1},
+                           {handlers, [erlmud_handler_counterattack,
+                                       erlmud_handler_char_attack,
+                                       erlmud_handler_char_look,
+                                       erlmud_handler_char_inv,
+                                       erlmud_handler_char_move,
+                                       erlmud_handler_char_inject_self,
+                                       erlmud_handler_char_enter_world]}]},
+
+                  {g_hp, [{hitpoints, 10},
+                          {owner, giant},
+                          ?HITPOINTS_HANDLERS]},
+
+                  {g_life, [{is_alive, true},
+                            {owner, giant},
+                            ?LIFE_HANDLERS]},
+
+                  {hand1,   [{name, <<"right hand">>},
+                             {owner, player},
+                             {body_part, hand},
+                             ?BODY_PART_HANDLERS]},
+
+                  {strenth0, [{owner, player},
+                              {type, strength},
+                              {value, 17},
+                              {attack_damage_modifier, 50},
+                              {desc, [<<"strength ">>, value]},
+                              ?ATTRIBUTE_HANDLERS]},
+
+                  {dex0, [{owner, player},
+                          {type, dexterity},
+                          {value, 15},
+                          {attack_hit_modifier, 50},
+                          {defence_hit_modifier, 50},
+                          {desc, [<<"dexterity ">>, value]},
+                          ?ATTRIBUTE_HANDLERS]},
+
+                  {race, [{owner, player},
+                          {type, dexterity},
+                          {value, 15},
+                          {defence_damage_modifier, 50},
+                          {desc, [<<"giant">>, value]},
+                          ?ATTRIBUTE_HANDLERS]}
+                 ]).
+
 -define(WORLD_9, [{erlmud_room, room, [{character, dog},
                                        {item, collar},
                                        ?ROOM_HANDLERS]},
@@ -274,5 +394,3 @@
 
                   {erlmud_attribute, stealth, [{owner, transmitter},
                                                ?ATTRIBUTE_HANDLERS]} ]).
-
-
