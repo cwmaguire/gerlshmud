@@ -67,7 +67,7 @@ fail({Props, _, _}) ->
 attack(Target, Props) ->
     Args = [_Id = undefined,
             _Type = erlmud_attack, %% doesn't matter?
-            _Props = [{owner, self()}, {target, Target}, {handlers, [erlmud_handler_attack]}]],
+            _Props = [{owner, self()}, {target, Target}, {handlers, [erlmud_handler_attack, erlmud_handler_set_character]}]],
     {ok, Attack} = supervisor:start_child(erlmud_object_sup, Args),
     log(debug, [<<"Attack ">>, Attack, <<" started, sending attempt\n">>]),
     erlmud_object:attempt(Attack, {attack, Attack, self(), Target}),

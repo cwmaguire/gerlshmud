@@ -1,29 +1,40 @@
 -define(ROOM_HANDLERS, {handlers, [erlmud_handler_room_inject_self,
                                    erlmud_handler_room_inv,
                                    erlmud_handler_room_look,
-                                   erlmud_handler_room_move]}).
+                                   erlmud_handler_room_move,
+                                   erlmud_handler_set_character]}).
 -define(CHARACTER_HANDLERS, {handlers, [erlmud_handler_char_attack,
                                         erlmud_handler_char_look,
                                         erlmud_handler_char_inv,
                                         erlmud_handler_char_move,
                                         erlmud_handler_char_inject_self,
-                                        erlmud_handler_char_enter_world]}).
+                                        erlmud_handler_char_enter_world,
+                                        erlmud_handler_set_character]}).
 -define(ITEM_HANDLERS, {handlers, [erlmud_handler_item_attack,
                                    erlmud_handler_item_look,
                                    erlmud_handler_item_inv,
-                                   erlmud_handler_item_inject_self]}).
+                                   erlmud_handler_item_inject_self,
+                                   erlmud_handler_set_character]}).
 -define(CONN_HANDLERS, {handlers, [erlmud_handler_conn_enter_world,
                                    erlmud_handler_conn_move,
-                                   erlmud_handler_conn_send]}).
+                                   erlmud_handler_conn_send,
+                                   erlmud_handler_set_character]}).
 -define(BODY_PART_HANDLERS, {handlers, [erlmud_handler_body_part_look,
                                         erlmud_handler_body_part_inv,
-                                        erlmud_handler_body_part_inject_self]}).
--define(ATTRIBUTE_HANDLERS, {handlers, [erlmud_handler_attribute_look]}).
--define(EXIT_HANDLERS, {handlers, [erlmud_handler_exit_move]}).
--define(HITPOINTS_HANDLERS, {handlers, [erlmud_handler_hitpoints_attack]}).
--define(LIFE_HANDLERS, {handlers, [erlmud_handler_life_attack]}).
--define(STAT_HANDLERS, {handlers, [erlmud_handler_stat_look]}).
--define(TEST_CONN_HANDLERS, {handlers, [erlmud_handler_test_connection_attack]}).
+                                        erlmud_handler_body_part_inject_self,
+                                        erlmud_handler_set_character]}).
+-define(ATTRIBUTE_HANDLERS, {handlers, [erlmud_handler_attribute_look,
+                                        erlmud_handler_set_character]}).
+-define(EXIT_HANDLERS, {handlers, [erlmud_handler_exit_move,
+                                   erlmud_handler_set_character]}).
+-define(HITPOINTS_HANDLERS, {handlers, [erlmud_handler_hitpoints_attack,
+                                        erlmud_handler_set_character]}).
+-define(LIFE_HANDLERS, {handlers, [erlmud_handler_life_attack,
+                                   erlmud_handler_set_character]}).
+-define(STAT_HANDLERS, {handlers, [erlmud_handler_stat_look,
+                                   erlmud_handler_set_character]}).
+-define(TEST_CONN_HANDLERS, {handlers, [erlmud_handler_test_connection_attack,
+                                        erlmud_handler_set_character]}).
 
 -define(WORLD_1, [{erlmud_room, room_nw, [{exit, exit_ns}, {exit, exit_ew}, {character, player}, ?ROOM_HANDLERS]},
                   {erlmud_room, room_s, [{exit, exit_ns}, ?ROOM_HANDLERS]},
@@ -54,8 +65,9 @@
                   {erlmud_life, p_life, [{is_alive, true},
                                          {owner, player},
                                          ?LIFE_HANDLERS]},
-                  {erlmud_item, fist, [{dmg, 5},
+                  {erlmud_item, fist, [{attack_damage_modifier, 5},
                                        {owner, player},
+                                       {character, player},
                                        ?ITEM_HANDLERS]},
 
                   {erlmud_character, zombie, [{owner, room},
@@ -69,9 +81,11 @@
                                             {owner, zombie},
                                             ?HITPOINTS_HANDLERS]},
                   {erlmud_life, z_life, [{is_alive, true},
-                                         {owner, zombie}, ?LIFE_HANDLERS]},
-                  {erlmud_item, sword, [{dmg, 5},
+                                         {owner, zombie},
+                                         ?LIFE_HANDLERS]},
+                  {erlmud_item, sword, [{attack_damage_modifier, 5},
                                         {owner, zombie},
+                                        {character, zombie},
                                         ?ITEM_HANDLERS]}]).
 
 -define(WORLD_4, [{erlmud_room, room, [{player, player}, ?ROOM_HANDLERS]},
@@ -242,3 +256,23 @@
                                         {desc, <<"a loaf of bread">>},
                                         ?ITEM_HANDLERS]}
                  ]).
+
+-define(WORLD_9, [{erlmud_room, room, [{character, dog},
+                                       {item, collar},
+                                       ?ROOM_HANDLERS]},
+
+                  {erlmud_character, dog, [{owner, room},
+                                           ?CHARACTER_HANDLERS]},
+
+                  {erlmud_item, collar, [{owner, room},
+                                         {item, transmitter},
+                                         ?ITEM_HANDLERS]},
+
+                  {erlmud_item, transmitter, [{owner, collar},
+                                              {attribute, stealth},
+                                              ?ITEM_HANDLERS]},
+
+                  {erlmud_attribute, stealth, [{owner, transmitter},
+                                               ?ATTRIBUTE_HANDLERS]} ]).
+
+
