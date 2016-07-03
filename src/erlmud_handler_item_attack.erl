@@ -18,11 +18,31 @@
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({Owner, Props, {calc_damage, Attack, Owner, Target, Damage}}) ->
-    UpdatedDmg = Damage + proplists:get_value(dmg, Props, 0),
-    UpdatedMsg = {calc_damage, Attack, Owner, Target, UpdatedDmg},
-    {succeed, UpdatedMsg, false, Props};
-attempt(_) ->
+attempt({_Owner, Props, {calc_damage, Attack, Source, Target, Damage}}) ->
+    case proplists:get_value(character, Props) of
+        Source ->
+            UpdatedDmg = Damage + proplists:get_value(attack_damage_modifier, Props, 0),
+            UpdatedMsg = {calc_damage, Attack, Source, Target, UpdatedDmg},
+            {succeed, UpdatedMsg, false, Props};
+        Target ->
+            UpdatedDmg = Damage + proplists:get_value(defense_damage_modifier, Props, 0),
+            UpdatedMsg = {calc_damage, Attack, Source, Target, UpdatedDmg},
+            {succeed, UpdatedMsg, false, Props};
+        _ ->
+           log(debug, [<<"item attack attempt failed since ">>,
+                       proplists:get_value(character, Props),
+                       <<" is not equal to ">>, Source,
+                       <<" or ">>, Target]),
+
+           undefined
+    end;
+    %UpdatedDmg = Damage + proplists:get_value(dmg, Props, 0),
+    %UpdatedMsg = {calc_damage, Attack, Owner, Target, UpdatedDmg},
+    %{succeed, UpdatedMsg, false, Props};
+attempt({_, _, Msg}) ->
+   log(debug, [<<"erlmud_handler_item_attack did not handle ">>,
+               Msg]),
+
     undefined.
 
 succeed({Props, _}) ->
@@ -30,3 +50,6 @@ succeed({Props, _}) ->
 
 fail({Props, _, _}) ->
     Props.
+
+log(Level, IoData) ->
+    erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).

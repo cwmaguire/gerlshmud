@@ -24,7 +24,7 @@ attempt({_Owner, Props, {move, _Object, from, Source, to, Target}})
 attempt(_) ->
     undefined.
 
-succeed({Props, {move, Type, Object, from, Self, to, Target}}) when Self == self() ->
+succeed({Props, {move, _Type, Object, from, Self, to, Target}}) when Self == self() ->
     log([<<"Process ">>, Target, <<" got ">>, Object, <<" from me">>]),
     lists:keydelete(Object, 2, Props);
 succeed({Props, {move, Type, Object, from, Target, to, Self}}) when Self == self() ->

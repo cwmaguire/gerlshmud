@@ -196,7 +196,7 @@ maybe_attempt(Msg,
             true ->
                 attempt_(Msg, Procs, State);
             false ->
-                _ = handle(succeed, Msg, done(self(), Procs)),
+                _ = handle(succeed, Msg, done(self(), Procs), Props),
                 State
         end;
 maybe_attempt(Msg, Procs, State) ->
@@ -222,7 +222,7 @@ attempt_(Msg,
          Handler, <<"attempt: ">>, Msg, <<" -> ">>,
          ShouldSubscribe, <<", ">>, binary_fail_reason(Result)]),
     MergedProcs = merge(self(), Type, Results, Procs),
-    _ = handle(Result, Msg2, MergedProcs),
+    _ = handle(Result, Msg2, MergedProcs, Props2),
     State#state{props = Props2}.
 
 binary_fail_reason({fail, Reason}) when is_list(Reason) ->
@@ -258,21 +258,30 @@ ensure_message(_, T = {_, {_, NewMsg, _, _}}) ->
     log([<<"New message: ">>, NewMsg]),
     T.
 
-handle({resend, Target, Msg}, OrigMsg, _NoProcs) ->
+handle({resend, Target, Msg}, OrigMsg, _NoProcs, _Props) ->
     log([<<"resending ">>, OrigMsg, <<" as ">>, Msg]),
     send(Target, {attempt, Msg, #procs{}});
-handle({fail, Reason}, Msg, Procs = #procs{subs = Subs}) ->
+handle({fail, Reason}, Msg, Procs = #procs{subs = Subs}, _Props) ->
     log([<<"failing msg: ">>, Msg,
          <<" with reasons: ">>, binary_fail_reason(Reason),
          <<" subs: ">>, Subs]),
     [send(Sub, {fail, Reason, Msg}, Procs) || Sub <- Subs];
-handle(succeed, Msg, Procs = #procs{subs = Subs}) ->
+handle(succeed, Msg, Procs = #procs{subs = Subs}, _Props) ->
     _ = case next(Procs) of
         {Next, Procs2} ->
             send(Next, {attempt, Msg, Procs2});
         none ->
             [send(Sub, {succeed, Msg}, Procs) || Sub <- Subs]
-    end.
+    end;
+handle({broadcast, Msg}, _Msg, _Procs, Props) ->
+    NotParents = [Prop || Prop = {Key, _} <- Props,
+                          Key /= owner,
+                          Key /= character],
+    [broadcast(V, Msg) || V <- procs(NotParents)].
+
+broadcast(Pid, Msg) ->
+    log([self(), <<" broadcasting ">>, Msg, <<"to ">>, Pid]),
+    attempt(Pid, Msg).
 
 send(Pid, SendMsg = {fail, _Reason, Msg}, Procs) ->
     log(Pid, fail, Msg, Procs),
@@ -319,11 +328,13 @@ procs(Props) ->
 
 merge(_, _, {{resend, _, _, _}, _, _, _}, _) ->
     undefined;
+merge(_, _, {{broadcast, _}, _, _, _}, _) ->
+    undefined;
 merge(Self, erlmud_room, Results, Procs = #procs{room = undefined}) ->
     merge(Self, erlmud_room, Results, Procs#procs{room = Self});
-merge(Self, _, {_, _, Interested, Props}, Procs = #procs{}) ->
+merge(Self, _, {_, _, ShouldSubscribe, Props}, Procs = #procs{}) ->
     merge_(Self,
-           sub(Procs, Interested),
+           sub(Procs, ShouldSubscribe),
            procs(Props)).
 
 merge_(Self, Procs, NewProcs) ->

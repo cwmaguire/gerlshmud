@@ -5,6 +5,8 @@
 
 -define(WAIT100, receive after 100 -> ok end).
 
+%all() -> [set_character].
+%all() -> [player_attack].
 all() ->
     [player_move,
      player_move_fail,
@@ -22,7 +24,8 @@ all() ->
      player_wield_body_part_is_full,
      player_remove,
      look_player,
-     look_room].
+     look_room,
+     set_character].
 
 init_per_testcase(_, Config) ->
     {ok, _Started} = application:ensure_all_started(erlmud),
@@ -322,6 +325,16 @@ look_room(_Config) ->
                            <<"room: an empty space">>]),
     Descriptions = Expected.
 
+set_character(Config) ->
+    start(?WORLD_9),
+    Room = erlmud_index:get(room),
+    Dog = erlmud_index:get(dog),
+    Collar = erlmud_index:get(collar),
+    attempt(Config, Dog, {move, Collar, from, Room, to, Dog}),
+    ?WAIT100,
+    Dog = val(character, collar),
+    Dog = val(character, transmitter),
+    Dog = val(character, stealth).
 
 start(Objects) ->
     IdPids = [{Id, start_obj(Id, Type, Props)} || {Type, Id, Props} <- Objects],
