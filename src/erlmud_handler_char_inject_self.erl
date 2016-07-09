@@ -27,6 +27,8 @@ attempt({_Owner, Props, {attack, Attacker, TargetName}})
             Result = {resend, Attacker, NewMessage},
             {Result, true, Props};
         _ ->
+            _Name = proplists:get_value(name, Props),
+            %log(debug, [<<"Name ">>, Name, <<" did not match target name: ">>, TargetName]),
             {succeed, _Subscribe = false, Props}
     end;
 attempt({Owner, Props, {look, Self}}) when Self == self() ->
@@ -42,4 +44,7 @@ fail({Props, _, _}) ->
     Props.
 
 is_name(Props, Name) ->
-    match == re:run(proplists:get_value(name, Props, ""), Name, [{capture, none}]).
+    match == re:run(proplists:get_value(name, Props, ""), Name, [{capture, none}, caseless]).
+
+%log(Level, IoData) ->
+    %erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).

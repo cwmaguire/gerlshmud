@@ -26,7 +26,9 @@ attempt({_Owner, Props, {calc_next_attack_wait, Attack, Self, Target, Sent, Wait
      {calc_next_attack_wait, Attack, Self, Target, Sent, Wait + ObjWait},
      false,
      Props};
-attempt({_Owner, Props, {attack, Self, _Target}}) when Self == self() ->
+attempt({_Owner, Props, {attack, Self, Target}})
+  when Self == self(),
+       is_pid(Target) ->
     {succeed, true, Props};
 attempt({_Owner, Props, {calc_hit, _Attack, Self, _Target, _HitRoll}}) when Self == self() ->
     {succeed, true, Props};
@@ -66,11 +68,16 @@ fail({Props, _, _}) ->
 
 attack(Target, Props) ->
     Args = [_Id = undefined,
-            _Type = erlmud_attack, %% doesn't matter?
-            _Props = [{owner, self()}, {target, Target}, {handlers, [erlmud_handler_attack, erlmud_handler_set_character]}]],
+            _Props = [{owner, self()},
+                      {target, Target},
+                      {name, <<"attack">>},
+                      {handlers, [erlmud_handler_attack,
+                                  erlmud_handler_set_character]}]],
     {ok, Attack} = supervisor:start_child(erlmud_object_sup, Args),
-    log(debug, [<<"Attack ">>, Attack, <<" started, sending attempt\n">>]),
-    erlmud_object:attempt(Attack, {attack, Attack, self(), Target}),
+    log(debug, [<<"Attack ">>, Attack, <<" started, sending attempt and subscribing\n">>]),
+    erlmud_object:attempt(Attack,
+                          {attack, Attack, self(), Target},
+                          _ShouldSub = true),
     [{attack, Attack}, {target, Target} | Props].
 
 log(Level, IoData) ->

@@ -5,8 +5,9 @@
 
 -define(WAIT100, receive after 100 -> ok end).
 
-%all() -> [set_character].
-%all() -> [player_attack].
+%all() -> [attack_with_modifiers].
+%all() -> [player_attack_wait].
+%all() -> [look_player].
 all() ->
     [player_move,
      player_move_fail,
@@ -15,6 +16,7 @@ all() ->
      player_drop_item,
      player_attack,
      player_attack_wait,
+     attack_with_modifiers,
      one_sided_fight,
      counterattack_behaviour,
      player_wield,
@@ -64,7 +66,7 @@ get_props(Obj) when is_atom(Obj) ->
     Pid = erlmud_index:get(Obj),
     get_props(Pid);
 get_props(Pid) when is_pid(Pid) ->
-    {_, _, Props} = sys:get_state(Pid),
+    {_RecordName, Props} = sys:get_state(Pid),
     Props.
 
 player_move(Config) ->
@@ -173,6 +175,29 @@ counterattack_behaviour(Config) ->
     0 = val(hitpoints, z_hp),
     false = val(is_alive, z_life),
     undefined = val(attack, Zombie),
+    ok.
+
+attack_with_modifiers(Config) ->
+    start(?WORLD_8),
+    Room = erlmud_index:get(room),
+    Player = erlmud_index:get(player),
+    Giant = erlmud_index:get(giant),
+    ?WAIT100,
+    attempt(Config, Player, {move, <<"force field">>, from, Room, to, Player}),
+    attempt(Config, Player, {move, <<"shield">>, from, Room, to, Player}),
+    ?WAIT100,
+    attempt(Config, Player, {attack, Player, <<"pete">>}),
+    ?WAIT100,
+    ?WAIT100,
+    timer:sleep(500),
+    %% The giant shouldn't be able to attack the player at all,
+    %% so the giant should die and the player should be alive.
+    10 = val(hitpoints, p_hp),
+    true = val(is_alive, p_life),
+    undefined = val(attack, Player),
+    true = 0 >= val(hitpoints, g_hp),
+    false = val(is_alive, g_life),
+    undefined = val(attack, Giant),
     ok.
 
 player_wield(Config) ->
@@ -337,12 +362,12 @@ set_character(Config) ->
     Dog = val(character, stealth).
 
 start(Objects) ->
-    IdPids = [{Id, start_obj(Id, Type, Props)} || {Type, Id, Props} <- Objects],
+    IdPids = [{Id, start_obj(Id, Props)} || {Id, Props} <- Objects],
     _Objs = [erlmud_object:populate(Pid, IdPids) || {_, Pid} <- IdPids],
     timer:sleep(100).
 
-start_obj(Id, Type, Props) ->
-    {ok, Pid} = supervisor:start_child(erlmud_object_sup, [Id, Type, Props]),
+start_obj(Id, Props) ->
+    {ok, Pid} = supervisor:start_child(erlmud_object_sup, [Id, Props]),
     Pid.
 
 attempt(Config, Target, Message) ->

@@ -29,21 +29,26 @@ attempt({Owner, Props, {attack, NotSelf, Owner, _Target}}) when self() /= NotSel
 %% die means that our character has died
 attempt({Owner, Props, {die, Owner}}) ->
     {succeed, true, Props};
-attempt({Owner, Props, {Action, Self, Owner, Target}})
-  when Self == self(),
-       is_pid(Target) ->
-    ShouldSubscribe = lists:member(Action, [attack, calc_hit, calc_damage, damage, killed]),
-    {succeed, ShouldSubscribe, Props};
-attempt({Owner, Props, {stop_attack, Owner}}) ->
-    {succeed, _Subscribe = true, Props};
-
-attempt({_Owner, Props, {calc_hit, Self, _, _}}) when Self == self() ->
+attempt({_Owner, Props, {calc_hit, Self, _, _, _}}) when Self == self() ->
     case proplists:get_value(done, Props) of
         true ->
             {fail, "It's dead Jim"};
         _ ->
             {succeed, true, Props}
     end;
+attempt({Owner, Props, {Action, Self, Owner, Target}})
+  when Self == self(),
+       is_pid(Target) ->
+    ShouldSubscribe = lists:member(Action, [attack, calc_damage, damage, killed]),
+    {succeed, ShouldSubscribe, Props};
+attempt({Owner, Props, {stop_attack, Owner}}) ->
+    {succeed, _Subscribe = true, Props};
+
+attempt({_Owner, Props, {gather_body_parts, Self,
+                         _Source, _Target,
+                         _SourceBodyParts, _TargetBodyParts}})
+  when Self == self() ->
+    {succeed, true, Props};
 attempt(_) ->
     undefined.
 
@@ -60,7 +65,7 @@ succeed({Props, {attack, Self, _Source, UnknownTargetName}})
     %%       _if_ this is a player
     Props;
 succeed({Props, {attack, Self, Source, Target}}) when is_pid(Target), Self == self() ->
-    erlmud_object:attempt(self(), {calc_hit, self(), Source, Target, 1}),
+    erlmud_object:attempt(self(), {calc_hit, self(), Source, Target, 0}, _Subscribe = true),
     lists:keystore(target, 1, Props, {target, Target});
 succeed({Props, {calc_hit, Self, Source, Target, HitScore}})
   when is_pid(Target),
