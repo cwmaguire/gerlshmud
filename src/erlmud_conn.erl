@@ -77,7 +77,7 @@ password(_Event = Password, StateData = #state{login = Login,
             % The conn object can add the player to the room and if that fails
             % then the conn object can tell the conn to disconnect.
             {ok, ConnObjPid} = supervisor:start_child(erlmud_object_sup,
-                                                      [undefined, erlmud_conn_obj, ConnProps]),
+                                                      [undefined, ConnProps]),
             %ct:pal("erlmud_conn:password -> started ConnObj ~p with props ~p~n", [ConnObjPid, ConnProps]),
 
             %Message = {move, PlayerPid, _From = undefined, RoomPid, _Exit = undefined},

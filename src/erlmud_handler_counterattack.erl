@@ -32,8 +32,8 @@ attempt({_Owner, Props, {stop_attack, Attack, Self, _Target}}) when Self == self
         _ ->
             Props
     end;
-attempt({_Owner, _Props, Attempt}) ->
-    log([self(), <<" caught attempt but not subscribing">>, Attempt]),
+attempt({_Owner, _Props, _Attempt}) ->
+    %log([self(), <<" caught attempt but not subscribing">>, Attempt]),
     undefined.
 
 %succeed({Props, {attack, Attack, Self, Target}}) when Self == self() ->
@@ -49,7 +49,7 @@ attempt({_Owner, _Props, Attempt}) ->
 %% enemy might keep switching to attack the most recent thing that attacked it.
 %% (e.g. something stupid, or with a short memory)
 succeed({Props, {damage, _Att, Attacker, Self, _Dmg}}) when Self == self() ->
-    log([<<"caught damage succeeded ">>]),
+    %log([<<"caught damage succeeded ">>]),
 
     %% pitbull attack: stick with first character that damages us
     %% TODO: make sure the attack originates from something we can attack back,
@@ -69,7 +69,7 @@ succeed({Props, {damage, _Att, Attacker, Self, _Dmg}}) when Self == self() ->
     end,
     Props;
 succeed({Props, _}) ->
-    log([<<"Counterattack saw some success">>]),
+    %log([<<"Counterattack saw some success">>]),
     Props.
 
 fail({Props, Result, Msg}) ->

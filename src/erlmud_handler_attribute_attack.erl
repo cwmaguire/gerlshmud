@@ -11,36 +11,37 @@
 %% WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 %% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
--module(erlmud_handler_item_attack).
+-module(erlmud_handler_attribute_attack).
 -behaviour(erlmud_handler).
 
 -export([attempt/1]).
 -export([succeed/1]).
 -export([fail/1]).
 
-%% TODO some items will have to be worn or wielded in order to
-%% take effect. Add a function or property that determines if the
-%% item's modifiers apply.
-attempt({_Owner, Props, {CalcType, Attack, Source, Target, Value}})
+attempt({Owner, Props, {CalcType, Attack, Source, Target, Value}})
   when CalcType == calc_hit; CalcType == calc_damage ->
-    log(debug, [<<"Saw ">>, CalcType, <<"...">>]),
     Character = proplists:get_value(character, Props),
-    case Character of
-        Source ->
-            log(debug, [self(), <<": Source (">>, Source, <<") is our character (">>, Character]),
+    case {Owner, Character} of
+        {Owner, Character} when Owner == Source; Character == Source ->
+            log(debug, [self(), <<": either Source (">>, Source, <<") ">>,
+                        <<"is our Owner (">>, Owner, <<") ">>,
+                        <<"or our character (">>, Character, <<")">>]),
             modify_msg(CalcType, Attack, Source, Target, source, Value, Props);
-        Target ->
-            log(debug, [self(), <<": Target (">>, Target, <<") is our character (">>, Character]),
+        {Owner, Character} when Owner == Target; Character == Target ->
+            log(debug, [self(), <<": either Target (">>, Target, <<") ">>,
+                        <<"is our Owner (">>, Owner, <<") ">>,
+                        <<"or our character (">>, Character, <<")">>]),
             modify_msg(CalcType, Attack, Source, Target, target, Value, Props);
         _ ->
-           log(debug, [<<"item attack ">>, CalcType, <<" attempt failed for ">>,
-                       self(), <<" since character ">>,
+           log(debug, [<<"attribute attack ">>, CalcType,
+                       <<" attempt failed since neither owner (">>, Owner,
+                       <<") nor character (">>,
                        proplists:get_value(character, Props),
-                       <<" is not equal to ">>, Source, <<" or ">>, Target]),
+                       <<") are equal to ">>, Source, <<" or ">>, Target]),
            undefined
     end;
 attempt({_, _, _Msg}) ->
-    %log(debug, [<<"erlmud_handler_item_attack did not handle ">>, Msg]),
+    %log(debug, [<<"erlmud_handler_attribute_attack did not handle ">>, Msg]),
     undefined.
 
 succeed({Props, _}) ->
@@ -64,7 +65,6 @@ modifier(CalcType, SourceOrTarget, Props) ->
             calc_damage ->
                 {attack_damage_modifier, defence_damage_modifier}
         end,
-    log(debug, [self(), <<": Modifier prperties are: ">>, AttackModifierProp, <<", ">>, DefenceModifierProp]),
     Modifier = case SourceOrTarget of
                    source ->
                        proplists:get_value(AttackModifierProp, Props, 0);
@@ -73,7 +73,6 @@ modifier(CalcType, SourceOrTarget, Props) ->
                end,
     log(debug, [self(), <<": Modifier is: ">>, Modifier]),
     Modifier.
-
 
 log(Level, IoData) ->
     erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).

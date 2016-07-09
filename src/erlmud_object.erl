@@ -268,13 +268,20 @@ handle(succeed, Msg, Procs = #procs{subs = Subs}, _Props) ->
             [send(Sub, {succeed, Msg}, Procs) || Sub <- Subs]
     end;
 handle({broadcast, Msg}, _Msg, _Procs, Props) ->
+    %TODO have the handler that returned this also
+    %return a filter; other handlers might not want
+    %to only broadcast "down".
     NotParents = [Prop || Prop = {Key, _} <- Props,
                           Key /= owner,
                           Key /= character],
+    log([<<"Broadcasting: ">>, Msg]),
+    log([<<"    to: ">>, procs(NotParents)]),
+    log([<<"    from props: ">>, NotParents]),
     [broadcast(V, Msg) || V <- procs(NotParents)].
 
 broadcast(Pid, Msg) ->
-    log([self(), <<" broadcasting ">>, Msg, <<"to ">>, Pid]),
+    ct:pal("Broadcasting ~p to ~p", [Msg, Pid]),
+    log([self(), <<" broadcasting ">>, Msg, <<" to ">>, Pid]),
     attempt(Pid, Msg).
 
 send(Pid, SendMsg = {fail, _Reason, Msg}, Procs) ->

@@ -5,26 +5,29 @@
 
 -define(WAIT100, receive after 100 -> ok end).
 
-all() -> [attack_with_attributes].
-%all() ->
-    %[player_move,
-     %player_move_fail,
-     %player_move_exit_locked,
-     %player_get_item,
-     %player_drop_item,
-     %player_attack,
-     %player_attack_wait,
-     %one_sided_fight,
-     %counterattack_behaviour,
-     %player_wield,
-     %player_wield_first_available,
-     %player_wield_missing_body_part,
-     %player_wield_wrong_body_part,
-     %player_wield_body_part_is_full,
-     %player_remove,
-     %look_player,
-     %look_room,
-     %set_character].
+%all() -> [attack_with_modifiers].
+%all() -> [player_attack_wait].
+%all() -> [look_player].
+all() ->
+    [player_move,
+     player_move_fail,
+     player_move_exit_locked,
+     player_get_item,
+     player_drop_item,
+     player_attack,
+     player_attack_wait,
+     attack_with_modifiers,
+     one_sided_fight,
+     counterattack_behaviour,
+     player_wield,
+     player_wield_first_available,
+     player_wield_missing_body_part,
+     player_wield_wrong_body_part,
+     player_wield_body_part_is_full,
+     player_remove,
+     look_player,
+     look_room,
+     set_character].
 
 init_per_testcase(_, Config) ->
     {ok, _Started} = application:ensure_all_started(erlmud),
@@ -174,13 +177,14 @@ counterattack_behaviour(Config) ->
     undefined = val(attack, Zombie),
     ok.
 
-attack_with_attributes(Config) ->
+attack_with_modifiers(Config) ->
     start(?WORLD_8),
+    Room = erlmud_index:get(room),
     Player = erlmud_index:get(player),
     Giant = erlmud_index:get(giant),
     ?WAIT100,
-    attempt(Config, Player, {move, <<"force field">>, from, Player, to, <<"back">>}),
-    attempt(Config, Player, {move, <<"shield">>, from, Player, to, <<"left hand">>}),
+    attempt(Config, Player, {move, <<"force field">>, from, Room, to, Player}),
+    attempt(Config, Player, {move, <<"shield">>, from, Room, to, Player}),
     ?WAIT100,
     attempt(Config, Player, {attack, Player, <<"pete">>}),
     ?WAIT100,
@@ -191,7 +195,7 @@ attack_with_attributes(Config) ->
     10 = val(hitpoints, p_hp),
     true = val(is_alive, p_life),
     undefined = val(attack, Player),
-    0 = val(hitpoints, g_hp),
+    true = 0 >= val(hitpoints, g_hp),
     false = val(is_alive, g_life),
     undefined = val(attack, Giant),
     ok.

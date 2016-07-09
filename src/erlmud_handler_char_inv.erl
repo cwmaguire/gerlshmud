@@ -58,7 +58,7 @@ attempt(_) ->
     undefined.
 
 succeed({Props, {move, Item, from, Source, to, Self}}) when Self == self() ->
-    log(debug, [<<"Getting ">>, Item, <<" from ">>, Source, <<"\n\tProps: ">>, Props, <<"\n">>]),
+    log(debug, [<<"Getting ">>, Item, <<" from ">>, Source, <<"\n">>]),
     erlmud_object:attempt(Item, {set_character, self(), self()}),
     [{item, Item} | Props];
 succeed({Props, {move, Item, from, Self, to, Target}}) when Self == self() ->
