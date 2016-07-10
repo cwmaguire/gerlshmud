@@ -63,9 +63,11 @@ succeed({Props, {move, Item, from, Source, to, Self}}) when Self == self() ->
     [{item, Item} | Props];
 succeed({Props, {move, Item, from, Self, to, Target}}) when Self == self() ->
     log(debug, [<<"Giving ">>, Item, <<" to ">>, Target, <<"\n\tProps: ">>, Props, <<"\n">>]),
+    erlmud_object:attempt(Item, {set_character, Target, undefined}),
     lists:keydelete(Item, 2, Props);
 succeed({Props, {move, Item, from, Self, to, Target, _ItemBodyParts}}) when Self == self() ->
     log(debug, [<<"Giving ">>, Item, <<" to ">>, Target, <<"\n\tProps: ">>, Props, <<"\n">>]),
+    erlmud_object:attempt(Item, {set_character, Target, undefined}),
     lists:keydelete(Item, 2, Props);
 succeed({Props, _}) ->
     Props.
