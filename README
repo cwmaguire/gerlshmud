@@ -1,5 +1,8 @@
 A MUD in Erlang.
 
+(I need to change the name as it conflicts with a prior Erlang MUD
+by zxq9: https://github.com/zxq9/erlmud)
+
 All MUD elements are processes.
 Processes live in a graph.
 Events propagate through the graph.
@@ -9,184 +12,194 @@ Events can be: generated, resent, failed, passed, subscribed to.
 How it Works:
 https://www.youtube.com/watch?v=dcuv_M4Po0g
 
+In order to explain Erlmud I'm going to start with an elaborate analogy
+involving a prisoner of war (PoW) camp. After, I'll break down the analogy
+and explain how Erlmud maps to that analogy.
 
-Introduction:
+Imagine a PoW camp where PoWs can only communicate by passing
+paper notes from cell to cell and building to building.  In order to account
+for new prisoners, maximize knowledge transer and because the prisoners
+have nothing else to occupy their time, they operate a transparent society
+and prisoners typically don't have private conversations. However, since
+some local conversations are known to be only interesting to specific
+prisoners, some conversations can be limited.
 
-Any event in the MUD is first proposed as an attempt.
-Attempts are passed from process to process through the graph.
-Each process can either fail the attempt with a reason or allow
-the attempt to succeed. Each process can also subscribe to the event
-to be notified of the result. Processes can also resend a different
-attempt in place of an original or pass on a modified copy of the
+Since the notes take different routes, each prisoner, upon seeing a note, writes
+their name on the back of the note to mark that they've seen it. There can
+be unlimited notes but only one prisoner will have any note at any one time.
+Every prisoner can add to a note, send more notes, or destroy a note. There
+are never multiple copies of a note in circulation so a prisoner with a
+note has complete confidence that have the most up-to-date version of the
+note.
+
+Since the prisoners see many notes they do not try to remember anything
+on each note but rather add any information that anyone may need to the note.
+Many conversations take place among the prisoners but each prisoner is
+typically only interested in some of the conversations. If a prisoner
+receives a note containing a conversation they are not interested in then
+they will simply mark that they've read it and pass it on.
+
+At times a prisoner will add new information to a conversation that all the
+prisoners will need to see again. In this case the prisoner creates a new note,
+copies all the information from the original note, makes their changes and only
+writes their own name on the back. Now the note will be passed to everyone
+again.
+
+When prisoners have questions about a conversation they will copy the note, add
+their question, and send the note through the prison again. A prisoner with
+the answer to a question on a note will answer the question before passing it
+on.
+
+The prison camp is huge and passing messages through the hands of thousands of
+prisoners would be take too long. Instead the prisoners limit how far
+each message will travel from the source.
+
+Since prisoners will sometimes need to resend the same message with new
+information they mark the message with the original source so that it doesn't
+travel farther than the original.
+
+If a proposal is to be decided on then prisoners can add their name to the list
+of people to be notified whether the proposal was accepted or rejected, along with
+the the final version of the message. Notifications of decisions are passed
+directly to the prisoners who request them. Notifications of proposal outcomes
+will often spark new conversations.
+
+Now that you have this situation in your imagination we can map Erlmud to it.
+
+In Erlmud the prisoners are the MUD objects and are modelled by processes. The
+objects are lists of properties which include properties that control
+behaviours. The processes cannot communicate with each other to ask questions
+directly so information is gathered by sending questions to every process
+that receives the message: any other process that has the answer can update the
+message and resend it. "Buildings", or "time to live" (TTL), is modelled by
+only having events travel a limited distance in the MUD; currently the only TTL
+is "maximum one room away".
+
+The notes are Erlang messages. The conversations are events in the MUD: opening
+doors attacking things, putting on clothing and pickup stuff up. The "proposals"
+are called "attempts" in the MUD and are questions about whether events
+succeed: can this door be opened? can this item be worn on the head?
+
+Passing notes is controlled by the erlmud_object module which uses an object's
+properties pointing to sibling objects to route messages through the MUD.
+
+Prisoners knowing each other is modelled by objects having properties that have
+PIDs pointing to other objects.
+
+So, Erlmud is a graph of asynchronous processes representing every aspect
+of game world: rooms, spells, attributes, attacks, players, etc. Events
+in the MUD flow through the graph and touch one process at a time.
+Each process takes in events, modifies it's internal state and either
+passes on the event or triggers one or more new events.
+
+Any event in the MUD is first proposed as an attempt. Attempts are passed
+from process to process through the graph.  Each process can either fail the
+attempt with a reason or allow the attempt to succeed. Each process can also
+subscribe to the event to be notified of the result. Processes can also resend
+a different attempt in place of an original or pass on a modified copy of the
 original.
 
-Examples:
+Events in the MUD flow through the process graph without locking up the world.
+Each process that handles the event will handle it independently of all other
+processes. A process always has the only copy of the event and no locks are
+needed. No process will halt processing to communicate with another process.
+This means that all information about each event must be contained in the event
+itself.
 
-A exit process, modelling a door and linking two rooms, might fail an
-"open door" attempt if the door is locked. All subscribed processes
-would be notified that the attempt failed.
+Since processes do not communicate directly, and since all processes
+receive all (nearby) events, any process can be added anywhere in the
+graph and begin to participate in every (nearby) event. Each process
+listens for particluar events and so processes that cooperate to resolve
+an event will need to agree on a protocol to communicate via the process
+network.
 
-A sword process may forward on a "get shield" event and not subscribe
-to the result if the sword does not care about the acquiring of the
-shield. Likewise a tree would ignore a chat message.
+Let's tie this together with a short example.
 
-A room process would subscribe to an attempt by a player to enter
-that room. The room would be notified if the attempt succeeded or
-failed.
+A player types "go north".
 
-A character process with PID 1 would resend an "attack bob" attempt
-as "attack <1>". The character would send the event back to the source
-process to re-traverse the graph.
+This brings up a couple questions that other
+processes will need answered: who's going north? where are they now? and
+what is north from there? Not to mention: _can_ that character move north?
+_Is_ there a north? Is there free travel to the north? You get the idea.
 
-Why:
+The player's character process, C, knows that it is "in" room R1. Character C
+resends the message as "C move north from R1".
 
-Asynchronicity
+An exit process, E, which knows about room R1 also knows that room R1 connects
+to room R2 to the north. E drops "north" since it's redundant and resends
+"P move from R1 to R2".
 
-Events in the MUD flow through the object graph
-without locking up the world. Each object that handles the event
-will handle it independently of all other objects. No object will
-halt processing to communicate with another object. This means that
-all information about the event must be contained in the event itself.
-The event is passed from object to object. Each object may modify, cancel,
-ignore or even resend the event as something else.
+Exit E or room R2 might see the message "go north" and ignore it before C updates
+the message. The "graph traversal" must restart after the message is updated by
+C to make sure that every process sees the most recent message.
 
-De-coupling.
+This goes on until the event has all the questions about it answered and either
+the message is deemed a success or the message is deemed a failure.
 
-Every property and state of the world is modelled as it's own process.
-Any logic can be added to any object. Any process can affect any event.
+If the door to the north is locked then exit E might fail the message with
+"The door to the north is locked."
 
-A complicated example might be best to illustrate this:
+The rooms, R1 and R2 will subscribe to the message because if the character
+moves rooms then every process that knows about "C in R1" will need to update
+their properties to say "C in R2".
 
-A player in a D&D MUD has a magic sword, magic boots, non-magic guantlets,
-a strength attribute, an experience level, a sword skill and a racial
-attribute. The player is attacking an orc that has a wooden shield,
-a racial defense attribute, an experience level, a strenght attribute,
-a dexterity attribute, a magic necklace, non-magical pants and is standing
-on uneven ground. In the next room an orc shaman is chanting a war chant
-that buffs the orc.
+Why go to all this trouble to have a single object handle a single event at
+a time? Concurrency and parallelism. If an object can handle a message atomically
+then we get several benefits:
 
-We could model all of this logic in a human object and an orc
-object, or in an attack object that can communicate with both the human
-and the orc characters. However, if we centralize  the logic we'll end
-up with massive modules; this would be hard to test, hard to reason about
-and it would be hard to predict what would happen in any event.
+a) The objects don't need to be on the same machine. A character can live on
+machine A while a room is on machine B. Erlang makes it a cinch to send the
+messages to different machines.
 
-Another way to model the logic is to break the logic into specialized
-units and find a flexible way to bind the units together. Instead of
-constantly changing the character module we can put logic in separate processes
-and add them to the character. The human character becomes a process connected
-to processes that handle: the race, the sword, the sword's magic, the boots,
-the boot's magic, the gauntlets, etc. Each object belonging to the character
-will likewise have processes for different attributes, e.g. spells, weight,
-value, age, etc. Similarly, the orc and all its gear are a collection of
-processes embodying all the logic that each of them embues. The orc shaman
-likewise is a collection of processes, as are the rooms that the human, orc
-and orc shaman are in.
+b) Every object could potentially handling a different message at the same time.
+Rather than lock up hundreds of processes to reconcile a battle between multiple
+characters many events can be happening at the same time.
 
-With every object, spell and attribute being a process we can graft any
-logic onto any object, room or character. A character process does not
-need to "know" what race it is, how strong it is or what skills it has.
-The character's strength attribute will have logic to apply strength to
-relevant events. Is the character attempting to bash down a door? The
-strength attribute will have something to say about that event. Is the
-character attempting to attack an enemy? The non-magical guantlets
-may not have anything to say about that. On the other hand if the player
-is being attacked the gauntlets may speak up and add their input on how
-the attack should go down.
+There are downsides though: we have no "transactions" to make sure that information
+is still valid by the time it is acted upon. A player might decide to go north
+while a door is unlocked but by the time they actually move the door is locked.
+In a banking environment this would be a catastrophe but in a MUD this is
+survivable. For one, events won't take long to complete. For another, the world
+won't end if a player manages to slip through a door milliseconds after the door
+is locked. "GamesDoneQuick" is all about enjoying these sorts of problems.
 
-We can add a variety of custom logic in the style of plug-ins
-as long as each process knows how to participate in the handling of events.
+Finally, this is all experimental. If it fails, oh well. :)
 
-For instance, if we wanted to add a "light spell" to an object we can
- code up a "light spell" process and attach it to the object.
-Whenever that light spell process sees an event that would be modified
-by an amount of light the light spell will modify that event. The spell
-could be attached to a sword, a body part, a room, or anything.
-
-How:
-
-If a character process doesn't know how to process race or attribute
-logic how do we ask the character's race or attributes what their input
-is? We pass each event to each process and each process adds its "two
-cents" to the event. Somehow, each object will have a chance to take a
-crack at the event. To prevent events from cycling around in the graph
-of processes forever each process is limited to seeing an event once.
-This means that processes are not communicating with each other so much
-as contributing to a final result. Contributions must be atomic and
-isolated. If we order the same list of processes in different ways the
-result must be the same no matter which order each process has seen the
-event.
-
-An example of a command typed in by a user might help. A user enters
-"bash door". The connection process for the player sends the
-input as an event to the player. The player passes "bash door" to one
-of its connected processes with enough information such that the the event
-will reach every process (within some limit) only once.
-If there is a process modelling a door
-that recognizes that "door" means itself it will resend that event
-as "bash <process ID of door>". Now any process that cares to modify
-the outcome of a character attempting to bash a door in can modify
-the event. Processes are free to add data required to resolve the
-event. An attack attempt event might have a "hit roll" value that is
-increased or descreased by processes that see it. A strength stat process
-might add 5 to the hit roll reflecting that strength contributes to attack
-success. A wound
-process might subtract 2 from the hit roll reflecting that injury
-hinders attacks. The defender's plate mail armor may subtract 3 from the hit
-roll because it contributes to blocking the attack. The characters race process may
-add 3 to the hit roll because the character's race has an advantage
-over the ... oh wait, how does the character's race know what the
-target's race is? We have to find a way to
-encode in the attack attempt event the information that the
-character's race has various bonuses "to hit" versus other races.
-Likewise the target may also add a list of races against which
-it has modifications to the hit roll. Once all applicable processes
-have had their say any process that is subscribed to the result,
-like an attack process, can use the result to calculate whether the
-hit succceeded. The attack process may then generate a "calc damage"
-event to ask all processes involved how they affect the damage roll.
-Obviously processes must agree on the data involved and how it is
-structured.
-
-Another way to think of this would be to picture a group of people
-who are each resposible for managing a different aspect of a D&D character.
-When an event happens the event is written on a piece of paper and the
-paper is passed to each person in turn until all the people have
-seen it. No person may talk. They may only write on the piece of
-paper or throw the paper away and start the over with a new piece of paper.
-One person, Alex, may be responsible for the character's race and he
-will add any information to the event based on the race of the character.
-Another person, Brittany, may be responsible for the dexterity of the
-character so she'll add to, or change the event based on how the character's
-dexterity affects the event.  Since only one person is handling the event
-at any one time everyone else is free to handle other events. In this way
-a constant stream of events can be fed to the group and no person has to
-wait for any
-other.
+See https://github.com/zxq9/erlmud for a potentially more successful MUD
+in Erlang by someone who actually knows what they're talking about.
 
 
-Older Videos:
+Some older videos that explain Erlmud:
+
 Jun 20, 2015 - How attacks work: https://youtu.be/oSG1EXPMJVw
 Jun 20, 2015 - How messages work: https://youtu.be/6t7YSnSBaJ8
 
-Updates:
+Project Updates:
+
 Jan 27, 2015 - propagated first succeed message back to a subscribers
 Jan 29, 2015 - move player between two rooms via an exit
 Jan 31, 2015 - move player between two rooms with a direction
 Feb 20, 2015 - web interface and login process
+Apr 23, 2015 - can look at a character
 Jun 20, 2015 - attacks, logging
 Jun 24, 2015 - wielding/wearing items on body parts
 Jun 26, 2015 - remove items from body, body part compatibility
 Jun 28, 2015 - add item to first available body part
-Sep 26, 2015 - life, hp and behaviour processes, counterattacks, CSS logging
-Apr 23, 2015 - can look at a character
+Sep 26, 2015 - life, hp and behaviour processes, counterattacks
+Sep 29, 2016 - HTML+CSS logging with filters
+Mar 28, 2016 - connection process with graph proxy
+Apr 27, 2016 - re-did looking and descriptions
+Jun 29, 2016 - moved object type-specific code to event handler modules
+Jun 29, 2016 - ping items asynchronously for valid body parts
+Jul  3, 2016 - add broadcast message (send multiple messages at once)
+Jul  9, 2016 - attributes and items can modify attack hits and damage
 
-Running Tests:
-(Which is all I've been doing lately)
+How to run the tests: (Which is all I've been doing lately)
+
 ./t
 
-How to run it:
-(I haven't been running this lately, just running tests)
+How to run it: (I haven't been running this lately, just running tests)
+
 make && make rel && _rel/erlmud_release/bin/erlmud_release console
 > erlmud_world:init(). %% Loads the world
 > erlmud_world:m(s).   %% Move player1 south
@@ -197,23 +210,27 @@ make && make rel && _rel/erlmud_release/bin/erlmud_release console
 > in the browser enter any text for the password
 
 Videos in which I give explanations for commits:
+
 Why commit comment videos: https://www.youtube.com/watch?v=oHRU1Y8mlJ4
-F7189F17 - https://www.youtube.com/watch?v=GBPLuBVrRLU
-B85C17EA - https://www.youtube.com/watch?v=e4KM6ZsjpHY
-B2DD547D - https://www.youtube.com/watch?v=FDSkNMZH4F8
-B0E8CF51 - https://www.youtube.com/watch?v=yBXYhUln3LY
-B0D1674F - https://www.youtube.com/watch?v=66uW0ZKnN9M
-61004150 - https://www.youtube.com/watch?v=1ssN0qco6cA
-467370DD - https://www.youtube.com/watch?v=0mqmXECU_AE
-49228CCA - https://www.youtube.com/watch?v=ku80MOJa4VY
-885DD677 - https://www.youtube.com/watch?v=hq3jnJVtcHY
-69D41114 - https://www.youtube.com/watch?v=d2dropirT-w
-6F744FCC - https://www.youtube.com/watch?v=oYasq4W2ZdQ
-4FF59B65 - https://www.youtube.com/watch?v=_AhT2kaBrGc
-3F73000B - https://www.youtube.com/watch?v=jQwwuLxEjIQ
-47CE465  - https://www.youtube.com/watch?v=5yVLVowxRQo
-C2BF293  - https://www.youtube.com/watch?v=grHQbw7-DD4
-97C5488  - https://www.youtube.com/watch?v=n1LRljIkwf0
-2D192CB  - https://www.youtube.com/watch?v=tGVhkcYV7R0
-C3F1277  - https://www.youtube.com/watch?v=ZGG4Rzqn6Xs
-B386D19  - https://www.youtube.com/watch?v=aj5dEI3y8d8
+
+Commit SHA - Video Link
+---------- - -------------------------------------------
+F7189F17   - https://www.youtube.com/watch?v=GBPLuBVrRLU
+B85C17EA   - https://www.youtube.com/watch?v=e4KM6ZsjpHY
+B2DD547D   - https://www.youtube.com/watch?v=FDSkNMZH4F8
+B0E8CF51   - https://www.youtube.com/watch?v=yBXYhUln3LY
+B0D1674F   - https://www.youtube.com/watch?v=66uW0ZKnN9M
+61004150   - https://www.youtube.com/watch?v=1ssN0qco6cA
+467370DD   - https://www.youtube.com/watch?v=0mqmXECU_AE
+49228CCA   - https://www.youtube.com/watch?v=ku80MOJa4VY
+885DD677   - https://www.youtube.com/watch?v=hq3jnJVtcHY
+69D41114   - https://www.youtube.com/watch?v=d2dropirT-w
+6F744FCC   - https://www.youtube.com/watch?v=oYasq4W2ZdQ
+4FF59B65   - https://www.youtube.com/watch?v=_AhT2kaBrGc
+3F73000B   - https://www.youtube.com/watch?v=jQwwuLxEjIQ
+47CE465    - https://www.youtube.com/watch?v=5yVLVowxRQo
+C2BF293    - https://www.youtube.com/watch?v=grHQbw7-DD4
+97C5488    - https://www.youtube.com/watch?v=n1LRljIkwf0
+2D192CB    - https://www.youtube.com/watch?v=tGVhkcYV7R0
+C3F1277    - https://www.youtube.com/watch?v=ZGG4Rzqn6Xs
+B386D19    - https://www.youtube.com/watch?v=aj5dEI3y8d8
