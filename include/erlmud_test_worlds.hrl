@@ -414,3 +414,34 @@
 
                   {stealth, [{owner, transmitter},
                              ?ATTRIBUTE_HANDLERS]} ]).
+
+-define(WORLD_10, [{room, [{playggggglayer},
+                           {item, rifle},
+                           ?ROOM_HANDLERS]},
+
+                   {player, [{owner, room},
+                             ?CHARACTER_HANDLERS]},
+
+                   {rifle, [{owner, room},
+                            {name, <<"rifle">>},
+                            {item, suppressor},
+                            {item, grip},
+                            {item, clip},
+                            ?ITEM_HANDLERS]},
+
+                   {suppressor, [{owner, rifle},
+                                 {name, <<"suppressor">>},
+                                 ?ITEM_HANDLERS]},
+
+                   {grip, [{owner, rifle},
+                           {name, <<"grip">>},
+                           ?ITEM_HANDLERS]},
+
+                   {clip, [{owner, rifle},
+                           {name, <<"clip">>},
+                           {item, bullet},
+                           ?ITEM_HANDLERS]},
+
+                   {bullet, [{owner, clip},
+                             {name, <<"bullet">>},
+                             ?ITEM_HANDLERS]} ]).

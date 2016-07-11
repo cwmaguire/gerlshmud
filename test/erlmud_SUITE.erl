@@ -5,15 +5,13 @@
 
 -define(WAIT100, receive after 100 -> ok end).
 
-%all() -> [attack_with_modifiers].
-%all() -> [player_attack_wait].
-%all() -> [look_player].
 all() ->
     [player_move,
      player_move_fail,
      player_move_exit_locked,
      player_get_item,
      player_drop_item,
+     character_owner_add_remove,
      player_attack,
      player_attack_wait,
      attack_with_modifiers,
@@ -122,6 +120,31 @@ player_drop_item(Config) ->
     ?WAIT100,
     [] = all(item, Player).
 
+character_owner_add_remove(Config) ->
+    start(?WORLD_10),
+    Player = erlmud_index:get(player),
+    Rifle = erlmud_index:get(rifle),
+    Suppressor = erlmud_index:get(suppressor),
+    Grip = erlmud_index:get(grip),
+    Clip = erlmud_index:get(clip),
+    Bullet = erlmud_index:get(bullet),
+    attempt(Config, Player, {Player, get, <<"rifle">>}),
+    ?WAIT100,
+    true = has(Rifle, player),
+    Player = val(character, Rifle),
+    Player = val(character, Suppressor),
+    Player = val(character, Grip),
+    Player = val(character, Clip),
+    Player = val(character, Bullet),
+    attempt(Config, Player, {Player, drop, <<"rifle">>}),
+    ?WAIT100,
+    false = has(Rifle, player),
+    undefined = val(character, Rifle),
+    undefined = val(character, Suppressor),
+    undefined = val(character, Grip),
+    undefined = val(character, Clip),
+    undefined = val(character, Bullet).
+
 player_attack(Config) ->
     start(?WORLD_3),
     Player = erlmud_index:get(player),
@@ -194,11 +217,24 @@ attack_with_modifiers(Config) ->
     %% so the giant should die and the player should be alive.
     10 = val(hitpoints, p_hp),
     true = val(is_alive, p_life),
-    undefined = val(attack, Player),
+    true = wait_loop(fun() -> val(attack, Player) end, undefined, 10),
     true = 0 >= val(hitpoints, g_hp),
     false = val(is_alive, g_life),
     undefined = val(attack, Giant),
     ok.
+
+wait_loop(Fun, ExpectedResult, _Count = 0) ->
+    ct:pal("Mismatched function result:~n\tFunction: ~p~n\tResult: ~p",
+           [erlang:fun_to_list(Fun), ExpectedResult]),
+    false;
+wait_loop(Fun, ExpectedResult, Count) ->
+    case Fun() == ExpectedResult of
+        true ->
+            true;
+        false ->
+            ?WAIT100,
+            wait_loop(Fun, ExpectedResult, Count - 1)
+    end.
 
 player_wield(Config) ->
     start(?WORLD_4),
