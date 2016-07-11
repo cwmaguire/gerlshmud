@@ -36,7 +36,7 @@ parse(Player, <<"look ", Object/binary>>) ->
     log([<<"Looking ">>, Object]),
     {look, Player, Object};
 parse(_, _) ->
-    {error, "Huh?"}.
+    {error, <<"Huh?">>}.
 
 log(_Terms) ->
     ok.

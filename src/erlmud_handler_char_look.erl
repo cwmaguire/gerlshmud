@@ -75,6 +75,5 @@ is_owner(MaybeOwner, Props) when is_pid(MaybeOwner) ->
 is_owner(_, _) ->
     false.
 
-
 log(Level, IoData) ->
     erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).
