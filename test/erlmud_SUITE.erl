@@ -25,6 +25,7 @@ all() ->
      player_remove,
      look_player,
      look_room,
+     look_item,
      set_character].
 
 init_per_testcase(_, Config) ->
@@ -385,6 +386,18 @@ look_room(_Config) ->
                            <<"room -> bread_: a loaf of bread">>,
                            <<"room: an empty space">>]),
     Descriptions = Expected.
+
+look_item(_Config) ->
+    start(?WORLD_7),
+    erlmud_test_socket:send(<<"AnyLoginWillDo">>),
+    erlmud_test_socket:send(<<"AnyPasswordWillDo">>),
+    ?WAIT100,
+    erlmud_test_socket:send(<<"look bread">>),
+    ?WAIT100,
+    Descriptions = lists:sort(erlmud_test_socket:messages()),
+    ct:pal("Descriptions: ~p~n", [Descriptions]),
+    Expected = lists:sort([<<"bread_: a loaf of bread">>]),
+    Expected = Descriptions.
 
 set_character(Config) ->
     start(?WORLD_9),
