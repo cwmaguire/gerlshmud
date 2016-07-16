@@ -37,6 +37,11 @@ attempt({Owner, Props, {move, Self, from, Owner, to, Target, _ItemBodyParts}})
        Owner /= Target,
        is_pid(Target) ->
     {succeed, true, Props};
+attempt({_Owner, Props, {move, Item, from, Self, to, Target}})
+  when Self == self(),
+       is_pid(Item),
+       is_pid(Target) ->
+    {succeed, true, Props};
 attempt(_) ->
     undefined.
 
@@ -46,9 +51,28 @@ succeed({Props, {move, Self, from, _OldOwner, to, NewOwner}})
 succeed({Props, {move, Self, from, _OldOwner, to, NewOwner, _ItemBodyParts}})
   when Self == self() ->
     lists:keystore(owner, 1, Props, {owner, NewOwner});
+succeed({Props, {move, Item, from, Source, to, Self}}) when Self == self() ->
+    log(debug, [<<"Getting ">>, Item, <<" from ">>, Source, <<"\n">>]),
+    erlmud_object:attempt(Item, {set_child_property, self(), top_item, top_item(Props)}),
+    [{item, Item} | Props];
+succeed({Props, {move, Item, from, Self, to, Target}}) when Self == self() ->
+    clear_child_top_item(Props, Item, Target);
+succeed({Props, {move, Item, from, Self, to, Target, _ItemBodyParts}}) when Self == self() ->
+    clear_child_top_item(Props, Item, Target);
 
 succeed({Props, _}) ->
     Props.
 
 fail({Props, _, _}) ->
     Props.
+
+top_item(Props) ->
+    proplists:get_value(top_item, Props, self()).
+
+clear_child_top_item(Props, Item, Target) ->
+    log(debug, [<<"Giving ">>, Item, <<" to ">>, Target, <<"\n\tProps: ">>, Props, <<"\n">>]),
+    erlmud_object:attempt(Item, {clear_child_property, Target, top_item, top_item(Props)}),
+    lists:keydelete(Item, 2, Props).
+
+log(Level, IoData) ->
+    erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).

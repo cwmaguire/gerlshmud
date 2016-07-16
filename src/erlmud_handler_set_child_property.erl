@@ -11,32 +11,43 @@
 %% WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 %% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
--module(erlmud_handler_set_body_part).
+-module(erlmud_handler_set_child_property).
 
 -behaviour(erlmud_handler).
 
-%% @doc Only if the message has our owner do we set the body part and
+%% @doc Only if the message has our owner do we set the character and
 %% then propagate the message. Otherwise we are not a child of the
 %% source process and the message shouldn't go any further, so we fail
 %% it. Nothing should subscribe to the message.
 %%
 %% This should cause a cascade of messages that keep starting at the current
-%% child and going out.
+%% child and going out to ..
 %%
-%% The body_part lets items and their children (sub-items, attributes,
-%% spells, etc.) recognize that that they are wielded or worn as opposed
-%% to just in the character's inventory.
+%% If we move an item from one character to another, one body_part to another
+%% or one item to another then we might get a "clear" and "set" out of order.
+%% If we're going to clear out a previous character, body_part or owner we
+%% need to specify what value we're clearing out. If that value is already
+%% set to something else then we should leave it as is.
 
 %% object behaviour
 -export([attempt/1]).
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({Owner, Props, {set_body_part, Owner, BodyPart}}) ->
-    NewMessage = {set_body_part, self(), BodyPart},
-    Props2 = lists:keystore(body_part, 1, Props, {body_part, BodyPart}),
+attempt({Owner, Props, {set_child_property, Owner, Key, Value}}) ->
+    NewMessage = {set_child_property, self(), Key, Value},
+    Props2 = lists:keystore(Key, 1, Props, {Key, Value}),
     {{broadcast, NewMessage}, false, Props2};
-attempt({_, Props, {set_body_part, _, _}}) ->
+attempt({Owner, Props, {clear_child_property, Owner, Key, Value}}) ->
+    NewMessage = {clear_child_property, self(), Key, Value},
+    Props2 = case proplists:get_value(Key, Props) of
+                 Value ->
+                     lists:keydelete(Key, 1, Props);
+                 _ ->
+                     Props
+             end,
+    {{broadcast, NewMessage}, false, Props2};
+attempt({_, Props, {set_child_property, _, _}}) ->
     {{fail, not_a_child}, _Subscribe = false, Props};
 attempt(_) ->
     undefined.

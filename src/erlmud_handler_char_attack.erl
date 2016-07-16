@@ -72,7 +72,7 @@ attack(Target, Props) ->
                       {target, Target},
                       {name, <<"attack">>},
                       {handlers, [erlmud_handler_attack,
-                                  erlmud_handler_set_character]}]],
+                                  erlmud_handler_set_child_property]}]],
     {ok, Attack} = supervisor:start_child(erlmud_object_sup, Args),
     log(debug, [<<"Attack ">>, Attack, <<" started, sending attempt and subscribing\n">>]),
     erlmud_object:attempt(Attack,

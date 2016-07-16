@@ -5,6 +5,7 @@
 
 -define(WAIT100, receive after 100 -> ok end).
 
+%all() -> [character_owner_add_remove].
 all() ->
     [player_move,
      player_move_fail,

@@ -1,11 +1,9 @@
--define(UNIVERSAL_HANDLERS, erlmud_handler_set_character, erlmud_handler_set_body_part).
+-define(UNIVERSAL_HANDLERS, erlmud_handler_set_child_property).
 
 -define(ROOM_HANDLERS, {handlers, [erlmud_handler_room_inject_self,
                                    erlmud_handler_room_inv,
                                    erlmud_handler_room_look,
                                    erlmud_handler_room_move,
-                                   erlmud_handler_set_character,
-                                   erlmud_handler_set_body_part,
                                    ?UNIVERSAL_HANDLERS]}).
 
 -define(CHARACTER_HANDLERS, {handlers, [erlmud_handler_char_attack,
@@ -33,7 +31,6 @@
                                         ?UNIVERSAL_HANDLERS]}).
 
 -define(ATTRIBUTE_HANDLERS, {handlers, [erlmud_handler_attribute_look,
-                                        erlmud_handler_set_character,
                                         erlmud_handler_attribute_attack,
                                         ?UNIVERSAL_HANDLERS]}).
 
@@ -302,8 +299,6 @@
                             {life, p_life},
                             {attribute, strength0},
                             {attribute, dexterity0},
-                            %{item, force_field},
-                            %{item, shield},
                             {body_part, back0},
                             {body_part, hand0},
                             {race, race0},
@@ -424,7 +419,7 @@
                   {stealth, [{owner, transmitter},
                              ?ATTRIBUTE_HANDLERS]} ]).
 
--define(WORLD_10, [{room, [{playggggglayer},
+-define(WORLD_10, [{room, [{player},
                            {item, rifle},
                            ?ROOM_HANDLERS]},
 
@@ -440,17 +435,21 @@
 
                    {suppressor, [{owner, rifle},
                                  {name, <<"suppressor">>},
+                                 {top_item, rifle},
                                  ?ITEM_HANDLERS]},
 
                    {grip, [{owner, rifle},
                            {name, <<"grip">>},
+                           {top_item, rifle},
                            ?ITEM_HANDLERS]},
 
                    {clip, [{owner, rifle},
                            {name, <<"clip">>},
+                           {top_item, rifle},
                            {item, bullet},
                            ?ITEM_HANDLERS]},
 
                    {bullet, [{owner, clip},
                              {name, <<"bullet">>},
+                             {top_item, rifle},
                              ?ITEM_HANDLERS]} ]).

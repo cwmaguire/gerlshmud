@@ -46,18 +46,14 @@ attempt(_) ->
 succeed({Props, {move, Item, from, OldOwner, to, Self, _ItemBodyParts}})
   when Self == self() ->
     log(debug, [<<"Getting ">>, Item, <<" from ">>, OldOwner, <<"\n">>]),
-    erlmud_object:attempt(Item, {set_body_part, self(), self()}),
+    erlmud_object:attempt(Item, {set_child_property, self(), body_part, self()}),
     [{item, Item} | Props];
 succeed({Props, {move, Item, from, Self, to, NewOwner}})
   when Self == self() ->
-    log(debug, [<<"Giving ">>, Item, <<" to ">>, NewOwner, <<"\n\tProps: ">>, Props, <<"\n">>]),
-    erlmud_object:attempt(Item, {set_body_part, NewOwner, undefined}),
-    lists:keydelete(Item, 2, Props);
+    clear_child_body_part(Props, Item, NewOwner);
 succeed({Props, {move, Item, from, Self, to, NewOwner, _ItemBodyParts}})
   when Self == self() ->
-    log(debug, [<<"Giving ">>, Item, <<" to ">>, NewOwner, <<"\n\tProps: ">>, Props, <<"\n">>]),
-    erlmud_object:attempt(Item, {set_body_part, NewOwner, undefined}),
-    lists:keydelete(Item, 2, Props);
+    clear_child_body_part(Props, Item, NewOwner);
 succeed({Props, _}) ->
     Props.
 
@@ -117,6 +113,11 @@ has_space(Props, _) ->
         _ ->
             {false, "Body part is full"}
     end.
+
+clear_child_body_part(Props, Item, Target) ->
+    log(debug, [<<"Giving ">>, Item, <<" to ">>, Target, <<"\n\tProps: ">>, Props, <<"\n">>]),
+    erlmud_object:attempt(Item, {clear_child_property, Target, body_part, self()}),
+    lists:keydelete(Item, 2, Props).
 
 log(Level, IoData) ->
     erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).

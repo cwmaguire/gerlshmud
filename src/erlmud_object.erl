@@ -273,10 +273,12 @@ handle({broadcast, Msg}, _Msg, _Procs, Props) ->
     %to only broadcast "down".
     NotParents = [Prop || Prop = {Key, _} <- Props,
                           Key /= owner,
-                          Key /= character],
+                          Key /= character,
+                          Key /= body_part,
+                          Key /= top_item],
     log([<<"Broadcasting: ">>, Msg]),
-    log([<<"    to: ">>, procs(NotParents)]),
-    log([<<"    from props: ">>, NotParents]),
+    log([<<"to: ">>, procs(NotParents)]),
+    log([<<"from props: ">>, NotParents]),
     [broadcast(V, Msg) || V <- procs(NotParents)].
 
 broadcast(Pid, Msg) ->
