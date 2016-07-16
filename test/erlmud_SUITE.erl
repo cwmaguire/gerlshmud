@@ -241,24 +241,29 @@ player_wield(Config) ->
     start(?WORLD_4),
     Player = erlmud_index:get(player),
     Helmet = erlmud_index:get(helmet),
+    Head = erlmud_index:get(head1),
     Helmet = val(item, Player),
     attempt(Config, Player, {move, <<"helmet">>, from, Player, to, <<"head">>}),
     ?WAIT100,
     undefined = val(item, Player),
-    Helmet = val(item, head1).
+    Helmet = val(item, head1),
+    Head = val(body_part, Helmet).
 
 player_wield_first_available(Config) ->
     start(?WORLD_4),
     Player = erlmud_index:get(player),
+    Head = erlmud_index:get(head1),
     Helmet = erlmud_index:get(helmet),
     attempt(Config, Player, {move, <<"helmet">>, from, Player, to, first_available_body_part}),
     ?WAIT100,
     undefined = val(item, Player),
-    Helmet = val(item, head1).
+    Helmet = val(item, head1),
+    Head = val(body_part, Helmet).
 
 player_wield_missing_body_part(Config) ->
     start(?WORLD_4),
     Player = erlmud_index:get(player),
+    Head = erlmud_index:get(head1),
     Helmet = erlmud_index:get(helmet),
     attempt(Config, Player, {move, <<"helmet">>, from, Player, to, <<"finger">>}),
     ?WAIT100,
@@ -267,11 +272,13 @@ player_wield_missing_body_part(Config) ->
     attempt(Config, Player, {move, <<"helmet">>, from, Player, to, <<"head">>}),
     ?WAIT100,
     Helmet = val(item, head1),
+    Head = val(body_part, Helmet),
     undefined = val(item, player).
 
 player_wield_wrong_body_part(Config) ->
     start(?WORLD_5),
     Player = erlmud_index:get(player),
+    Head = erlmud_index:get(head1),
     Helmet = erlmud_index:get(helmet),
     attempt(Config, Player, {move, <<"helmet">>, from, Player, to, <<"finger">>}),
     ?WAIT100,
@@ -280,11 +287,14 @@ player_wield_wrong_body_part(Config) ->
     attempt(Config, Player, {move, <<"helmet">>, from, Player, to, <<"head">>}),
     ?WAIT100,
     Helmet = val(item, head1),
+    Head = val(body_part, Helmet),
     undefined = val(item, player).
 
 player_wield_body_part_is_full(Config) ->
     start(?WORLD_6),
     Player = erlmud_index:get(player),
+    Finger1 = erlmud_index:get(finger1),
+    Finger2 = erlmud_index:get(finger2),
     Ring1 = erlmud_index:get(ring1),
     Ring2 = erlmud_index:get(ring2),
     [Ring1, Ring2] = all(item, player),
@@ -294,6 +304,7 @@ player_wield_body_part_is_full(Config) ->
     ?WAIT100,
     [Ring2] = all(item, player),
     [Ring1] = all(item, finger1),
+    Finger1 = val(body_part, Ring1),
     [] = all(item, finger2),
     attempt(Config, Player, {move, <<"ring2">>, from, Player, to, <<"finger1">>}),
     ?WAIT100,
@@ -304,27 +315,38 @@ player_wield_body_part_is_full(Config) ->
     ?WAIT100,
     [] = all(item, player),
     [Ring1] = all(item, finger1),
-    [Ring2] = all(item, finger2).
+    [Ring2] = all(item, finger2),
+    Finger2 = val(body_part, Ring2).
 
 player_remove(Config) ->
     start(?WORLD_4),
     Player = erlmud_index:get(player),
+    Head = erlmud_index:get(head1),
     Helmet = erlmud_index:get(helmet),
+    DexBuff = erlmud_index:get(dex_buff),
     attempt(Config, Player, {move, <<"helmet">>, from, Player, to, <<"head">>}),
     ?WAIT100,
     undefined = val(item, player),
     Helmet = val(item, head1),
+    Head = val(body_part, Helmet),
+    Head = val(body_part, DexBuff),
     attempt(Config, Player, {move, <<"helmet">>, from, <<"head">>, to, Player}),
     ?WAIT100,
     Helmet = val(item, player),
+    undefined = val(body_part, Helmet),
+    undefined = val(body_part, DexBuff),
     undefined = val(item, head1),
     attempt(Config, Player, {move, <<"helmet">>, from, Player, to, <<"head">>}),
     ?WAIT100,
     undefined = val(item, player),
     Helmet = val(item, head1),
+    Head = val(body_part, Helmet),
+    Head = val(body_part, DexBuff),
     attempt(Config, Player, {move, <<"helmet">>, from, current_body_part, to, Player}),
     ?WAIT100,
     Helmet = val(item, player),
+    undefined = val(body_part, Helmet),
+    undefined = val(body_part, DexBuff),
     undefined = val(item, head1).
 
 look_player(_Config) ->

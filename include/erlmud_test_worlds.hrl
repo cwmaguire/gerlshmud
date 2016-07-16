@@ -1,8 +1,12 @@
+-define(UNIVERSAL_HANDLERS, erlmud_handler_set_character, erlmud_handler_set_body_part).
+
 -define(ROOM_HANDLERS, {handlers, [erlmud_handler_room_inject_self,
                                    erlmud_handler_room_inv,
                                    erlmud_handler_room_look,
                                    erlmud_handler_room_move,
-                                   erlmud_handler_set_character]}).
+                                   erlmud_handler_set_character,
+                                   erlmud_handler_set_body_part,
+                                   ?UNIVERSAL_HANDLERS]}).
 
 -define(CHARACTER_HANDLERS, {handlers, [erlmud_handler_char_attack,
                                         erlmud_handler_char_look,
@@ -10,42 +14,43 @@
                                         erlmud_handler_char_move,
                                         erlmud_handler_char_inject_self,
                                         erlmud_handler_char_enter_world,
-                                        erlmud_handler_set_character]}).
+                                        ?UNIVERSAL_HANDLERS]}).
 
 -define(ITEM_HANDLERS, {handlers, [erlmud_handler_item_attack,
                                    erlmud_handler_item_look,
                                    erlmud_handler_item_inv,
                                    erlmud_handler_item_inject_self,
-                                   erlmud_handler_set_character]}).
+                                   ?UNIVERSAL_HANDLERS]}).
 
 -define(CONN_HANDLERS, {handlers, [erlmud_handler_conn_enter_world,
                                    erlmud_handler_conn_move,
                                    erlmud_handler_conn_send,
-                                   erlmud_handler_set_character]}).
+                                   ?UNIVERSAL_HANDLERS]}).
 
 -define(BODY_PART_HANDLERS, {handlers, [erlmud_handler_body_part_look,
                                         erlmud_handler_body_part_inv,
                                         erlmud_handler_body_part_inject_self,
-                                        erlmud_handler_set_character]}).
+                                        ?UNIVERSAL_HANDLERS]}).
 
 -define(ATTRIBUTE_HANDLERS, {handlers, [erlmud_handler_attribute_look,
                                         erlmud_handler_set_character,
-                                        erlmud_handler_attribute_attack]}).
+                                        erlmud_handler_attribute_attack,
+                                        ?UNIVERSAL_HANDLERS]}).
 
 -define(EXIT_HANDLERS, {handlers, [erlmud_handler_exit_move,
-                                   erlmud_handler_set_character]}).
+                                   ?UNIVERSAL_HANDLERS]}).
 
 -define(HITPOINTS_HANDLERS, {handlers, [erlmud_handler_hitpoints_attack,
-                                        erlmud_handler_set_character]}).
+                                        ?UNIVERSAL_HANDLERS]}).
 
 -define(LIFE_HANDLERS, {handlers, [erlmud_handler_life_attack,
-                                   erlmud_handler_set_character]}).
+                                   ?UNIVERSAL_HANDLERS]}).
 
 -define(STAT_HANDLERS, {handlers, [erlmud_handler_stat_look,
-                                   erlmud_handler_set_character]}).
+                                   ?UNIVERSAL_HANDLERS]}).
 
 -define(TEST_CONN_HANDLERS, {handlers, [erlmud_handler_test_connection_attack,
-                                        erlmud_handler_set_character]}).
+                                        ?UNIVERSAL_HANDLERS]}).
 
 -define(WORLD_1, [{room_nw, [{exit, exit_ns}, {exit, exit_ew}, {character, player}, ?ROOM_HANDLERS]},
                   {room_s, [{exit, exit_ns}, ?ROOM_HANDLERS]},
@@ -119,7 +124,11 @@
                            {owner, player}, ?BODY_PART_HANDLERS]},
                   {helmet, [{name, <<"helmet">>},
                             {owner, player},
-                            {body_parts, [head]}, ?ITEM_HANDLERS]}]).
+                            {attribute, dex_buff},
+                            {body_parts, [head]}, ?ITEM_HANDLERS]},
+                  {dex_buff, [{name, <<"dex_buff">>},
+                              {owner, helmet},
+                              ?ATTRIBUTE_HANDLERS]}]).
 
 -define(WORLD_5, [{player, [{item, helmet},
                             {body_part, head1},

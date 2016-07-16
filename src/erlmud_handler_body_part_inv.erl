@@ -43,14 +43,20 @@ attempt({Owner, Props, {move, Item, from, Owner, to, Self, ItemBodyParts}})
 attempt(_) ->
     undefined.
 
-succeed({Props, {move, Item, from, _OldOwner, to, Self, _ItemBodyParts}})
+succeed({Props, {move, Item, from, OldOwner, to, Self, _ItemBodyParts}})
   when Self == self() ->
+    log(debug, [<<"Getting ">>, Item, <<" from ">>, OldOwner, <<"\n">>]),
+    erlmud_object:attempt(Item, {set_body_part, self(), self()}),
     [{item, Item} | Props];
-succeed({Props, {move, Item, from, Self, to, _NewOwner}})
+succeed({Props, {move, Item, from, Self, to, NewOwner}})
   when Self == self() ->
+    log(debug, [<<"Giving ">>, Item, <<" to ">>, NewOwner, <<"\n\tProps: ">>, Props, <<"\n">>]),
+    erlmud_object:attempt(Item, {set_body_part, NewOwner, undefined}),
     lists:keydelete(Item, 2, Props);
-succeed({Props, {move, Item, from, Self, to, _NewOwner, _ItemBodyParts}})
+succeed({Props, {move, Item, from, Self, to, NewOwner, _ItemBodyParts}})
   when Self == self() ->
+    log(debug, [<<"Giving ">>, Item, <<" to ">>, NewOwner, <<"\n\tProps: ">>, Props, <<"\n">>]),
+    erlmud_object:attempt(Item, {set_body_part, NewOwner, undefined}),
     lists:keydelete(Item, 2, Props);
 succeed({Props, _}) ->
     Props.

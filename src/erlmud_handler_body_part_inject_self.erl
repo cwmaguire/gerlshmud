@@ -57,7 +57,7 @@ attempt({Owner, Props, {move, Item, from, Owner,
     %% Not sure if I should just move this clause over to erlmud_handler_body_part_inv
     case erlmud_handler_body_part_inv:can_add(Props, ItemBodyParts) of
         true ->
-            NewMessage = {move, Item, from, Owner, to, self()},
+            NewMessage = {move, Item, from, Owner, to, self(), ItemBodyParts},
             Result = {resend, Owner, NewMessage},
             {Result, _Subscribe = true, Props};
         _ ->
