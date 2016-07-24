@@ -19,11 +19,12 @@
 -export([fail/1]).
 
 %attempt({_Owner, Props, {Action, Obj, ItemName, BodyPart}})
-attempt({_Owner, Props, {attack, Attacker, TargetName}})
+attempt({_Owner, Props, {Attacker, attack, TargetName}})
   when is_binary(TargetName) ->
     case is_name(Props, TargetName) of
         true ->
-            NewMessage = {attack, Attacker, self()},
+            AttackTypes = proplists:get_value(attack_types, Props),
+            NewMessage = {Attacker, attack, self(), with, AttackTypes},
             Result = {resend, Attacker, NewMessage},
             {Result, true, Props};
         _ ->

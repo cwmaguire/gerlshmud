@@ -67,11 +67,12 @@
                           ?ROOM_HANDLERS]},
 
                   {player, [{owner, room},
-                            {attack_wait, 10},
+                            %{attack_wait, 10},
                             {item, fist},
                             {hitpoints, p_hp},
                             {life, p_life},
                             {attribute, dexterity0},
+                            {attack_types, [hand]},
                             ?CHARACTER_HANDLERS]},
                   {p_hp, [{hitpoints, 1000},
                           {owner, player},
@@ -82,6 +83,7 @@
                   {fist, [{attack_damage_modifier, 5},
                           {owner, player},
                           {character, player},
+                          {attack, hand},
                           ?ITEM_HANDLERS]},
                   {dexterity0, [{attack_hit_modifier, 1},
                                 {owner, player},
@@ -95,6 +97,7 @@
                             {hitpoints, z_hp},
                             {life, z_life},
                             {attribute, dexterity1},
+                            {attack_types, [melee]},
                             ?CHARACTER_HANDLERS]},
                   {z_hp, [{hitpoints, 10},
                           {owner, zombie},
@@ -109,6 +112,7 @@
                   {sword, [{attack_damage_modifier, 5},
                            {owner, zombie},
                            {character, zombie},
+                           {attack, melee},
                            ?ITEM_HANDLERS]}]).
 
 -define(WORLD_4, [{room, [{player, player}, ?ROOM_HANDLERS]},

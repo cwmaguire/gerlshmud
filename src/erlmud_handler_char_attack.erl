@@ -67,18 +67,21 @@ fail({Props, _, _}) ->
     Props.
 
 attack(Target, Props) ->
-    Args = [_Id = undefined,
-            _Props = [{owner, self()},
-                      {target, Target},
-                      {name, <<"attack">>},
-                      {handlers, [erlmud_handler_attack,
-                                  erlmud_handler_set_child_property]}]],
-    {ok, Attack} = supervisor:start_child(erlmud_object_sup, Args),
-    log(debug, [<<"Attack ">>, Attack, <<" started, sending attempt and subscribing\n">>]),
-    erlmud_object:attempt(Attack,
-                          {attack, Attack, self(), Target},
-                          _ShouldSub = true),
-    [{attack, Attack}, {target, Target} | Props].
+    %Args = [_Id = undefined,
+            %_Props = [{owner, self()},
+                      %{target, Target},
+                      %{name, <<"attack">>},
+                      %{handlers, [erlmud_handler_attack,
+                                  %erlmud_handler_set_child_property]}]],
+    %{ok, Attack} = supervisor:start_child(erlmud_object_sup, Args),
+    %log(debug, [<<"Attack ">>, Attack, <<" started, sending attempt and subscribing\n">>]),
+    %erlmud_object:attempt(Attack,
+                          %{self(), {attack, Attack}, Target},
+                          %_ShouldSub = true),
+    %[{attack, Attack}, {target, Target} | Props].
+
+    erlmud_object:attempt(self(), {self(), attack, Target}, _ShouldSub = true),
+    Props.
 
 log(Level, IoData) ->
     erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).

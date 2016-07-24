@@ -22,26 +22,35 @@
 
 -define(PROPS, [{hit, 0}, {miss, 0}]).
 
-attempt({Owner, Props, {move, Owner, _Src, _Target}}) ->
+attempt({Owner, Props, {move, Owner, from, _Src, to, _Target}}) ->
     {succeed, true, Props};
-attempt({Owner, Props, {attack, NotSelf, Owner, _Target}}) when self() /= NotSelf ->
+attempt({Owner, Props, {Owner, {attack, NotSelf}, _Target}}) when self() /= NotSelf ->
     {succeed, true, Props};
 %% die means that our character has died
 attempt({Owner, Props, {die, Owner}}) ->
     {succeed, true, Props};
-attempt({_Owner, Props, {calc_hit, Self, _, _, _}}) when Self == self() ->
+attempt({_Owner, Props, {calc_hit, _, {attack, Self}, _, _}}) when Self == self() ->
     case proplists:get_value(done, Props) of
         true ->
             {fail, "It's dead Jim"};
         _ ->
             {succeed, true, Props}
     end;
-attempt({Owner, Props, {Action, Self, Owner, Target}})
+attempt({Owner, Props, {Owner, {attack, Self}, _Target, with, _Weapon}})
+  when Self == self() ->
+    {succeed, true, Props};
+attempt({Owner, Props, {Owner, {attack, Self}, _Target, with, _Weapon, calc_damage}})
+  when Self == self() ->
+    {succeed, true, Props};
+attempt({Owner, Props, {Owner, {attack, Self}, Target, does, _Damage, damage}}) when Self == self(), is_pid(Target) ->
+    {succeed, true, Props};
+attempt({Owner, Props, {Owner, killed, Target, with, {attack, Self}}})
   when Self == self(),
        is_pid(Target) ->
-    ShouldSubscribe = lists:member(Action, [attack, calc_damage, damage, killed]),
-    {succeed, ShouldSubscribe, Props};
-attempt({Owner, Props, {stop_attack, Owner}}) ->
+    {succeed, true, Props};
+attempt({Self, Props, {_Owner, stop, {attack, Self}, _Target}}) ->
+    {succeed, _Subscribe = true, Props};
+attempt({Self, Props, {_Owner, stop, {attack, Self}}}) ->
     {succeed, _Subscribe = true, Props};
 
 attempt({_Owner, Props, {gather_body_parts, Self,
@@ -52,38 +61,41 @@ attempt({_Owner, Props, {gather_body_parts, Self,
 attempt(_) ->
     undefined.
 
-succeed({Props, {Action, NotSelf, Owner, Target}}) when Action == move orelse
-                                             (Action == attack andalso
-                                              NotSelf /= self()) ->
-  erlmud_object:attempt(self(), {stop_attack, self(), Owner, Target}),
-  Props;
-succeed({Props, {attack, Self, _Source, UnknownTargetName}})
+%% switched targets, stop this attack
+succeed({Props, {Owner, {attack, NotSelf}, _Target, with, _Weapon}}) when NotSelf /= self() ->
+    erlmud_object:attempt(self(), {Owner, stop, {attack, self()}}),
+    Props;
+%TODO figure out if I even need this. I don't think it's tested
+%succeed({Props, {move, Owner, Target}}) when Action == move ->
+    %erlmud_object:attempt(self(), {stop_attack, self(), Owner, Target}),
+    %Props;
+succeed({Props, {_Source, {attack, Self}, UnknownTargetName}})
   when is_list(UnknownTargetName),
        Self == self() ->
     %% Attack failed (no one was self-identified as the target)
     %% TODO: output something to the client like "You swing at imaginary adversaries"
     %%       _if_ this is a player
     Props;
-succeed({Props, {attack, Self, Source, Target}}) when is_pid(Target), Self == self() ->
-    erlmud_object:attempt(self(), {calc_hit, self(), Source, Target, 0}, _Subscribe = true),
+succeed({Props, {Source, {attack, Self}, Target}}) when is_pid(Target), Self == self() ->
+    erlmud_object:attempt(self(), {Source, {attack, self()}, Target, 'calc_hit =', 0}, _Subscribe = true),
     lists:keystore(target, 1, Props, {target, Target});
-succeed({Props, {calc_hit, Self, Source, Target, HitScore}})
+succeed({Props, {Source, {attack, Self}, Target, 'calc_hit =', HitRoll}})
   when is_pid(Target),
        Self == self(),
-       HitScore > 0 ->
-    erlmud_object:attempt(self(), {calc_damage, self(), Source, Target, 0}),
+       HitRoll > 0 ->
+    erlmud_object:attempt(self(), {Source, {attack, self()}, Target, 'calc_damage =', 0}),
     Props;
-succeed({Props, {calc_hit, Self, Source, Target, _Miss}})
+succeed({Props, {Source, {attack, Self}, Target, 'calc_hit =', _HitRoll}})
   when is_pid(Target),
        Self == self() ->
     attack_again(Source, Target),
     Props;
-succeed({Props, {calc_damage, Self, Source, Target, Damage}})
+succeed({Props, {Source, {attack, Self}, Target, 'calc_damage =', Damage}})
   when Self == self(),
        Damage > 0 ->
-    erlmud_object:attempt(self(), {damage, self(), Source, Target, Damage}),
+    erlmud_object:attempt(self(), {Source, {attack, self()}, Target, does, Damage, damage}),
     Props;
-succeed({Props, {calc_damage, Self, Source, Target, _NoDamage}})
+succeed({Props, {Source, {attack, Self}, Target, 'calc_damage =', _NoDamage}})
   when Self == self() ->
     %% Attack failed (No damage was done)
     %% TODO: output something to the client like
@@ -91,7 +103,7 @@ succeed({Props, {calc_damage, Self, Source, Target, _NoDamage}})
     %%       _if_ this is a player
     attack_again(Source, Target),
     Props;
-succeed({Props, {damage, Self, Source, Target, _Damage}})
+succeed({Props, {Source, {attack, Self}, Target, does, _Damage, damage}})
   when Self == self() ->
     %% Attack succeeded
     %% TODO: tell the user
@@ -99,15 +111,16 @@ succeed({Props, {damage, Self, Source, Target, _Damage}})
     %% and died if necessary.
     attack_again(Source, Target),
     Props;
-succeed({Props, {calc_next_attack_wait, Self, Source, Target, Sent, Wait}}) ->
-    erlmud_object:attempt_after(milis_remaining(Sent, now(), Wait),
+succeed({Props, {Source, {attack, Self}, Target, 'calc_wait =', Wait, from, Sent}}) ->
+    AttackWaitRemaining = millis_remaining(Sent, now(), Wait),
+    erlmud_object:attempt_after(AttackWaitRemaining,
                                 self(),
-                                {calc_hit, Self, Source, Target, 1}),
+                                {Source, {attack, Self}, Target, 'calc_hit =', 1}),
     Props;
-succeed({Props, {die, _Owner}}) ->
-    erlmud_object:attempt(self(), {stop_attack, self()}),
+succeed({Props, {Owner, die}}) ->
+    erlmud_object:attempt(self(), {Owner, stop, {self(), attack}}),
     Props;
-succeed({Props, {stop_attack, Self}}) when Self == self() ->
+succeed({Props, {_Owner, stop, {attack, Self}}}) when Self == self() ->
     {stop, stop_attack, Props};
 
 succeed({Props, Msg}) ->
@@ -116,22 +129,18 @@ succeed({Props, Msg}) ->
 
 fail({Props, target_is_dead, _Message}) ->
     log([<<"Stopping because target is dead">>]),
-    erlmud_object:attempt(self(), {stop_attack, self()}),
+    erlmud_object:attempt(self(), {self(), stop_attack}),
     Props;
 fail({Props, _Reason, _Message}) ->
     Props.
 
 attack_again(Source, Target) ->
-    erlmud_object:attempt(self(),
-                          {calc_next_attack_wait,
-                           self(),
-                           Source,
-                           Target,
-                           os:timestamp(),
-                           0}),
+    Now = os:timestamp(),
+    CalcWaitMsg = {Source, {attack, self()}, Target, Now, 'calc_wait = ', 0},
+    erlmud_object:attempt(self(),CalcWaitMsg),
     ok.
 
-milis_remaining(Time1, Time2, WaitMilis) ->
+millis_remaining(Time1, Time2, WaitMilis) ->
   ElapsedMilis = abs(subtract(Time2, from, Time1)),
   case(WaitMilis - ElapsedMilis) of
       X when X < 0 ->

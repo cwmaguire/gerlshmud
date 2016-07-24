@@ -18,62 +18,78 @@
 -export([succeed/1]).
 -export([fail/1]).
 
+-include("include/erlmud.hrl").
+
+%% Watch for an attack from the character.
+%% If we're a chosen weapon then we'll kick off our own attack process
+attempt({_Owner, Props,
+         Attack = #attack{attack_types = AttackTypes,
+                          weapon = undefined,
+                          attack = undefined}})
+  when is_pid(Attack#attack.target),
+       is_list(AttackTypes) ->
+    Character = proplists:get_value(character, Props),
+    AttackType = proplists:get_value(attack_type, Props),
+    DoesAttackTypeMatch = lists:member(AttackType, AttackTypes),
+    case {Attack#attack.source, DoesAttackTypeMatch} of
+        {Character, true} ->
+            {succeed, true, Props};
+        _ ->
+            {succeed, false, Props}
+    end;
 %% TODO some items will have to be worn or wielded in order to
 %% take effect. Add a function or property that determines if the
 %% item's modifiers apply.
-attempt({_Owner, Props, {CalcType, Attack, Source, Target, Value}})
-  when CalcType == calc_hit; CalcType == calc_damage ->
+%attempt({_Owner, Props, {Source, {attack, Attack}, Target, with, Self, CalcType, Value}})
+
+%% calculate either hit, damage or wait for an attack in progress
+%% with this item
+attempt({_Owner, Props, Attack = #attack{source = Source,
+                                         target = Target,
+                                         weapon = Self,
+                                         calc_type = CalcType}})
+  when Self == self() andalso
+       (CalcType == hit orelse CalcType == damage) ->
     log(debug, [<<"Saw ">>, CalcType, <<"...">>]),
     Character = proplists:get_value(character, Props),
     case Character of
         Source ->
             log(debug, [self(), <<": Source (">>, Source, <<") is our character (">>, Character]),
-            modify_msg(CalcType, Attack, Source, Target, source, Value, Props);
+            erlmud_attack:update_attack(Attack, source, Props);
         Target ->
             log(debug, [self(), <<": Target (">>, Target, <<") is our character (">>, Character]),
-            modify_msg(CalcType, Attack, Source, Target, target, Value, Props);
+            erlmud_attack:update_attack(Attack, target, Props);
         _ ->
-           log(debug, [<<"item attack ">>, CalcType, <<" attempt failed for ">>,
-                       self(), <<" since character ">>,
-                       proplists:get_value(character, Props),
-                       <<" is not equal to ">>, Source, <<" or ">>, Target]),
-           undefined
+            log(debug, [<<"item attack ">>, CalcType, <<" attempt failed for ">>,
+                        self(), <<" since character ">>,
+                        proplists:get_value(character, Props),
+                        <<" is not equal to ">>, Source, <<" or ">>, Target]),
+            undefined
     end;
 attempt({_, _, _Msg}) ->
-    %log(debug, [<<"erlmud_handler_item_attack did not handle ">>, Msg]),
     undefined.
 
+%% attack with this weapon succeeded, kick off a new attack process
+succeed({Props, Attack = #attack{target = Target,
+                                 attack = undefined}}) ->
+    Name = proplists:get_value(name, Props),
+    Args = [_Id = undefined,
+            _Props = [{owner, self()},
+                      {target, Target},
+                      {name, <<"attack_", Name/binary>>},
+                      {handlers, [erlmud_handler_attack,
+                                  erlmud_handler_set_child_property]}]],
+    {ok, AttackPid} = supervisor:start_child(erlmud_object_sup, Args),
+    log(debug, [<<"Attack ">>, AttackPid, <<" started, sending attempt and subscribing\n">>]),
+    erlmud_object:attempt(Attack,
+                          Attack#attack{attack = Attack},
+                          _ShouldSub = true),
+    [{attack, Attack} | Props];
 succeed({Props, _}) ->
     Props.
 
 fail({Props, _, _}) ->
     Props.
-
-modify_msg(CalcType, Attack, Source, Target, SourceOrTarget, Value, Props) ->
-    Modifier = modifier(CalcType, SourceOrTarget, Props),
-    log(debug, [self(), <<": Modifier is: ">>, Modifier]),
-    UpdatedValue = Value + Modifier,
-    UpdatedMsg = {CalcType, Attack, Source, Target, UpdatedValue},
-    {succeed, UpdatedMsg, false, Props}.
-
-modifier(CalcType, SourceOrTarget, Props) ->
-    {AttackModifierProp, DefenceModifierProp} =
-        case CalcType of
-            calc_hit ->
-                {attack_hit_modifier, defence_hit_modifier};
-            calc_damage ->
-                {attack_damage_modifier, defence_damage_modifier}
-        end,
-    log(debug, [self(), <<": Modifier prperties are: ">>, AttackModifierProp, <<", ">>, DefenceModifierProp]),
-    Modifier = case SourceOrTarget of
-                   source ->
-                       proplists:get_value(AttackModifierProp, Props, 0);
-                   target ->
-                       proplists:get_value(DefenceModifierProp, Props, 0)
-               end,
-    log(debug, [self(), <<": Modifier is: ">>, Modifier]),
-    Modifier.
-
 
 log(Level, IoData) ->
     erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).

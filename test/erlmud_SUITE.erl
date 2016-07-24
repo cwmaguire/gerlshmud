@@ -5,6 +5,8 @@
 
 -define(WAIT100, receive after 100 -> ok end).
 
+% TODO test cancelling an attack by moving
+
 %all() -> [character_owner_add_remove].
 all() ->
     [player_move,
@@ -150,7 +152,7 @@ character_owner_add_remove(Config) ->
 player_attack(Config) ->
     start(?WORLD_3),
     Player = erlmud_index:get(player),
-    attempt(Config, Player, {attack, Player, <<"zombie">>}),
+    attempt(Config, Player, {Player, attack, <<"zombie">>}),
     receive after 1000 -> ok end,
     false = val(is_alive, z_life),
     0 = val(hitpoints, z_hp).
@@ -160,7 +162,7 @@ player_attack_wait(Config) ->
     Player = erlmud_index:get(player),
     Zombie = erlmud_index:get(zombie),
     erlmud_object:set(Player, {attack_wait, 10000}),
-    attempt(Config, Player, {attack, Player, <<"zombie">>}),
+    attempt(Config, Player, {Player, attack, <<"zombie">>}),
     ?WAIT100,
     5 = val(hitpoints, z_hp),
     true = val(is_alive, z_life),
@@ -172,7 +174,7 @@ one_sided_fight(Config) ->
     start(?WORLD_3),
     Player = erlmud_index:get(player),
     Zombie = erlmud_index:get(zombie),
-    attempt(Config, Player, {attack, Player, <<"zombie">>}),
+    attempt(Config, Player, {Player, attack, <<"zombie">>}),
     ?WAIT100,
     ?WAIT100,
     1000 = val(hitpoints, p_hp),
@@ -191,7 +193,7 @@ counterattack_behaviour(Config) ->
     ct:pal("Zombie handlers: ~n\t~p~n", [Handlers]),
     erlmud_object:set(Zombie, {handlers, [erlmud_handler_counterattack | Handlers]}),
     ?WAIT100,
-    attempt(Config, Player, {attack, Player, <<"zombie">>}),
+    attempt(Config, Player, {Player, attack, <<"zombie">>}),
     ?WAIT100,
     ?WAIT100,
     true = 1000 > val(hitpoints, p_hp),
@@ -211,7 +213,7 @@ attack_with_modifiers(Config) ->
     attempt(Config, Player, {move, <<"force field">>, from, Room, to, Player}),
     attempt(Config, Player, {move, <<"shield">>, from, Room, to, Player}),
     ?WAIT100,
-    attempt(Config, Player, {attack, Player, <<"pete">>}),
+    attempt(Config, Player, {Player, attack, <<"pete">>}),
     ?WAIT100,
     ?WAIT100,
     timer:sleep(500),
