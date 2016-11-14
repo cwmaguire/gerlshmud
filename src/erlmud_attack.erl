@@ -1,4 +1,4 @@
--module(attack).
+-module(erlmud_attack).
 
 -export([update_attack/3]).
 -export([add_value/2]).

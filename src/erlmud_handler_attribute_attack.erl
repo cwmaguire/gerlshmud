@@ -31,19 +31,47 @@ attempt({Owner, Props, Attack = #attack{calc_type = CalcType}})
   when (CalcType == hit orelse
         CalcType == damage orelse
         CalcType == wait) ->
-    %% Am I on an item?  then I'll have top_item
-    %% Am I active?  then I'll have is_active = true
-    case proplists:get_value(is_active
-    case source_or_target(Owner, Attack, Props) of
-        source ->
-            erlmud_attack:update_attack(Attack, source, Props);
-        dest ->
-            erlmud_attack:update_attack(Attack, target, Props);
-        undefined ->
+    case is_interested(activity_props(Props)) of
+        true ->
+            case source_or_target(Owner, Attack, Props) of
+                source ->
+                    erlmud_attack:update_attack(Attack, source, Props);
+                dest ->
+                    erlmud_attack:update_attack(Attack, target, Props);
+                undefined ->
+                    {succeed, false, Props}
+            end;
+        false ->
             {succeed, false, Props}
     end;
 attempt({_, _, _Msg}) ->
     undefined.
+
+is_interested({item, BodyPart, _}) when BodyPart /= undefined->
+    true;
+is_interested({item, _NoBodyPart, _MustBeInUse = false}) ->
+    true;
+is_interested({item, _NoBodyPart, _MustBeInUse}) ->
+    false;
+is_interested({_NotItem, _DoesntMatter, _DoesntMatter}) ->
+    true.
+
+activity_props(Props) ->
+    activity_props(proplists:get_value(top_item, Props), Props).
+
+%% When an item is in use it will be worn on, or wielded by, a body
+%% part. That is, it will have a body part property, similar to
+%% 'top_item', except that body parts don't have sub-parts.
+activity_props(item, Props) ->
+    activity_props(item, proplists:get_value(body_part, Props), Props);
+activity_props(_, _) ->
+    {not_item, undefined, undefined}.
+
+activity_props(item, BodyPart = undefined, _Props) ->
+    {item, BodyPart, undefined};
+activity_props(item, BodyPart, Props) ->
+    {item, BodyPart, proplists:get_value(must_be_in_use, Props, false)}.
+
 
 succeed({Props, _}) ->
     Props.
@@ -51,40 +79,20 @@ succeed({Props, _}) ->
 fail({Props, _, _}) ->
     Props.
 
-source_or_target(Owner, Attack, Props) ->
+source_or_target(Owner, Attack, Props) when is_list(Props) ->
     Character = proplists:get_value(character, Props),
-    BodyPart = proplists:get_value(body_part, Props),
-    TopItem = proplists:get_value(top_item, Props),
-    source_or_target(Owner, Attack, Character, Item, BodyPart).
-
-%% Character attribute: owner is character - can be source
-%% Body Part attribute: owner is body_part - can be weapon
-%% Item attribute: 'character' is character - can be source
-%% Sub-item attribute: 'character' is character - can be source,
-%%                     'top_item' is item - can be weapon
-source_or_target(#attack{source = Owner}, Owner, _, _, _) ->
+    source_or_target(Attack, Owner, Character);
+source_or_target(#attack{source = Owner}, Owner, _) ->
     source;
-source_or_target(#attack{source = Character}, _, Character, _, _) ->
+source_or_target(#attack{source = Character}, _, Character) ->
     source;
-% Weapons, as Items, already have the character set on them when
-% they are moved to the character. So if the weapon was used in an
-% attacked the Character will back the source
-%source_or_target(#attack{weapon = Item}, _, _, Item, _) ->
-    %source;
-source_or_target(#attack{weapon = BodyPart}, _, _, _, BodyPart) ->
+source_or_target(#attack{weapon = BodyPart}, Owner, _) when BodyPart == Owner ->
     source;
-source_or_target(#attack{target = Owner}, Owner, _, _, _) ->
+source_or_target(#attack{target = Owner}, Owner, _) ->
     target;
-source_or_target(#attack{target = Character}, _, Character, _, _) ->
+source_or_target(#attack{target = Character}, _, Character) ->
     target;
-%% There is no target weapon; the weapon is what the attack initiator
-%% is using to attack. The target can defend with anything that is
-%% wielded
-%source_or_target(#attack{weapon = Item}, _, _, Item, _) ->
-    %target;
-%source_or_target(#attack{weapon = BodyPart}, _, _, _, BodyPart) ->
-    %target;
-source_or_target(_, _, _, _, _) ->
+source_or_target(_, _, _) ->
     undefined.
 
 %log(Level, IoData) ->

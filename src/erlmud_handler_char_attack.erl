@@ -18,12 +18,15 @@
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({_Owner, Props, {calc_next_attack_wait, Attack, Self, Target, Sent, Wait}})
+-include("include/erlmud.hrl").
+
+attempt({_Owner, Props, {calc_next_attack_wait, Attack = #attack{source = Self}, Sent, Wait}})
     when Self == self() ->
+    % TODO redo this to use stamina and concentration
     ObjWait = proplists:get_value(attack_wait, Props, 0),
     log(debug, [<<"Object attack wait is ">>, ObjWait, <<"\n">>]),
     {succeed,
-     {calc_next_attack_wait, Attack, Self, Target, Sent, Wait + ObjWait},
+     {calc_next_attack_wait, Attack, Sent, Wait + ObjWait},
      false,
      Props};
 attempt({_Owner, Props, {attack, Self, Target}})
@@ -43,7 +46,7 @@ succeed({Props, {attack, Self, Target}}) when Self == self() ->
                     TPid when is_pid(TPid) -> TPid;
                     TBin -> TBin
                 end,
-                <<"} succeeded. Starting attack process">>]),
+                <<"} succeeded.">>]),
     attack(Target, lists:keydelete(attack, 1, Props));
 succeed({Props, {stop_attack, AttackPid}}) ->
     log(debug, [<<"Character ">>, self(), <<" attack ">>, AttackPid, <<" stopped; remove (if applicable) from props:\n\t">>, Props, <<"\n">>]),
