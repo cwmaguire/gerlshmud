@@ -98,7 +98,7 @@ handle_cast({log, From, To, Stage, Action, _Params, _Room, _Next, _Done, _Subs},
     FromName = erlmud_index:get(From),
     try
         FromProps = erlmud_object:props(From),
-        FromPropsWithNames = [{K, maybe_name(V)} || {K, V} <- FromProps]
+        _FromPropsWithNames = [{K, maybe_name(V)} || {K, V} <- FromProps]
     catch
         Error ->
             ct:pal("FromProps Error: ~p~n", [Error])

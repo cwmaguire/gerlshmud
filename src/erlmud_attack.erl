@@ -1,5 +1,9 @@
 -module(erlmud_attack).
 
+%% This looks to be a utility module to hold the common code to
+%% update an attack event. Several different handlers will use this
+%% same code
+
 -export([update_attack/3]).
 -export([add_value/2]).
 

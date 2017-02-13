@@ -13,6 +13,8 @@
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 -module(erlmud_handler_attack).
 
+%% This handler is added to attack processes created on the fly
+
 -behaviour(erlmud_handler).
 
 %% object behaviour
@@ -112,7 +114,7 @@ succeed({Props, {Source, {attack, Self}, Target, does, _Damage, damage}})
     attack_again(Source, Target),
     Props;
 succeed({Props, {Source, {attack, Self}, Target, 'calc_wait =', Wait, from, Sent}}) ->
-    AttackWaitRemaining = millis_remaining(Sent, now(), Wait),
+    AttackWaitRemaining = millis_remaining(Sent, os:timestamp(), Wait),
     erlmud_object:attempt_after(AttackWaitRemaining,
                                 self(),
                                 {Source, {attack, Self}, Target, 'calc_hit =', 1}),
