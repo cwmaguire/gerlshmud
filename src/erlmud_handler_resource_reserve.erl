@@ -19,7 +19,7 @@
 -export([fail/1]).
 
 % if something reserves us and we have the same owner
-attempt({Owner, Props, {Owner, reserve, Self, for, _Proc}})
+attempt({Owner, Props, {Owner, reserve, _Amount, 'of', Self, for, _Proc}})
   when Self == self() ->
     {succeed, true, Props};
 attempt({Owner, Props, {Owner, unreserve, Self, for, _Proc}})
@@ -28,14 +28,16 @@ attempt({Owner, Props, {Owner, unreserve, Self, for, _Proc}})
 attempt(_) ->
     undefined.
 
-succeed({Props, {_Owner, reserve, Self, for, Proc}})
+succeed({Props, {_Owner, reserve, Amount, 'of', Self, for, Proc}})
   when Self == self() ->
-    log(debug, [<<"Reserving ">>, Self, <<" for ">>, Proc, <<"\n">>]),
+    log(debug, [<<"Reserving ">>, Amount, <<" of ">>, Self, <<" for ">>, Proc, <<"\n">>]),
     % If we send this to ourself then we can't handle it until after the
     % new reservation property is set
-    erlmud_object:attempt(Self, {Self, update_tick}),
-    Reservations = proplists:get(reservations, Props, []),
-    [{reservations, Reservations ++ [Proc]} | proplists:delete(reservations, Props)];
+    %erlmud_object:attempt(Self, {Self, update_tick}),
+    Props2 = update_tick(Props),
+    Reservations = proplists:get(reservations, Props2, []),
+    [{reservations, Reservations ++ [{Proc, Amount}]} | proplists:delete(reservations, Props2)];
+
 succeed({Props, {_Owner, unreserve, Self, for, Proc}})
   when Self == self() ->
     log(debug, [<<"Unreserving ">>, Self, <<" for ">>, Proc, <<"\n">>]),
@@ -52,3 +54,21 @@ fail({Props, _, _}) ->
 
 log(Level, IoData) ->
     erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).
+
+update_tick(Props) ->
+    Self = self(),
+    log(debug, [Self, <<" updating tick">>, <<"\n">>]),
+    Reservations = proplists:get(reservations, Props, []),
+    Tick = proplists:get(tick, Props, undefined),
+    case {Reservations, Tick} of
+        {[_ | _], undefined} ->
+            log(debug, [Self, <<" creating new tick">>, <<"\n">>]),
+            Ref = make_ref(),
+            erlmud_object:attempt(Self, {Self, tick, Ref, with, 1}),
+            [{tick, Ref} | Props];
+        {[], _} ->
+            log(debug, [Self, <<" deleting tick">>, <<"\n">>]),
+            proplists:delete(tick, Props);
+        _ ->
+            Props
+    end.

@@ -18,12 +18,6 @@
 -export([succeed/1]).
 -export([fail/1]).
 
-
-% if something reserves us and we have the same owner
-attempt({_Owner, Props, {Self, update_tick}})
-  when Self == self() ->
-    {succeed, true, Props};
-
 attempt({_Owner, Props, {Self, tick, Ref, with, _Count}})
   when Self == self() ->
     case proplists:get_value(tick, Props, undefined) of
@@ -32,12 +26,6 @@ attempt({_Owner, Props, {Self, tick, Ref, with, _Count}})
         _ ->
             {fail, unmatched_tick}
     end;
-
-% The whole point of this is to update our resource
-% on each tick
-attempt({_Owner, Props, {Self, tick, _Ref, with, _Count}})
-  when Self == self() ->
-    {succeed, true, Props};
 
 attempt(_) ->
     undefined.
@@ -49,29 +37,20 @@ succeed({Props, {Self, tick, Ref, with, Count}})
     Max = proplists:get_value(max, Props, 0),
     New = min(Count + Current, Max),
     Reservations = proplists:get_value(reservations, Props, []),
-    case {Reservations, New} of
-        {[], Max} ->
-            ok;
-        _ ->
-            erlmud_object:attempt(Self, {Self, tick, Ref, with, 0})
-    end,
-    [{current, Current} | proplists:delete(current, Props)];
-
-succeed({Props, {Self, update_tick}})
-  when Self == self() ->
-    log(debug, [Self, <<" updating tick">>, <<"\n">>]),
-    Reservations = proplists:get(reservations, Props, []),
-    Tick = proplists:get(tick, Props, undefined),
-    case {Reservations, Tick} of
-        {[_ | _], undefined} ->
-            log(debug, [Self, <<" creating new tick">>, <<"\n">>]),
-            Ref = make_ref(),
-            erlmud_object:attempt(Self, {Self, tick, Ref, with, 0}),
-            [{tick, Ref} | Props];
-        _ ->
-            log(debug, [Self, <<" deleting tick">>, <<"\n">>]),
-            proplists:delete(tick, Props)
-    end;
+    {RotatedReservations, Remaining} =
+        case {Reservations, New} of
+            {[], Max} ->
+                {[], Max};
+            _ ->
+                %% For now just make each tick take at _least_ a
+                %% second instead of trying to wait close to a second,
+                %% or tyring to correct for a long previous tick.
+                erlmud_object:attempt_after(1000, Self, {Self, tick, Ref, with, 1}),
+                Type = proplists:get_value(type, Props),
+                allocate(Type, Reservations, New)
+        end,
+    OtherProps = proptlists:delete(reservations, proplists:delete(current, Props)),
+    [{current, Remaining}, {reservations, RotatedReservations} | OtherProps];
 
 succeed({Props, {_Owner, unreserve, Self, for, Proc}})
   when Self == self() ->
@@ -90,3 +69,13 @@ fail({Props, _, _}) ->
 
 log(Level, IoData) ->
     erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).
+
+allocate(Type, [{Proc, Required} | Reservations], Available)
+  when Available > Required ->
+    erlmud_object:attempt_after(1000, Proc, {allocate, Required, 'of', Type, to, Proc}),
+    RotatedReservations = Reservations ++ [{Proc, Required}],
+    allocate(Type, RotatedReservations, Available - Required);
+allocate(_, Reservations, Available) ->
+    {Reservations, Available}.
+
+

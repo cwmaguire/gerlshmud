@@ -90,6 +90,7 @@ succeed({Props, {Source, {attack, Self}, Target, 'calc_hit =', HitRoll}})
 succeed({Props, {Source, {attack, Self}, Target, 'calc_hit =', _HitRoll}})
   when is_pid(Target),
        Self == self() ->
+    % TODO wait for resources
     attack_again(Source, Target),
     Props;
 succeed({Props, {Source, {attack, Self}, Target, 'calc_damage =', Damage}})
@@ -114,7 +115,7 @@ succeed({Props, {Source, {attack, Self}, Target, does, _Damage, damage}})
     attack_again(Source, Target),
     Props;
 succeed({Props, {Source, {attack, Self}, Target, 'calc_wait =', Wait, from, Sent}}) ->
-    AttackWaitRemaining = millis_remaining(Sent, os:timestamp(), Wait),
+    AttackWaitRemaining = millis_remaining(Sent, now(), Wait),
     erlmud_object:attempt_after(AttackWaitRemaining,
                                 self(),
                                 {Source, {attack, Self}, Target, 'calc_hit =', 1}),
