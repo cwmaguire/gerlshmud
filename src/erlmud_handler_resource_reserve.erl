@@ -19,16 +19,26 @@
 -export([fail/1]).
 
 % if something reserves us and we have the same owner
-attempt({Owner, Props, {Owner, reserve, _Amount, 'of', Self, for, _Proc}})
+attempt({_Owner, Props, {Character, reserve, _Amount, 'of', Self, for, _Proc}})
   when Self == self() ->
-    {succeed, true, Props};
-attempt({Owner, Props, {Owner, unreserve, Self, for, _Proc}})
+    case proplists:get_value(character, Props) of
+        Character ->
+            {succeed, true, Props};
+        _ ->
+            {succeed, false, Props}
+    end;
+attempt({_Owner, Props, {Character, unreserve, Self, for, _Proc}})
   when Self == self() ->
-    {succeed, true, Props};
+    case proplists:get_value(character, Props) of
+        Character ->
+            {succeed, true, Props};
+        _ ->
+            {succeed, false, Props}
+    end;
 attempt(_) ->
     undefined.
 
-succeed({Props, {_Owner, reserve, Amount, 'of', Self, for, Proc}})
+succeed({Props, {_Character, reserve, Amount, 'of', Self, for, Proc}})
   when Self == self() ->
     log(debug, [<<"Reserving ">>, Amount, <<" of ">>, Self, <<" for ">>, Proc, <<"\n">>]),
     % If we send this to ourself then we can't handle it until after the
@@ -38,7 +48,7 @@ succeed({Props, {_Owner, reserve, Amount, 'of', Self, for, Proc}})
     Reservations = proplists:get(reservations, Props2, []),
     [{reservations, Reservations ++ [{Proc, Amount}]} | proplists:delete(reservations, Props2)];
 
-succeed({Props, {_Owner, unreserve, Self, for, Proc}})
+succeed({Props, {_Character, unreserve, Self, for, Proc}})
   when Self == self() ->
     log(debug, [<<"Unreserving ">>, Self, <<" for ">>, Proc, <<"\n">>]),
     % If we send this to ourself then we can't handle it until after the

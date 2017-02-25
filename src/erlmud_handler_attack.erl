@@ -26,81 +26,55 @@
 
 -define(PROPS, [{hit, 0}, {miss, 0}]).
 
-attempt({Owner, Props, {move, Owner, from, _Src, to, _Target}}) ->
-    {succeed, true, Props};
-attempt({_Owner, Props, {Attacker, attack, _Target}}) ->
-    IsAttackerFun = proplists:get_value(is_attacker_fun, Props),
-    case IsAttackerFun(Attacker, Props) of
+attempt({_Owner, Props, {Character, attack, _Target}}) ->
+    %% TODO pass Character and TopItem along with Owner so we don't
+    %%      have to fetch it
+    IsCharacterFun = proplists:get_value(is_attacker_fun, Props),
+    case IsCharacterFun(Character, Props) of
         true ->
             {succeed, true, Props};
         _ ->
             {succeed, false, Props}
     end;
-%% die means that our character has died
-attempt({Owner, Props, {die, Owner}}) ->
-    {succeed, true, Props};
-attempt({_Owner, Props, {_Attacker, calc_hit_on, _Target, by, Self}})
+attempt({_Owner, Props, {_Character, calc, _Hit, on, _Target, with, Self}})
   when Self == self() ->
     {succeed, true, Props};
-attempt({_Owner, Props, {_Attacker, calc_damage_to, _Target, by, Self}})
+attempt({_Owner, Props, {_Character, calc, _Damage, to, _Target, with, Self}})
   when Self == self() ->
     {succeed, true, Props};
-attempt({_Owner, Props, {_Attacker, does, _Damage, damage_to, Target, with, Self}}) when Self == self(), is_pid(Target) ->
+attempt({_Owner, Props, {_Character, does, _Damage, to, Target, with, Self}}) when Self == self(), is_pid(Target) ->
     {succeed, true, Props};
-attempt({_Owner, Props, {_Attacker, killed, Target, with, Self}})
-  when Self == self(),
-       is_pid(Target) ->
-    {succeed, true, Props};
-attempt({_Owner, Props, {Attacker, stop_attacking, _Target}}) ->
-    IsAttackerFun = proplists:get_value(is_attacker_fun, Props),
-    case IsAttackerFun(Attacker, Props) of
+attempt({_Owner, Props, {Character, stop_attacking, _Target}}) ->
+    IsCharacterFun = proplists:get_value(is_attacker_fun, Props),
+    case IsCharacterFun(Character, Props) of
         true ->
             {succeed, true, Props};
         _ ->
             {succeed, false, Props}
     end;
-%attempt({Self, Props, {_Owner, stop, {attack, Self}}}) ->
-    %{succeed, _Subscribe = true, Props};
-
-%% I don't think I need this now that there is no central attacking
-%% process.
-%attempt({_Owner, Props, {gather_body_parts, Self,
-                         %_Source, _Target,
-                         %_SourceBodyParts, _TargetBodyParts}})
-  %when Self == self() ->
-    %{succeed, true, Props};
 attempt(_) ->
     undefined.
 
-%% We'll get this because we've subscribed to it, because it's our
-%% character
-succeed({Props, {Source, attack, Target}}) when is_pid(Target) ->
-    [reserve(Owner, R) || R <- proplists:get_value(resources, Props, [])],
+succeed({Props, {Character, attack, Target}}) when is_pid(Target) ->
+    [reserve(Character, R) || R <- proplists:get_value(resources, Props, [])],
     lists:keystore(target, 1, Props, {target, Target});
-succeed({Props, {_Source, {attack, Self}, UnknownTargetName}})
-  when is_list(UnknownTargetName),
-       Self == self() ->
-    %% Attack failed (no one was self-identified as the target)
-    %% TODO: output something to the client like "You swing at imaginary adversaries"
-    %%       _if_ this is a player
-    Props;
-succeed({Props, {Source, calc, Hit, on, Target, with, Self}})
+succeed({Props, {Character, calc, Hit, on, Target, with, Self}})
   when is_pid(Target),
        Self == self(),
        Hit > 0 ->
-    erlmud_object:attempt(self(), {Source, {attack, self()}, Target, 'calc_damage =', 0}),
+    erlmud_object:attempt(self(), {Character, calc, _Damage = 0, to, Target, with, Self}),
     Props;
-succeed({Props, {Source, calc, Miss, on, Target, with, Self}})
+succeed({Props, {_Character, calc, _Miss, on, Target, with, Self}})
   when is_pid(Target),
        Self == self() ->
     % TODO: say "you missed!"
     Props;
-succeed({Props, {Source, calcs, Damage, damage, to, Target, with, Self}})
+succeed({Props, {Character, calc, Damage, to, Target, with, Self}})
   when Self == self(),
        Damage > 0 ->
-    erlmud_object:attempt(self(), {Source, does, Damage, damage_to, Target, with, Self}),
+    erlmud_object:attempt(self(), {Character, does, Damage, to, Target, with, Self}),
     Props;
-succeed({Props, {Source, calcs, _NoDamage, damage_to, Target, with, Self}})
+succeed({Props, {_Character, calc, _NoDamage, to, _Target, with, Self}})
   when Self == self() ->
     %% Attack failed (No damage was done)
     %% TODO: output something to the client like
@@ -109,13 +83,10 @@ succeed({Props, {Source, calcs, _NoDamage, damage_to, Target, with, Self}})
     Props;
 succeed({Props, {die, Owner}}) ->
     %erlmud_object:attempt(self(), {stop, {self(), attack}}),
-    [unreserve(Owner, R) || R <- proplists:get_value(resources, Props, [])],
+    unreserve(Owner, Props),
     [{is_attacking, false} | Props];
-succeed({Props, {Owner, stop_attack}}) ->
-    % We don't want to stop the child process just because
-    % the owner has stopped attacking
-    %{stop, stop_attack, Props};
-    [unreserve(Owner, R) || R <- proplists:get_value(resources, Props, [])],
+succeed({Props, {Character, stop_attack}}) ->
+    unreserve(Character, Props),
     [{is_attacking, false} | Props];
 
 succeed({Props, Msg}) ->
@@ -132,11 +103,14 @@ fail({Props, _Reason, _Message}) ->
 log(Terms) ->
     erlmud_event_log:log(debug, [?MODULE | Terms]).
 
-unreserve(Owner, Resource) ->
-    erlmud_object:attempt(self(), {Owner, reserve, Resource, for, self()}).
+unreserve(Owner, Props) ->
+    reserve_op(unreserve, Owner, Props).
 
-unreserve(Owner, Resource) ->
-    erlmud_object:attempt(self(), {Owner, unreserve, Resource, for, self()}).
+reserve(Owner, Props) ->
+    reserve_op(reserve, Owner, Props).
 
-belongs_to_attacker(Attacker, Props) ->
-    Attacker == proplists:get_value(top_item, Props).
+reserve_op(Op, Character, Props) when is_list(Props) ->
+    [reserve_op(Op, Character, R) || R <- proplists:get_value(resources, Props, [])];
+
+reserve_op(Op, Character, Resource) ->
+    erlmud_object:attempt(self(), {Character, Op, Resource, for, self()}).
