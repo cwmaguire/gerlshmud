@@ -28,7 +28,7 @@
 
 -include("include/erlmud.hrl").
 
-attempt({_Owner, Props, {add, _N, dunno}})
+attempt({_Owner, Props, {add, N}})
   when is_pid(Attack#attack.target),
        is_list(AttackTypes) ->
     Character = proplists:get_value(character, Props),

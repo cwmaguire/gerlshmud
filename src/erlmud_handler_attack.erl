@@ -13,7 +13,9 @@
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 -module(erlmud_handler_attack).
 
-%% This handler is added to attack processes created on the fly
+%% This generic handler is added to anything that attacks, because
+%% each attacking item will control reserving and being allocated
+%% resources on its own.
 
 -behaviour(erlmud_handler).
 
@@ -26,51 +28,55 @@
 
 attempt({Owner, Props, {move, Owner, from, _Src, to, _Target}}) ->
     {succeed, true, Props};
-attempt({Owner, Props, {Owner, {attack, NotSelf}, _Target}}) when self() /= NotSelf ->
-    {succeed, true, Props};
+attempt({_Owner, Props, {Attacker, attack, _Target}}) ->
+    IsAttackerFun = proplists:get_value(is_attacker_fun, Props),
+    case IsAttackerFun(Attacker, Props) of
+        true ->
+            {succeed, true, Props};
+        _ ->
+            {succeed, false, Props}
+    end;
 %% die means that our character has died
 attempt({Owner, Props, {die, Owner}}) ->
     {succeed, true, Props};
-attempt({_Owner, Props, {calc_hit, _, {attack, Self}, _, _}}) when Self == self() ->
-    case proplists:get_value(done, Props) of
-        true ->
-            {fail, "It's dead Jim"};
-        _ ->
-            {succeed, true, Props}
-    end;
-attempt({Owner, Props, {Owner, {attack, Self}, _Target, with, _Weapon}})
+attempt({_Owner, Props, {_Attacker, calc_hit_on, _Target, by, Self}})
   when Self == self() ->
     {succeed, true, Props};
-attempt({Owner, Props, {Owner, {attack, Self}, _Target, with, _Weapon, calc_damage}})
+attempt({_Owner, Props, {_Attacker, calc_damage_to, _Target, by, Self}})
   when Self == self() ->
     {succeed, true, Props};
-attempt({Owner, Props, {Owner, {attack, Self}, Target, does, _Damage, damage}}) when Self == self(), is_pid(Target) ->
+attempt({_Owner, Props, {_Attacker, does, _Damage, damage_to, Target, with, Self}}) when Self == self(), is_pid(Target) ->
     {succeed, true, Props};
-attempt({Owner, Props, {Owner, killed, Target, with, {attack, Self}}})
+attempt({_Owner, Props, {_Attacker, killed, Target, with, Self}})
   when Self == self(),
        is_pid(Target) ->
     {succeed, true, Props};
-attempt({Self, Props, {_Owner, stop, {attack, Self}, _Target}}) ->
-    {succeed, _Subscribe = true, Props};
-attempt({Self, Props, {_Owner, stop, {attack, Self}}}) ->
-    {succeed, _Subscribe = true, Props};
+attempt({_Owner, Props, {Attacker, stop_attacking, _Target}}) ->
+    IsAttackerFun = proplists:get_value(is_attacker_fun, Props),
+    case IsAttackerFun(Attacker, Props) of
+        true ->
+            {succeed, true, Props};
+        _ ->
+            {succeed, false, Props}
+    end;
+%attempt({Self, Props, {_Owner, stop, {attack, Self}}}) ->
+    %{succeed, _Subscribe = true, Props};
 
-attempt({_Owner, Props, {gather_body_parts, Self,
-                         _Source, _Target,
-                         _SourceBodyParts, _TargetBodyParts}})
-  when Self == self() ->
-    {succeed, true, Props};
+%% I don't think I need this now that there is no central attacking
+%% process.
+%attempt({_Owner, Props, {gather_body_parts, Self,
+                         %_Source, _Target,
+                         %_SourceBodyParts, _TargetBodyParts}})
+  %when Self == self() ->
+    %{succeed, true, Props};
 attempt(_) ->
     undefined.
 
-%% switched targets, stop this attack
-succeed({Props, {Owner, {attack, NotSelf}, _Target, with, _Weapon}}) when NotSelf /= self() ->
-    erlmud_object:attempt(self(), {Owner, stop, {attack, self()}}),
-    Props;
-%TODO figure out if I even need this. I don't think it's tested
-%succeed({Props, {move, Owner, Target}}) when Action == move ->
-    %erlmud_object:attempt(self(), {stop_attack, self(), Owner, Target}),
-    %Props;
+%% We'll get this because we've subscribed to it, because it's our
+%% character
+succeed({Props, {Source, attack, Target}}) when is_pid(Target) ->
+    [reserve(Owner, R) || R <- proplists:get_value(resources, Props, [])],
+    lists:keystore(target, 1, Props, {target, Target});
 succeed({Props, {_Source, {attack, Self}, UnknownTargetName}})
   when is_list(UnknownTargetName),
        Self == self() ->
@@ -78,53 +84,39 @@ succeed({Props, {_Source, {attack, Self}, UnknownTargetName}})
     %% TODO: output something to the client like "You swing at imaginary adversaries"
     %%       _if_ this is a player
     Props;
-succeed({Props, {Source, {attack, Self}, Target}}) when is_pid(Target), Self == self() ->
-    erlmud_object:attempt(self(), {Source, {attack, self()}, Target, 'calc_hit =', 0}, _Subscribe = true),
-    lists:keystore(target, 1, Props, {target, Target});
-succeed({Props, {Source, {attack, Self}, Target, 'calc_hit =', HitRoll}})
+succeed({Props, {Source, calc, Hit, on, Target, with, Self}})
   when is_pid(Target),
        Self == self(),
-       HitRoll > 0 ->
+       Hit > 0 ->
     erlmud_object:attempt(self(), {Source, {attack, self()}, Target, 'calc_damage =', 0}),
     Props;
-succeed({Props, {Source, {attack, Self}, Target, 'calc_hit =', _HitRoll}})
+succeed({Props, {Source, calc, Miss, on, Target, with, Self}})
   when is_pid(Target),
        Self == self() ->
-    % TODO wait for resources
-    attack_again(Source, Target),
+    % TODO: say "you missed!"
     Props;
-succeed({Props, {Source, {attack, Self}, Target, 'calc_damage =', Damage}})
+succeed({Props, {Source, calcs, Damage, damage, to, Target, with, Self}})
   when Self == self(),
        Damage > 0 ->
-    erlmud_object:attempt(self(), {Source, {attack, self()}, Target, does, Damage, damage}),
+    erlmud_object:attempt(self(), {Source, does, Damage, damage_to, Target, with, Self}),
     Props;
-succeed({Props, {Source, {attack, Self}, Target, 'calc_damage =', _NoDamage}})
+succeed({Props, {Source, calcs, _NoDamage, damage_to, Target, with, Self}})
   when Self == self() ->
     %% Attack failed (No damage was done)
     %% TODO: output something to the client like
     %% "You manage to hit <target> but fail to do any damage"
     %%       _if_ this is a player
-    attack_again(Source, Target),
     Props;
-succeed({Props, {Source, {attack, Self}, Target, does, _Damage, damage}})
-  when Self == self() ->
-    %% Attack succeeded
-    %% TODO: tell the user
-    %% The target will have seen this and subtracted damage from itself
-    %% and died if necessary.
-    attack_again(Source, Target),
-    Props;
-succeed({Props, {Source, {attack, Self}, Target, 'calc_wait =', Wait, from, Sent}}) ->
-    AttackWaitRemaining = millis_remaining(Sent, now(), Wait),
-    erlmud_object:attempt_after(AttackWaitRemaining,
-                                self(),
-                                {Source, {attack, Self}, Target, 'calc_hit =', 1}),
-    Props;
-succeed({Props, {Owner, die}}) ->
-    erlmud_object:attempt(self(), {Owner, stop, {self(), attack}}),
-    Props;
-succeed({Props, {_Owner, stop, {attack, Self}}}) when Self == self() ->
-    {stop, stop_attack, Props};
+succeed({Props, {die, Owner}}) ->
+    %erlmud_object:attempt(self(), {stop, {self(), attack}}),
+    [unreserve(Owner, R) || R <- proplists:get_value(resources, Props, [])],
+    [{is_attacking, false} | Props];
+succeed({Props, {Owner, stop_attack}}) ->
+    % We don't want to stop the child process just because
+    % the owner has stopped attacking
+    %{stop, stop_attack, Props};
+    [unreserve(Owner, R) || R <- proplists:get_value(resources, Props, [])],
+    [{is_attacking, false} | Props];
 
 succeed({Props, Msg}) ->
     log([<<"saw ">>, Msg, <<" succeed">>]),
@@ -137,26 +129,14 @@ fail({Props, target_is_dead, _Message}) ->
 fail({Props, _Reason, _Message}) ->
     Props.
 
-attack_again(Source, Target) ->
-    Now = os:timestamp(),
-    CalcWaitMsg = {Source, {attack, self()}, Target, Now, 'calc_wait = ', 0},
-    erlmud_object:attempt(self(),CalcWaitMsg),
-    ok.
-
-millis_remaining(Time1, Time2, WaitMilis) ->
-  ElapsedMilis = abs(subtract(Time2, from, Time1)),
-  case(WaitMilis - ElapsedMilis) of
-      X when X < 0 ->
-          _MinSendAfterTime = 1;
-      X ->
-          X
-  end.
-
-subtract(T1, from, T2) ->
-    milis(T2) - milis(T1).
-
-milis({M,S,U}) ->
-    M * 1000 * 1000 * 1000 + S * 1000 + round(U / 1000).
-
 log(Terms) ->
     erlmud_event_log:log(debug, [?MODULE | Terms]).
+
+unreserve(Owner, Resource) ->
+    erlmud_object:attempt(self(), {Owner, reserve, Resource, for, self()}).
+
+unreserve(Owner, Resource) ->
+    erlmud_object:attempt(self(), {Owner, unreserve, Resource, for, self()}).
+
+belongs_to_attacker(Attacker, Props) ->
+    Attacker == proplists:get_value(top_item, Props).
