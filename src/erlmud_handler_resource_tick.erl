@@ -72,7 +72,12 @@ log(Level, IoData) ->
 
 allocate(Type, [{Proc, Required} | Reservations], Available)
   when Available > Required ->
-    erlmud_object:attempt_after(1000, Proc, {allocate, Required, 'of', Type, to, Proc}),
+
+    %% Why wait another second? We've already waited a second
+    %% for the resource to accumulate.
+    %erlmud_object:attempt_after(1000, Proc, {allocate, Required, 'of', Type, to, Proc}),
+
+    erlmud_object:attempt(Proc, {allocate, Required, 'of', Type, to, Proc}),
     RotatedReservations = Reservations ++ [{Proc, Required}],
     allocate(Type, RotatedReservations, Available - Required);
 allocate(_, Reservations, Available) ->

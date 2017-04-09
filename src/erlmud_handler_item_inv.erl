@@ -54,6 +54,12 @@ succeed({Props, {move, Self, from, _OldOwner, to, NewOwner, _ItemBodyParts}})
 succeed({Props, {move, Item, from, Source, to, Self}}) when Self == self() ->
     log(debug, [<<"Getting ">>, Item, <<" from ">>, Source, <<"\n">>]),
     erlmud_object:attempt(Item, {set_child_property, self(), top_item, top_item(Props)}),
+    case body_part(Props) of
+        undefined ->
+            ok;
+        BodyPart ->
+            erlmud_object:attempt(Item, {set_child_property, self(), body_part, BodyPart})
+    end,
     [{item, Item} | Props];
 succeed({Props, {move, Item, from, Self, to, Target}}) when Self == self() ->
     clear_child_top_item(Props, Item, Target);
@@ -68,6 +74,9 @@ fail({Props, _, _}) ->
 
 top_item(Props) ->
     proplists:get_value(top_item, Props, self()).
+
+body_part(Props) ->
+    proplists:get_value(body_part, Props).
 
 clear_child_top_item(Props, Item, Target) ->
     log(debug, [<<"Giving ">>, Item, <<" to ">>, Target, <<"\n\tProps: ">>, Props, <<"\n">>]),

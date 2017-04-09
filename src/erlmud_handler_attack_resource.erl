@@ -42,7 +42,8 @@ attempt({_Owner, Props, {add, N}})
     end;
 %% TODO some items will have to be worn or wielded in order to
 %% take effect. Add a function or property that determines if the
-%% item's modifiers apply.
+%% item's resource modifiers apply.
+%% (e.g. winged boots of the night give a stamina boost but only when worn)
 %attempt({_Owner, Props, {Source, {attack, Attack}, Target, with, Self, CalcType, Value}})
 
 %% calculate either hit, damage or wait for an attack in progress

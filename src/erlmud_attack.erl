@@ -12,9 +12,7 @@
 add_value(Attack = #attack{calc_type = hit, hit = Hit}, Value) ->
     Attack#attack{hit = Hit + Value};
 add_value(Attack = #attack{calc_type = damage, damage = Damage}, Value) ->
-    Attack#attack{damage = Damage + Value};
-add_value(Attack = #attack{calc_type = wait, wait = Wait}, Value) ->
-    Attack#attack{wait = Wait + Value}.
+    Attack#attack{damage = Damage + Value}.
 
 update_attack(Attack = #attack{}, SourceOrTarget, Props) ->
     Modifier = modifier(Attack#attack.calc_type, SourceOrTarget, Props),

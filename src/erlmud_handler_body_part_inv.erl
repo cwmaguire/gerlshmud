@@ -85,7 +85,10 @@ can_remove(_Props, _Item) ->
 
 can_add(Props, ItemBodyParts) ->
     can_add([fun has_matching_body_part/2,
-             fun has_space/2], Props, ItemBodyParts, true).
+             fun has_space/2],
+            Props,
+            ItemBodyParts,
+            true).
 
 has_matching_body_part(Props, ItemBodyParts) ->
     BodyPart = proplists:get_value(body_part, Props, any),

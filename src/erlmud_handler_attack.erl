@@ -24,8 +24,6 @@
 -export([succeed/1]).
 -export([fail/1]).
 
--define(PROPS, [{hit, 0}, {miss, 0}]).
-
 attempt({_Owner, Props, {Character, attack, _Target}}) ->
     %% TODO pass Character and TopItem along with Owner so we don't
     %%      have to fetch it
@@ -81,10 +79,6 @@ succeed({Props, {_Character, calc, _NoDamage, to, _Target, with, Self}})
     %% "You manage to hit <target> but fail to do any damage"
     %%       _if_ this is a player
     Props;
-succeed({Props, {die, Owner}}) ->
-    %erlmud_object:attempt(self(), {stop, {self(), attack}}),
-    unreserve(Owner, Props),
-    [{is_attacking, false} | Props];
 succeed({Props, {Character, stop_attack}}) ->
     unreserve(Character, Props),
     [{is_attacking, false} | Props];

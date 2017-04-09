@@ -20,23 +20,27 @@
 
 -include("include/erlmud.hrl").
 
-attempt({_Owner, Props, {calc_next_attack_wait, Attack = #attack{source = Self}, Sent, Wait}})
-    when Self == self() ->
-    % TODO redo this to use stamina and concentration
-    ObjWait = proplists:get_value(attack_wait, Props, 0),
-    log(debug, [<<"Object attack wait is ">>, ObjWait, <<"\n">>]),
-    {succeed,
-     {calc_next_attack_wait, Attack, Sent, Wait + ObjWait},
-     false,
-     Props};
+%% We'll handle timing with resource allocation
+
+%%attempt({_Owner, Props, {calc_next_attack_wait, Attack = #attack{source = Self}, Sent, Wait}})
+%%    when Self == self() ->
+%%    % TODO redo this to use stamina and concentration
+%%    ObjWait = proplists:get_value(attack_wait, Props, 0),
+%%    log(debug, [<<"Object attack wait is ">>, ObjWait, <<"\n">>]),
+%%    {succeed,
+%%     {calc_next_attack_wait, Attack, Sent, Wait + ObjWait},
+%%     false,
+%%     Props};
 attempt({_Owner, Props, {attack, Self, Target}})
   when Self == self(),
        is_pid(Target) ->
     {succeed, true, Props};
-attempt({_Owner, Props, {calc_hit, _Attack, Self, _Target, _HitRoll}}) when Self == self() ->
-    {succeed, true, Props};
-attempt({_Onwer, Props, {die, Self}}) when Self == self() ->
-    {succeed, true, Props};
+
+%% Individual attack vectors will do all the calculations
+%attempt({_Owner, Props, {calc_hit, _Attack, Self, _Target, _HitRoll}}) when Self == self() ->
+    %{succeed, true, Props};
+%attempt({_Onwer, Props, {die, Self}}) when Self == self() ->
+    %{succeed, true, Props};
 attempt(_) ->
     undefined.
 
@@ -57,17 +61,20 @@ succeed({Props, {stop_attack, AttackPid}}) ->
                          true
                  end,
                  Props);
-succeed({Props, {die, Self}}) when Self == self() ->
-    lists:keydelete(attack, 1, lists:keydelete(target, 1, Props));
+% Individual vectors should watch for character death
+%succeed({Props, {die, Self}}) when Self == self() ->
+    %lists:keydelete(attack, 1, lists:keydelete(target, 1, Props));
 succeed({Props, _}) ->
     Props.
 
-fail({Props, target_is_dead, {calc_hit, _, _, _, _}}) ->
-    Attack = proplists:get_value(attack, Props),
-    log(debug, [<<"Remove attack ">>, Attack, <<"because target is dead">>]),
-    lists:keydelete(attack, 1, Props);
+%fail({Props, target_is_dead, {calc_hit, _, _, _, _}}) ->
+    %Attack = proplists:get_value(attack, Props),
+    %log(debug, [<<"Remove attack ">>, Attack, <<"because target is dead">>]),
+    %lists:keydelete(attack, 1, Props);
 fail({Props, _, _}) ->
     Props.
+
+%% Individual attack vectors 
 
 attack(Target, Props) ->
     %Args = [_Id = undefined,
