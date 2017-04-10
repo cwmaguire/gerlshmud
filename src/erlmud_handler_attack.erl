@@ -22,6 +22,8 @@
 
 -behaviour(erlmud_handler).
 
+-include("include/erlmud.hrl").
+
 %% object behaviour
 -export([attempt/1]).
 -export([succeed/1]).
@@ -29,7 +31,7 @@
 
 attempt({#parents{character = Character}, Props, {Character, attack, _Target}}) ->
     {succeed, true, Props};
-attempt({#parents{}, Props, {Character, attack, _Target}}) ->
+attempt({#parents{}, Props, {_Character, attack, _Target}}) ->
     {succeed, false, Props};
 attempt({#parents{}, Props, {_Character, calc, _Hit, on, _Target, with, Self}})
   when Self == self() ->
@@ -41,7 +43,7 @@ attempt({#parents{}, Props, {_Character, does, _Damage, to, Target, with, Self}}
     {succeed, true, Props};
 attempt({#parents{character = Character}, Props, {Character, stop_attacking, _Target}}) ->
     {succeed, true, Props};
-attempt({#parents{}, Props, {Character, stop_attacking, _Target}}) ->
+attempt({#parents{}, Props, {_Character, stop_attacking, _Target}}) ->
     {succeed, false, Props};
 attempt(_) ->
     undefined.

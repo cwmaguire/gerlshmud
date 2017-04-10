@@ -14,6 +14,8 @@
 -module(erlmud_object).
 -behaviour(gen_server).
 
+-include("include/erlmud.hrl").
+
 %% API.
 -export([start_link/2]).
 -export([populate/2]).
