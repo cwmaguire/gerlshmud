@@ -20,6 +20,9 @@
 
 -include("include/erlmud.hrl").
 
+%% --- Note: I think this is migrating to erlmud_handler_attack ---
+%% (see README_MUTLIATTACK)
+
 %% Watch for an attack from the character.
 %% If we're a chosen weapon then we'll kick off our own attack process
 attempt({_Owner, Props,

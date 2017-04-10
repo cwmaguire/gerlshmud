@@ -29,22 +29,40 @@
 -export([succeed/1]).
 -export([fail/1]).
 
+%% This process' parent character is attacking a target
 attempt({#parents{character = Character}, Props, {Character, attack, _Target}}) ->
     {succeed, true, Props};
+
+%% Some other process, not this process' character, is attack a target
 attempt({#parents{}, Props, {_Character, attack, _Target}}) ->
+    %% TODO do we need to short-circuit the handling of this event and prevent
+    %%      other handlers from this process from seeing it?
     {succeed, false, Props};
+
+%% This process landed an attack on a target
 attempt({#parents{}, Props, {_Character, calc, _Hit, on, _Target, with, Self}})
   when Self == self() ->
     {succeed, true, Props};
+
+%% This process needs to calculate damage to a target
 attempt({#parents{}, Props, {_Character, calc, _Damage, to, _Target, with, Self}})
   when Self == self() ->
     {succeed, true, Props};
+
+%% This process did damage to a target
 attempt({#parents{}, Props, {_Character, does, _Damage, to, Target, with, Self}}) when Self == self(), is_pid(Target) ->
     {succeed, true, Props};
+
+%% All processes belonging to this character need to stop attacking
 attempt({#parents{character = Character}, Props, {Character, stop_attacking, _Target}}) ->
     {succeed, true, Props};
+
+%% Some other character has stopped attacking
 attempt({#parents{}, Props, {_Character, stop_attacking, _Target}}) ->
+    %% TODO: do we need to short-circuit the handling of this event for other handlers
+    %%       belonging to this process?
     {succeed, false, Props};
+
 attempt(_) ->
     undefined.
 
@@ -55,7 +73,7 @@ succeed({Props, {Character, calc, Hit, on, Target, with, Self}})
   when is_pid(Target),
        Self == self(),
        Hit > 0 ->
-    erlmud_object:attempt(self(), {Character, calc, _Damage = 0, to, Target, with, Self}),
+    erlmud_object:attempt(self(), {Character, calc, _InitialDamage = 0, to, Target, with, Self}),
     Props;
 succeed({Props, {_Character, calc, _Miss, on, Target, with, Self}})
   when is_pid(Target),

@@ -28,7 +28,7 @@
 
 -include("include/erlmud.hrl").
 
-attempt({_Owner, Props, {add, N}})
+attempt({#parents{}, Props, {add, N}})
   when is_pid(Attack#attack.target),
        is_list(AttackTypes) ->
     Character = proplists:get_value(character, Props),
@@ -48,7 +48,7 @@ attempt({_Owner, Props, {add, N}})
 
 %% calculate either hit, damage or wait for an attack in progress
 %% with this item
-attempt({_Owner, Props, Attack = #attack{source = Source,
+attempt({#parents{}, Props, Attack = #attack{source = Source,
                                          target = Target,
                                          weapon = Self,
                                          calc_type = CalcType}})

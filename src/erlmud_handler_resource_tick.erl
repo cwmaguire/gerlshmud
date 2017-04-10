@@ -14,11 +14,20 @@
 -module(erlmud_handler_resource_tick).
 -behaviour(erlmud_handler).
 
+%% This is a tick handler for a resource process. Resource processes manage
+%% how often other processes can perform actions such as attacks. Resource
+%% processes gain more resources to allocate with each tick. When a tick
+%% event occurs the resource will allocate that resource to the next
+%% process or processes in line depending on how much each next successive
+%% process needs.
+
+-include("include/erlmud.hrl").
+
 -export([attempt/1]).
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({_Owner, Props, {Self, tick, Ref, with, _Count}})
+attempt({#parents{}, Props, {Self, tick, Ref, with, _Count}})
   when Self == self() ->
     case proplists:get_value(tick, Props, undefined) of
         Ref ->
@@ -52,15 +61,6 @@ succeed({Props, {Self, tick, Ref, with, Count}})
     OtherProps = proptlists:delete(reservations, proplists:delete(current, Props)),
     [{current, Remaining}, {reservations, RotatedReservations} | OtherProps];
 
-succeed({Props, {_Owner, unreserve, Self, for, Proc}})
-  when Self == self() ->
-    log(debug, [<<"Unreserving ">>, Self, <<" for ">>, Proc, <<"\n">>]),
-    % If we send this to ourself then we can't handle it until after the
-    % new reservation property is set
-    erlmud_object:attempt(Self, update_tick),
-    Reservations = proplists:get(reservations, Props, []),
-    [{reservations, lists:delete(Proc, Reservations)} | proplists:delete(reservations, Props)];
-
 succeed({Props, _}) ->
     Props.
 
@@ -72,11 +72,6 @@ log(Level, IoData) ->
 
 allocate(Type, [{Proc, Required} | Reservations], Available)
   when Available > Required ->
-
-    %% Why wait another second? We've already waited a second
-    %% for the resource to accumulate.
-    %erlmud_object:attempt_after(1000, Proc, {allocate, Required, 'of', Type, to, Proc}),
-
     erlmud_object:attempt(Proc, {allocate, Required, 'of', Type, to, Proc}),
     RotatedReservations = Reservations ++ [{Proc, Required}],
     allocate(Type, RotatedReservations, Available - Required);
