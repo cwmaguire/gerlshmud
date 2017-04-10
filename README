@@ -76,7 +76,7 @@ only having events travel a limited distance in the MUD; currently the only TTL
 is "maximum one room away".
 
 The notes are Erlang messages. The conversations are events in the MUD: opening
-doors attacking things, putting on clothing and pickup stuff up. The "proposals"
+doors, attacking things, putting on clothing and pickup stuff up. The "proposals"
 are called "attempts" in the MUD and are questions about whether events
 succeed: can this door be opened? can this item be worn on the head?
 
@@ -139,9 +139,8 @@ the message is deemed a success or the message is deemed a failure.
 If the door to the north is locked then exit E might fail the message with
 "The door to the north is locked."
 
-The rooms, R1 and R2 will subscribe to the message because if the character
-moves rooms then every process that knows about "C in R1" will need to update
-their properties to say "C in R2".
+The rooms, R1 and R2 will subscribe to the message because each will need to update
+their properties: R1 will remove C and R2 will add C.
 
 Why go to all this trouble to have a single object handle a single event at
 a time? Concurrency and parallelism. If an object can handle a message atomically
@@ -151,7 +150,7 @@ a) The objects don't need to be on the same machine. A character can live on
 machine A while a room is on machine B. Erlang makes it a cinch to send the
 messages to different machines.
 
-b) Every object could potentially handling a different message at the same time.
+b) Every object could potentially be handling a different message at the same time.
 Rather than lock up hundreds of processes to reconcile a battle between multiple
 characters many events can be happening at the same time.
 
