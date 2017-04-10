@@ -51,6 +51,8 @@ succeed({Props, {attack, Self, Target}}) when Self == self() ->
                     TBin -> TBin
                 end,
                 <<"} succeeded.">>]),
+    %% Do we keep looping over this (it sends {attack, self(), Target})
+    %% until something stops the attack?
     attack(Target, lists:keydelete(attack, 1, Props));
 succeed({Props, {stop_attack, AttackPid}}) ->
     log(debug, [<<"Character ">>, self(), <<" attack ">>, AttackPid, <<" stopped; remove (if applicable) from props:\n\t">>, Props, <<"\n">>]),

@@ -15,7 +15,10 @@
 
 %% This generic handler is added to anything that attacks, because
 %% each attacking item will control reserving and being allocated
-%% resources on its own.
+%% resources on its own. That is, there isn't a single attack process
+%% for the character that manages all the different attack vectors.
+%% Each attack vector registers for resource allocation and fires off
+%% attacks whenever all of its resource needs are fulfilled.
 
 -behaviour(erlmud_handler).
 
@@ -24,32 +27,22 @@
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({_Owner, Props, {Character, attack, _Target}}) ->
-    %% TODO pass Character and TopItem along with Owner so we don't
-    %%      have to fetch it
-    IsCharacterFun = proplists:get_value(is_attacker_fun, Props),
-    case IsCharacterFun(Character, Props) of
-        true ->
-            {succeed, true, Props};
-        _ ->
-            {succeed, false, Props}
-    end;
-attempt({_Owner, Props, {_Character, calc, _Hit, on, _Target, with, Self}})
+attempt({#parents{character = Character}, Props, {Character, attack, _Target}}) ->
+    {succeed, true, Props};
+attempt({#parents{}, Props, {Character, attack, _Target}}) ->
+    {succeed, false, Props};
+attempt({#parents{}, Props, {_Character, calc, _Hit, on, _Target, with, Self}})
   when Self == self() ->
     {succeed, true, Props};
-attempt({_Owner, Props, {_Character, calc, _Damage, to, _Target, with, Self}})
+attempt({#parents{}, Props, {_Character, calc, _Damage, to, _Target, with, Self}})
   when Self == self() ->
     {succeed, true, Props};
-attempt({_Owner, Props, {_Character, does, _Damage, to, Target, with, Self}}) when Self == self(), is_pid(Target) ->
+attempt({#parents{}, Props, {_Character, does, _Damage, to, Target, with, Self}}) when Self == self(), is_pid(Target) ->
     {succeed, true, Props};
-attempt({_Owner, Props, {Character, stop_attacking, _Target}}) ->
-    IsCharacterFun = proplists:get_value(is_attacker_fun, Props),
-    case IsCharacterFun(Character, Props) of
-        true ->
-            {succeed, true, Props};
-        _ ->
-            {succeed, false, Props}
-    end;
+attempt({#parents{character = Character}, Props, {Character, stop_attacking, _Target}}) ->
+    {succeed, true, Props};
+attempt({#parents{}, Props, {Character, stop_attacking, _Target}}) ->
+    {succeed, false, Props};
 attempt(_) ->
     undefined.
 

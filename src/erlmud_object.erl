@@ -202,16 +202,26 @@ exit_has_room(Props, Room) ->
 attempt_(Msg,
          Procs,
          State = #state{props = Props}) ->
-    Owner = proplists:get_value(owner, Props),
+    Parents = parents(Props),
     %% So far it looks like nothing actually changes the object properties on attempt
     %% but I'm leaving it in for now
-    {Handler, Results = {Result, Msg2, ShouldSubscribe, Props2}} = ensure_message(Msg, run_handlers({Owner, Props, Msg})),
-    log([self(), <<" {owner, ">>, Owner, <<"} ">>,
+    {Handler, Results = {Result, Msg2, ShouldSubscribe, Props2}} = ensure_message(Msg, run_handlers({Parents, Props, Msg})),
+    log([self(), <<" {owner, ">>, Parents#parents.owner, <<"} ">>,
          Handler, <<"attempt: ">>, Msg, <<" -> ">>,
          ShouldSubscribe, <<", ">>, binary_fail_reason(Result)]),
     MergedProcs = merge(self(), is_room(Props), Results, Procs),
     _ = handle(Result, Msg2, MergedProcs, Props2),
     State#state{props = Props2}.
+
+parents(Props) ->
+    Owner = proplists:get_value(owner, Props),
+    Character = proplists:get_value(character, Props),
+    TopItem = proplists:get_value(top_item, Props),
+    BodyPart = proplists:get_value(body_part, Props),
+    #parents{owner = Owner,
+             character = Character,
+             top_item = TopItem,
+             body_part = BodyPart}.
 
 is_room(Props) ->
     proplists:get_value(is_room, Props, false).

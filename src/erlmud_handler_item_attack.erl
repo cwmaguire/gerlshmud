@@ -64,10 +64,10 @@ attempt({_Owner, Props, Attack = #attack{source = Source,
                         self(), <<" since character ">>,
                         proplists:get_value(character, Props),
                         <<" is not equal to ">>, Source, <<" or ">>, Target]),
-            undefined
+            _TryNextHandler = undefined
     end;
 attempt({_, _, _Msg}) ->
-    undefined.
+    _TryNextHandler = undefined.
 
 %% attack with this weapon succeeded, kick off a new attack process
 succeed({Props, Attack = #attack{target = Target,
