@@ -46,7 +46,8 @@ attempt(_) ->
 succeed({Props, {move, Item, from, OldOwner, to, Self, _ItemBodyParts}})
   when Self == self() ->
     log(debug, [<<"Getting ">>, Item, <<" from ">>, OldOwner, <<"\n">>]),
-    erlmud_object:attempt(Item, {set_child_property, self(), body_part, self()}),
+    BodyPartType = proplists:get_value(body_part, Props),
+    erlmud_object:attempt(Item, {set_child_property, self(), body_part, {self(), BodyPartType}}),
     [{item, Item} | Props];
 succeed({Props, {move, Item, from, Self, to, NewOwner}})
   when Self == self() ->

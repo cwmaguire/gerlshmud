@@ -83,7 +83,7 @@
                   {fist, [{attack_damage_modifier, 5},
                           {owner, player},
                           {character, player},
-                          {attack, hand},
+                          {wielding_body_parts, [hand]},
                           ?ITEM_HANDLERS]},
                   {dexterity0, [{attack_hit_modifier, 1},
                                 {owner, player},

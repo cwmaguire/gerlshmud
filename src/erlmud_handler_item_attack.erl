@@ -52,7 +52,16 @@ fail({Props, _, _}) ->
     Props.
 
 wielded(BodyPart, Props) when is_pid(BodyPart) ->
-    lists:member(BodyPart, 
+    WieldingBodyParts = proplists:get_value(wielding_body_parts, Props, []),
+    case proplists:get_value(body_part, Props) of
+        {_, BodyPartType} ->
+            lists:member(BodyPartType, WieldingBodyParts);
+        _ ->
+            false
+    end.
+
+active(Props) ->
+    proplists:get_value(active, Props, false).
 
 %log(Level, IoData) ->
     %erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).
