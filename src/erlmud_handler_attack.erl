@@ -12,6 +12,7 @@
 %% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 -module(erlmud_handler_attack).
+-behaviour(erlmud_handler).
 
 %% This generic handler is added to anything that attacks, because
 %% each attacking item will control reserving and being allocated
@@ -19,8 +20,6 @@
 %% for the character that manages all the different attack vectors.
 %% Each attack vector registers for resource allocation and fires off
 %% attacks whenever all of its resource needs are fulfilled.
-
--behaviour(erlmud_handler).
 
 -include("include/erlmud.hrl").
 
@@ -33,11 +32,9 @@
 attempt({#parents{character = Character}, Props, {Character, attack, _Target}}) ->
     {succeed, true, Props};
 
-%% Some other process, not this process' character, is attack a target
-attempt({#parents{}, Props, {_Character, attack, _Target}}) ->
-    %% TODO do we need to short-circuit the handling of this event and prevent
-    %%      other handlers from this process from seeing it?
-    {succeed, false, Props};
+attempt({#parents{character = Character}, Props, {Character, attack, _Target, with, Self}})
+  when Self == self() ->
+    {succeed, true, Props};
 
 %% This process landed an attack on a target
 attempt({#parents{}, Props, {_Character, calc, _Hit, on, _Target, with, Self}})
@@ -57,18 +54,22 @@ attempt({#parents{}, Props, {_Character, does, _Damage, to, Target, with, Self}}
 attempt({#parents{character = Character}, Props, {Character, stop_attacking, _Target}}) ->
     {succeed, true, Props};
 
-%% Some other character has stopped attacking
-attempt({#parents{}, Props, {_Character, stop_attacking, _Target}}) ->
-    %% TODO: do we need to short-circuit the handling of this event for other handlers
-    %%       belonging to this process?
-    {succeed, false, Props};
-
 attempt(_) ->
     undefined.
 
+%% An attack by our character has been successfully instigated but with no
+%% specfic attack vector: we'll kick off an attempt to attack with this item
+%% specifically.
 succeed({Props, {Character, attack, Target}}) when is_pid(Target) ->
-    [reserve(Character, R) || R <- proplists:get_value(resources, Props, [])],
+    erlmud_object:attempt(self(), {Character, attack, Target, with, self()}),
+    Props;
+
+%% An attack by our character has been successfully instigated using this process:
+%% we'll register for resources and implement the attack when we have them.
+succeed({Props, {Character, attack, Target, with, _Self}}) ->
+    reserve(Character, proplists:get_value(resources, Props, [])),
     lists:keystore(target, 1, Props, {target, Target});
+
 succeed({Props, {Character, calc, Hit, on, Target, with, Self}})
   when is_pid(Target),
        Self == self(),

@@ -14,85 +14,45 @@
 -module(erlmud_handler_item_attack).
 -behaviour(erlmud_handler).
 
+%% This handler is specific to items and controls whether this item
+%% process can participate in an attack or not. The character will
+%% kick off a generic attack and then the generic attack handler attached
+%% to this item process will further kick off a process-specific attack
+%% for this process. This handler will listen to that specific attack
+%% for it's process and determine if the properties of this item
+%% allow for the item to attack. This prevents us from having logic in
+%% the generic handler that is specific to items.
+%% The generic handler can work out kicking off the hit roll and damage
+%% since other handlers and other processes (e.g. attributes) will modify
+%% the hit roll and damage with logic specific to this character, body part,
+%% item, etc.
+
 -export([attempt/1]).
 -export([succeed/1]).
 -export([fail/1]).
 
 -include("include/erlmud.hrl").
 
-%% --- Note: I think this is migrating to erlmud_handler_attack ---
-%% (see README_MUTLIATTACK)
+attempt({#parents{character = Character, body_part = BodyPart},
+         Props,
+         {Character, attack, _Target, with, Self}})
+  when Self == self() ->
+    ShouldSucceed = wielded(BodyPart, Props) andalso active(Props),
+    {ShouldSucceed, false, Props};
+attempt(_) ->
+    undefined.
 
-%% Watch for an attack from the character.
-%% If we're a chosen weapon then we'll kick off our own attack process
-attempt({_Owner, Props,
-         Attack = #attack{attack_types = AttackTypes,
-                          weapon = undefined,
-                          attack = undefined}})
-  when is_pid(Attack#attack.target),
-       is_list(AttackTypes) ->
-    Character = proplists:get_value(character, Props),
-    AttackType = proplists:get_value(attack_type, Props),
-    DoesAttackTypeMatch = lists:member(AttackType, AttackTypes),
-    case {Attack#attack.source, DoesAttackTypeMatch} of
-        {Character, true} ->
-            {succeed, true, Props};
-        _ ->
-            {succeed, false, Props}
-    end;
-%% TODO some items will have to be worn or wielded in order to
-%% take effect. Add a function or property that determines if the
-%% item's modifiers apply.
-%attempt({_Owner, Props, {Source, {attack, Attack}, Target, with, Self, CalcType, Value}})
-
-%% calculate either hit, damage or wait for an attack in progress
-%% with this item
-attempt({_Owner, Props, Attack = #attack{source = Source,
-                                         target = Target,
-                                         weapon = Self,
-                                         calc_type = CalcType}})
-  when Self == self() andalso
-       (CalcType == hit orelse CalcType == damage) ->
-    log(debug, [<<"Saw ">>, CalcType, <<"...">>]),
-    Character = proplists:get_value(character, Props),
-    case Character of
-        Source ->
-            log(debug, [self(), <<": Source (">>, Source, <<") is our character (">>, Character]),
-            erlmud_attack:update_attack(Attack, source, Props);
-        Target ->
-            log(debug, [self(), <<": Target (">>, Target, <<") is our character (">>, Character]),
-            erlmud_attack:update_attack(Attack, target, Props);
-        _ ->
-            log(debug, [<<"item attack ">>, CalcType, <<" attempt failed for ">>,
-                        self(), <<" since character ">>,
-                        proplists:get_value(character, Props),
-                        <<" is not equal to ">>, Source, <<" or ">>, Target]),
-            _TryNextHandler = undefined
-    end;
-attempt({_, _, _Msg}) ->
-    _TryNextHandler = undefined.
-
-%% attack with this weapon succeeded, kick off a new attack process
-succeed({Props, Attack = #attack{target = Target,
-                                 attack = undefined}}) ->
-    Name = proplists:get_value(name, Props),
-    Args = [_Id = undefined,
-            _Props = [{owner, self()},
-                      {target, Target},
-                      {name, <<"attack_", Name/binary>>},
-                      {handlers, [erlmud_handler_attack,
-                                  erlmud_handler_set_child_property]}]],
-    {ok, AttackPid} = supervisor:start_child(erlmud_object_sup, Args),
-    log(debug, [<<"Attack ">>, AttackPid, <<" started, sending attempt and subscribing\n">>]),
-    erlmud_object:attempt(Attack,
-                          Attack#attack{attack = Attack},
-                          _ShouldSub = true),
-    [{attack, Attack} | Props];
+succeed({Props, {Character, attack, Target}}) when is_pid(Target) ->
+    erlmud_object:attempt(self(), {Character, attack, Target, with, self()}),
+    Props;
 succeed({Props, _}) ->
     Props.
 
 fail({Props, _, _}) ->
     Props.
 
-log(Level, IoData) ->
-    erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).
+wielded(BodyPart, Props) when is_pid(BodyPart) ->
+    lists:member(BodyPart, 
+
+%log(Level, IoData) ->
+    %erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).
