@@ -33,13 +33,26 @@
 
 -include("include/erlmud.hrl").
 
-attempt({#parents{character = Character, body_part = BodyPart},
+attempt({#parents{character = Character,
+                  body_part = BodyPart},
          Props,
          {Character, attack, _Target, with, Self}})
   when Self == self() ->
     ShouldSucceed = wielded(BodyPart, Props) andalso active(Props),
-    {ShouldSucceed, false, Props};
-attempt(_) ->
+    {ShouldSucceed, ShouldSucceed, Props};
+
+%% If our top-item is attacking then we want to subscribe to that
+attempt({#parents{top_item = TopItem},
+         Props,
+         {_Character, calc, _Hit, on, _Target, with, TopItem}}) ->
+
+    case is_interested() of
+        true ->
+            erlmud_attack:update_attack(Attack, source, Props);
+        _ ->
+            {succeed, false, Props}
+    end;
+attempt({_, _, _Msg}) ->
     undefined.
 
 succeed({Props, {Character, attack, Target}}) when is_pid(Target) ->
@@ -50,6 +63,9 @@ succeed({Props, _}) ->
 
 fail({Props, _, _}) ->
     Props.
+
+is_interested() ->
+
 
 wielded(BodyPart, Props) when is_pid(BodyPart) ->
     WieldingBodyParts = proplists:get_value(wielding_body_parts, Props, []),

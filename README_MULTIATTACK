@@ -17,10 +17,29 @@ TODO:
   An item in a wielding body part can kick off an attack
   with itself as the attacking item
 
+  check
+
+    The generic handler attached to a process will kick of an item
+    specific attack and then check if it's wielded and active.
+
 3.1)  A sub-item can recognize an attack where the attack item
       is its "top level item"
 
     check
+    uncheck
+
+      I think I broke this by taking out the original custom item attack handler
+
+      I can fix this by having the custom item attack handler subscribe to attacks
+      by the top item, but then how does the regular attack handler latch on to that?
+
+      If the custom attack handler takes it, then it has to duplicate the generic
+      attack handler logic.
+
+      Then again, all it needs to do is participate in calc_hit and calc_damage.
+
+      erlmud_handler_attribute_attack has a good setup, I should use that if I can figure
+      out why proplists:value(top_item, Props) would return 'item'
 
 3.2)  This is done with "set_child_property" to "broadcast"
       a property down to all children (such as "our character

@@ -14,30 +14,32 @@
 -module(erlmud_handler_item_inv).
 -behaviour(erlmud_handler).
 
+-include("include/erlmud.hrl").
+
 -export([attempt/1]).
 -export([succeed/1]).
 -export([fail/1]).
 
 %% Track the current owner. When the 'add' succeeds the current owner can remove
 %% it from its properties.
-attempt({Owner, Props, {move, Self, from, Owner, to, Target, item_body_parts}})
+attempt({#parents{owner = Owner}, Props, {move, Self, from, Owner, to, Target, item_body_parts}})
   when Self == self(),
        Owner /= Target ->
     BodyParts = proplists:get_value(body_parts, Props, []),
     NewMessage = {move, Self, from, Owner, to, Target, BodyParts},
     Result = {resend, Owner, NewMessage},
     {Result, _Subscribe = false, Props};
-attempt({Owner, Props, {move, Self, from, Owner, to, Target}})
+attempt({#parents{owner = Owner}, Props, {move, Self, from, Owner, to, Target}})
   when Self == self(),
        Owner /= Target,
        is_pid(Target) ->
     {succeed, true, Props};
-attempt({Owner, Props, {move, Self, from, Owner, to, Target, _ItemBodyParts}})
+attempt({#parents{owner = Owner}, Props, {move, Self, from, Owner, to, Target, _ItemBodyParts}})
   when Self == self(),
        Owner /= Target,
        is_pid(Target) ->
     {succeed, true, Props};
-attempt({_Owner, Props, {move, Item, from, Self, to, Target}})
+attempt({#parents{}, Props, {move, Item, from, Self, to, Target}})
   when Self == self(),
        is_pid(Item),
        is_pid(Target) ->

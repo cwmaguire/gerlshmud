@@ -62,7 +62,7 @@ activity_props(Props) ->
 %% When an item is in use it will be worn on, or wielded by, a body
 %% part. That is, it will have a body part property, similar to
 %% 'top_item', except that body parts don't have sub-parts.
-activity_props(item, Props) ->
+activity_props(item, Props) -> %% Why would proplists:get_value(top_item, Props) return 'item'?
     activity_props(item, proplists:get_value(body_part, Props), Props);
 activity_props(_, _) ->
     {not_item, undefined, undefined}.
