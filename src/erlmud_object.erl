@@ -207,6 +207,8 @@ attempt_(Msg,
     Parents = parents(Props),
     %% So far it looks like nothing actually changes the object properties on attempt
     %% but I'm leaving it in for now
+    %% I found a case: you attempt to shoot someone and you miss: the clip can lose a round ...
+    %% except the clip could just listen for the result and decrement the ammunition then.
     {Handler, Results = {Result, Msg2, ShouldSubscribe, Props2}} = ensure_message(Msg, run_handlers({Parents, Props, Msg})),
     log([self(), <<" {owner, ">>, Parents#parents.owner, <<"} ">>,
          Handler, <<"attempt: ">>, Msg, <<" -> ">>,

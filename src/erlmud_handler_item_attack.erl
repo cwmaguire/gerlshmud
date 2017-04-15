@@ -38,17 +38,86 @@ attempt({#parents{character = Character,
          Props,
          {Character, attack, _Target, with, Self}})
   when Self == self() ->
-    ShouldSucceed = wielded(BodyPart, Props) andalso active(Props),
-    {ShouldSucceed, ShouldSucceed, Props};
+    case wielded(BodyPart, Props) andalso active(Props) of
+        true ->
+            {true, true, Props};
+        false ->
+            {false, "Item is not wielded"}
+    end;
 
-%% If our top-item is attacking then we want to subscribe to that
+%% If our top-item is attacking then we want to subscribe to the
+%% hit- and damage-calc messages so we can participate
 attempt({#parents{top_item = TopItem},
          Props,
-         {_Character, calc, _Hit, on, _Target, with, TopItem}}) ->
+         {Character, calc, Hit, on, Target, with, TopItem}}) ->
 
     case is_interested() of
         true ->
-            erlmud_attack:update_attack(Attack, source, Props);
+            case proplists:get_value(attack_hit_modifier, Props) of
+                undefined ->
+                    {succeed, false, Props};
+                Amount ->
+                    %% In order to mix and match +/- with * I could have four values:
+                    %% Minus integer,
+                    %% Plus integer,
+                    %% Minus multiplier,
+                    %% Plus multiplier.
+                    %%
+                    %% Once the attempt is finished I could do:
+                    %% (Minus integer * minus multiplier) + (Plus integer * plus multiplier)
+                    %%
+                    %% e.g. if a sword does +2 to hit and a ring does * 1.1 to hit, then
+                    %% I'd have to add up all the integers, multiple all the scaling, then
+                    %% apply the scaling to the integers.
+                    %%
+                    %% e.g. A sword does +2 to hit, a ring does * 1.1 to hit, attacker dexteriy
+                    %% does +1 to hit, attacker spell does * 2 against the enemy race, the enemy
+                    %% armor does -3 to hit and the enemy dexterity does * 1.1 to hit. An enemy
+                    %% priest does a -1 to hit buff and the weather does * 0.5 to hit.
+                    %%
+                    %% The enemy dexterity shouldn't apply to the _positive_ (i.e. successful)
+                    %% numbers, it should multiple the negative (i.e. fail) numbers:
+                    %%
+                    %% Positive: (+2 + 1) * 1.1 * 2 * 0.5 = 3.3
+                    %% Negative: (-1) * 1.1 = -1.1
+                    %% Total: 3.3 - 1.1 = 2.2
+                    %%
+                    %% In this way I can have multiplier effects and additive/subtractive effects.
+                    %% The base value is 1 so I could even have _only_ multiplier effects.
+                    %% However, there might have to be a base negative amount as well in case I
+                    %% only had negative multipliers.
+                    %% That works out well because +1 + -1 = 0, ... i.e. if nothing affects the
+                    %% attack it will fail with 0.
+                    %%
+                    %% So, I'd probably want weapons to have a base damage, and then have skills,
+                    %% spells, attributes, environment, etc. potentially do multipliers.
+                    %%
+                    %% At that point I might have a Hit map instead of just a hit number:
+                    %% #{pos => 1, neg => -1, pos_multiplier => 1, neg_multiplier => 1}
+                    %%
+                    %% e.g.
+                    %% {succeed, {C, calc, neg_mult(Hit, NegMult), on, T, with, W}}
+                    %%
+                    %% where neg_mult/2 is a function that multiplies the negative multiplier
+                    %% by it's amount. Since the negative multiplier starts out at one that works
+                    %% out nicely.
+                    {succeed, {Character, calc, Hit + Amount, on, Target, with, TopItem}}
+            end;
+        _ ->
+            {succeed, false, Props}
+    end;
+attempt({#parents{top_item = TopItem},
+         Props,
+         {Character, damage, Damage, to, Target, with, TopItem}}) ->
+
+    case is_interested() of
+        true ->
+            case proplists:get_value(attack_damage_modifier, Props) of
+                undefined ->
+                    {succeed, false, Props};
+                Amount ->
+                    {succeed, {Character, calc, Damage + Amount, on, Target, with, TopItem}}
+            end;
         _ ->
             {succeed, false, Props}
     end;
@@ -65,6 +134,9 @@ fail({Props, _, _}) ->
     Props.
 
 is_interested() ->
+    %% TODO fill this in. What might cause an item or sub-item not to be
+    %% interested? ... not activated?
+    ok.
 
 
 wielded(BodyPart, Props) when is_pid(BodyPart) ->

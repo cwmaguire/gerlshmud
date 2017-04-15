@@ -4,6 +4,20 @@
 %% update an attack event. Several different handlers will use this
 %% same code
 
+%% I don't think I'm going to use this: for now I'd rather have really
+%% descriptive events like {Character, calc, Hit, on, Target, with, Weapon}.
+%% If I have #attack{character = Character,
+%%                   target = Target,
+%%                   calc = hit,
+%%                   weapon = Weapon} ...
+%% ... it gives me more flexibility, but doesn't read as well.
+%% I dunno, we'll see.
+%%
+%% One problem with {C, calc, H, on, T, with, W} is that it's  very
+%% close to ...     {C, calc, D, to, T, with, W}.
+%% The first is calc hit, the second is calc damage.
+%% Granted, when spelled out with "Hit" and "Damage" it's more obvious.
+
 -export([update_attack/3]).
 -export([add_value/2]).
 

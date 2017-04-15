@@ -42,6 +42,19 @@ attempt({#parents{}, Props, {_Character, calc, _Hit, on, _Target, with, Self}})
     {succeed, true, Props};
 
 %% This process needs to calculate damage to a target
+%% TODO that needs to happen in the attempt
+%%
+%% I don't think I can do this: how will I know if a separate handler is handling
+%% this?
+%%
+%%    Well, I could only use this for top level items, spells, etc. that don't
+%%    need custom logic and then not even add it to sub-items and stuff that
+%%    need custom filters (e.g. a sub-item checks if the attack vector matches
+%%    its top-item).
+%%
+%%    One possible way around this is to have a general 'attack_hit_modifier' as
+%%    well as a specific property (e.g. 'subitem_attack_hit_modifier') for the
+%%    sub-item handler.
 attempt({#parents{}, Props, {_Character, calc, _Damage, to, _Target, with, Self}})
   when Self == self() ->
     {succeed, true, Props};
