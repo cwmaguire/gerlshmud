@@ -41,6 +41,12 @@ TODO:
       erlmud_handler_attribute_attack has a good setup, I should use that if I can figure
       out why proplists:value(top_item, Props) would return 'item'
 
+    check again
+
+      I've added a #top_item{item = ..., is_active = ..., is_wielded = ...} record
+      that I can pass to child objects of items. This tells the child items if the parent
+      is participating in attacks.
+
 3.2)  This is done with "set_child_property" to "broadcast"
       a property down to all children (such as "our character
       is _______")
@@ -82,14 +88,26 @@ TODO:
       but could not be attacked with? Something that's not ridiculous,
       like a sword on a foot.
 
+    check
+
+      There is now a 'wielded_body_parts' property that tracks which body
+      parts an item can be attached to and be able to participate in an
+      attack.
+
 4) Finish the generic handler that allows any item, body_part,
    spell, or anything else to participate in attacks.
+
+    check
+
+      I'll keep this as a stand-in until I need custom logic
 
 5) Convert the "Owner" param in events to a record that has:
    - Owner
    - Character
    - Top Item
    ... so I don't have to look them up.
+
+    check
 
 6) Have the character kick off a "stop attack on Target" attempt
    when the character moves.
