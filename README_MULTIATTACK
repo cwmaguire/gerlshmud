@@ -172,6 +172,15 @@ I don't need a separate attack process.
 
         Nah, I think I like custom "can this process attack" handlers better.
 
+      I could have functions in the properties:
+        is_interested_fun(#parents{}, Props)
+        calc_hit_fun(#parents{}, Props)
+        calc_damage_fun(#parents{}, Props)
+
+        ... but that puts me into a kind of meta-coding where I'm loading functions
+        up and running them rather than having them hard-coded in a module. I don't
+        think that's wise at this point.
+
   I'm going to go with the idea that anything wielded or "ready" will be used to
   attack.
 
@@ -224,3 +233,51 @@ the process.
 e.g. if the item is a sword then the sword might register with the
 stamina and concentration resources of the character that owns the arm
 that is weilding the sword.
+
+
+Additive and Multiplicative Hit/Dmg Modifiers:
+
+In order to mix and match +/- with * I could have four values:
+Minus integer,
+Plus integer,
+Minus multiplier,
+Plus multiplier.
+
+Once the attempt is finished I could do:
+(Minus integer * minus multiplier) + (Plus integer * plus multiplier)
+
+e.g. if a sword does +2 to hit and a ring does * 1.1 to hit, then
+I'd have to add up all the integers, multiple all the scaling, then
+apply the scaling to the integers.
+
+e.g. A sword does +2 to hit, a ring does * 1.1 to hit, attacker dexteriy
+does +1 to hit, attacker spell does * 2 against the enemy race, the enemy
+armor does -3 to hit and the enemy dexterity does * 1.1 to hit. An enemy
+priest does a -1 to hit buff and the weather does * 0.5 to hit.
+
+The enemy dexterity shouldn't apply to the _positive_ (i.e. successful)
+numbers, it should multiple the negative (i.e. fail) numbers:
+
+Positive: (+2 + 1) * 1.1 * 2 * 0.5 = 3.3
+Negative: (-1) * 1.1 = -1.1
+Total: 3.3 - 1.1 = 2.2
+
+In this way I can have multiplier effects and additive/subtractive effects.
+The base value is 1 so I could even have _only_ multiplier effects.
+However, there might have to be a base negative amount as well in case I
+only had negative multipliers.
+That works out well because +1 + -1 = 0, ... i.e. if nothing affects the
+attack it will fail with 0.
+
+So, I'd probably want weapons to have a base damage, and then have skills,
+spells, attributes, environment, etc. potentially do multipliers.
+
+At that point I might have a Hit map instead of just a hit number:
+#{pos => 1, neg => -1, pos_multiplier => 1, neg_multiplier => 1}
+
+e.g.
+{succeed, {C, calc, neg_mult(Hit, NegMult), on, T, with, W}}
+
+where neg_mult/2 is a function that multiplies the negative multiplier
+by it's amount. Since the negative multiplier starts out at one that works
+out nicely.

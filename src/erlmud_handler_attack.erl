@@ -55,6 +55,24 @@ attempt({#parents{}, Props, {_Character, calc, _Hit, on, _Target, with, Self}})
 %%    One possible way around this is to have a general 'attack_hit_modifier' as
 %%    well as a specific property (e.g. 'subitem_attack_hit_modifier') for the
 %%    sub-item handler.
+%%
+%%    Maybe have a way to override handler events?
+%%       Cowboy checks the module to see which functions are exported, but
+%%       every handler will export attempt/3 and succeed/1.
+%%
+%%       Perhaps when erlmud_object grabs the handlers from the process?
+%%       but ... we'd need to cache the results otherwise we're doing that
+%%       on _every_ event.
+%%
+%%       Or, I could have several generic handlers:
+%%          - is_interested
+%%          - calc hit
+%%          - calc damage
+%%       ... but I'd run into trouble if I wanted both to respond to the
+%%       success of the same event.
+%%
+%%    I think I'll stick with a generic handler until I need something specific
+%%    and then I'll move that process over completely to custom handlers.
 attempt({#parents{}, Props, {_Character, calc, _Damage, to, _Target, with, Self}})
   when Self == self() ->
     {succeed, true, Props};

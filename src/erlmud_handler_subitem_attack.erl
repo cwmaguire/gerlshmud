@@ -14,18 +14,22 @@
 -module(erlmud_handler_item_attack).
 -behaviour(erlmud_handler).
 
-%% This handler is specific to items and controls whether this item
+%% This handler is specific to sub-items and controls whether this sub-item
 %% process can participate in an attack or not. The character will
 %% kick off a generic attack and then the generic attack handler attached
 %% to this item process will further kick off a process-specific attack
 %% for this process. This handler will listen to that specific attack
-%% for it's process and determine if the properties of this item
-%% allow for the item to attack. This prevents us from having logic in
+%% for it's process and determine if the properties of this sub-item
+%% allow for the sub-item to attack. This prevents us from having logic in
 %% the generic handler that is specific to items.
 %% The generic handler can work out kicking off the hit roll and damage
 %% since other handlers and other processes (e.g. attributes) will modify
 %% the hit roll and damage with logic specific to this character, body part,
 %% item, etc.
+%%
+%% This is very similar to the item attack handler except this handler
+%% checks if this sub-item belongs to an attacking or defending parent
+%% item.
 
 -export([attempt/1]).
 -export([succeed/1]).
@@ -33,82 +37,65 @@
 
 -include("include/erlmud.hrl").
 
-%% Attacking
-attempt({#parents{character = Character,
-                  body_part = BodyPart},
+%% Attacking: hit and damage
+attempt({#parents{top_item = TopItem},
          Props,
-         {Character, attack, _Target, with, Self}})
-  when Self == self() ->
-    case is_wielded(BodyPart, Props) andalso active(Props) of
-        true ->
-            {true, true, Props};
-        false ->
-            {false, "Item is not wielded or is not activated"}
-    end;
-
-%% Defending
-%% I don't think we need to know when someone attacks our character,
-%% we'll automatically get events for calc-hit and calc-damage
-
-%% Attack
-attempt({#parents{character = Character},
-         Props,
-         {Character, calc, Hit, on, Target, with, Self}})
-  when Self == self() ->
+         {Character, calc, Hit, on, Target, with, TopItem}}) ->
     case is_interested(Props) of
         true ->
             case proplists:get_value(attack_hit_modifier, Props) of
                 undefined ->
                     {succeed, false, Props};
                 Amount ->
-                    {succeed, {Character, calc, Hit + Amount, on, Target, with, Self}}
+                    {succeed, {Character, calc, Hit + Amount, on, Target, with, TopItem}}
             end;
         _ ->
             {succeed, false, Props}
     end;
-attempt({#parents{character = Character},
+attempt({#parents{top_item = TopItem},
          Props,
-         {Character, damage, Damage, to, Target, with, Self}})
-  when Self == self() ->
+         {Character, damage, Damage, to, Target, with, TopItem}}) ->
+
     case is_interested(Props) of
         true ->
             case proplists:get_value(attack_damage_modifier, Props) of
                 undefined ->
                     {succeed, false, Props};
                 Amount ->
-                    {succeed, {Character, calc, Damage + Amount, on, Target, with, Self}}
+                    {succeed, {Character, calc, Damage + Amount, on, Target, with, TopItem}}
             end;
         _ ->
             {succeed, false, Props}
     end;
 
-%% Defend
-attempt({#parents{character = Character},
+%% Defending: hit and damage
+%% I'm going to have to have top items broadcast wielded
+%% and active when their states change.
+attempt({#parents{top_item = #top_item{item = TopItem}},
          Props,
-         {Character, calc, Hit, on, Target, with, Self}})
-  when Self == self() ->
+         {Attacker, calc, Hit, on, Character, with, AttackVector}}) ->
     case is_interested(Props) of
         true ->
-            case proplists:get_value(defend_hit_modifier, Props) of
+            case proplists:get_value(attack_hit_modifier, Props) of
                 undefined ->
                     {succeed, false, Props};
                 Amount ->
-                    {succeed, {Character, calc, Hit - Amount, on, Target, with, Self}}
+                    {succeed, {Character, calc, Hit + Amount, on, Target, with, TopItem}}
             end;
         _ ->
             {succeed, false, Props}
     end;
-attempt({#parents{character = Character},
+attempt({#parents{top_item = TopItem},
          Props,
-         {Character, damage, Damage, to, Target, with, Self}})
-  when Self == self() ->
+         {Character, damage, Damage, to, Target, with, TopItem}}) ->
+
     case is_interested(Props) of
         true ->
-            case proplists:get_value(defend_damage_modifier, Props) of
+            case proplists:get_value(attack_damage_modifier, Props) of
                 undefined ->
                     {succeed, false, Props};
                 Amount ->
-                    {succeed, {Character, calc, Damage - Amount, on, Target, with, Self}}
+                    {succeed, {Character, calc, Damage + Amount, on, Target, with, TopItem}}
             end;
         _ ->
             {succeed, false, Props}
@@ -126,24 +113,17 @@ fail({Props, _, _}) ->
     Props.
 
 is_interested(Props) ->
-    true =:= is_wielded(Props) andalso
-    true =:= proplists:get_value(active, Props).
+    IsActive = true =:= proplists:get_value(active, Props),
+    IsActive andalso is_top_item_interested(Props).
 
-is_wielded(Props) ->
-    BodyPart = proplists:get_value(body_part, Props),
-    is_wielded(BodyPart, Props).
-
-is_wielded(BodyPart, Props) when is_pid(BodyPart) ->
-    WieldingBodyParts = proplists:get_value(wielding_body_parts, Props, []),
-    case proplists:get_value(body_part, Props) of
-        {_, BodyPartType} ->
-            lists:member(BodyPartType, WieldingBodyParts);
+is_top_item_interested(Props) ->
+    case proplists:get_value(top_item, Props) of
+        #top_item{is_wielded = true,
+                  is_active = true} ->
+            true;
         _ ->
             false
     end.
-
-active(Props) ->
-    proplists:get_value(active, Props, false).
 
 %log(Level, IoData) ->
     %erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).

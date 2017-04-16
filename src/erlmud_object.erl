@@ -22,14 +22,12 @@
 -export([attempt/2]).
 -export([attempt/3]).
 -export([attempt_after/3]).
-%-export([add/3]).
-%-export([remove/3]).
-%-export([get/2]).
 -export([set/2]).
 -export([props/1]).
 
 %% Util
 -export([has_pid/2]).
+-export([value/3]).
 
 %% gen_server.
 -export([init/1]).
@@ -48,7 +46,6 @@
                 subs = [] :: ordsets:ordset(pid())}).
 
 -type proplist() :: [{atom(), any()}].
-%-type attempt() :: {atom(), Pid, Pid, Pid}.
 
 -callback added(atom(), pid()) -> ok.
 -callback removed(atom(), pid()) -> ok.
@@ -401,6 +398,20 @@ handle_fail(_, Response = {{stop, _}, _, _}) ->
 handle_fail(HandlerModule, Failure = {_, Reason, Message}) ->
     Props = HandlerModule:fail(Failure),
     {Props, Reason, Message}.
+
+value(Prop, Props, integer) ->
+    prop(Prop, Props, fun is_integer/1, 0);
+value(Prop, Props, boolean) ->
+    prop(Prop, Props, fun is_boolean/1, false).
+
+prop(Prop, Props, Fun, Default) ->
+    Val = proplists:get_value(Prop, Props),
+    case Fun(Val) of
+        true ->
+            Val;
+        _ ->
+            Default
+    end.
 
 log(To, Stage, Msg, Procs) when is_tuple(Msg) ->
     erlmud_event_log:log(To,

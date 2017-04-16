@@ -69,6 +69,13 @@ can(add, Props, ItemBodyParts) ->
 can(remove, Props, Item) ->
     can_remove(Props, Item).
 
+can_add(Props, ItemBodyParts) ->
+    can_add([fun has_matching_body_part/2,
+             fun has_space/2],
+            Props,
+            ItemBodyParts,
+            true).
+
 can_add([], _, _, Result) ->
     log(debug, [<<"can_add([], _, _, ">>, Result ,<<")">>]),
     Result;
@@ -83,13 +90,6 @@ can_add([Fun | Funs], Props, ItemBodyParts, true) ->
 
 can_remove(_Props, _Item) ->
     true.
-
-can_add(Props, ItemBodyParts) ->
-    can_add([fun has_matching_body_part/2,
-             fun has_space/2],
-            Props,
-            ItemBodyParts,
-            true).
 
 has_matching_body_part(Props, ItemBodyParts) ->
     BodyPart = proplists:get_value(body_part, Props, any),

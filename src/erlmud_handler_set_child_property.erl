@@ -12,7 +12,6 @@
 %% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 -module(erlmud_handler_set_child_property).
-
 -behaviour(erlmud_handler).
 
 %% @doc Only if the message has our owner do we set the character and
@@ -21,7 +20,7 @@
 %% it. Nothing should subscribe to the message.
 %%
 %% This should cause a cascade of messages that keep starting at the current
-%% child and going out to ..
+%% child and going out to children until it runs out of children.
 %%
 %% If we move an item from one character to another, one body_part to another
 %% or one item to another then we might get a "clear" and "set" out of order.
@@ -29,14 +28,35 @@
 %% need to specify what value we're clearing out. If that value is already
 %% set to something else then we should leave it as is.
 
+-include("include/erlmud.hrl").
+
 %% object behaviour
 -export([attempt/1]).
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({Owner, Props, {set_child_property, Owner, Key, Value}}) ->
+attempt({#parents{owner = Owner},
+         Props,
+         {set_child_property, Owner, Key, Value}}) ->
     NewMessage = {set_child_property, self(), Key, Value},
     Props2 = lists:keystore(Key, 1, Props, {Key, Value}),
+    {{broadcast, NewMessage}, false, Props2};
+attempt({#parents{owner = Owner},
+         Props,
+         {set_child_properties, Owner, ParentProps}}) ->
+    NewMessage = {set_child_properties, self(), ParentProps},
+    Props2 = lists:foldl(fun apply_parent_prop/2, Props, ParentProps),
+    {{broadcast, NewMessage}, false, Props2};
+attempt({Owner, Props, {clear_child_property, Owner, Key = top_item, TopItem}}) ->
+    NewMessage = {clear_child_property, self(), Key, TopItem},
+    %% Only clear the top item if our #top_item{} has the same top_item Pid.
+    %% Otherwise another item may have already set our top_item to itself
+    Props2 = case proplists:get_value(Key, Props) of
+                 #top_item{item = Item} when Item == TopItem ->
+                     lists:keydelete(Key, 1, Props);
+                 _ ->
+                     Props
+             end,
     {{broadcast, NewMessage}, false, Props2};
 attempt({Owner, Props, {clear_child_property, Owner, Key, Value}}) ->
     NewMessage = {clear_child_property, self(), Key, Value},
@@ -58,3 +78,6 @@ succeed({Props, _Msg}) ->
 
 fail({Props, _, _}) ->
     Props.
+
+apply_parent_prop({K, V}, Props) ->
+    lists:keystore(K, 1, Props, {K, V}).
