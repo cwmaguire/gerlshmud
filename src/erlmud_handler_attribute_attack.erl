@@ -22,11 +22,11 @@
 
 %% @doc modify an attack with this attribute's modifiers
 %%
+%% This is to model things like strength, charisma, dexterity,
+%% race, etc.
+%%
 %% This attribute can be for a character, a body part or an item.
 %%
-%% TODO: make attributes either passive or active (ie. wielded/worn)
-%% so that we don't need to figure out in the attack code which it
-%% is
 attempt({Owner, Props, Attack = #attack{calc_type = CalcType}})
   when (CalcType == hit orelse
         CalcType == damage orelse

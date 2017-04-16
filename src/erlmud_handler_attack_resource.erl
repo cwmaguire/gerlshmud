@@ -21,6 +21,7 @@
 %% 2) on resource increase success kick off resource reservation
 %% 3) on resource reservation success allocate resources
 %% 4) if any attack has all the necessary resources then kick off attack
+%% 5) on stop_attack unreserve resources
 
 -export([attempt/1]).
 -export([succeed/1]).
@@ -28,72 +29,32 @@
 
 -include("include/erlmud.hrl").
 
-attempt({#parents{}, Props, {add, N}})
-  when is_pid(Attack#attack.target),
-       is_list(AttackTypes) ->
-    Character = proplists:get_value(character, Props),
-    AttackType = proplists:get_value(attack_type, Props),
-    DoesAttackTypeMatch = lists:member(AttackType, AttackTypes),
-    case {Attack#attack.source, DoesAttackTypeMatch} of
-        {Character, true} ->
-            {succeed, true, Props};
-        _ ->
-            {succeed, false, Props}
-    end;
-%% TODO some items will have to be worn or wielded in order to
-%% take effect. Add a function or property that determines if the
-%% item's resource modifiers apply.
-%% (e.g. winged boots of the night give a stamina boost but only when worn)
-%attempt({_Owner, Props, {Source, {attack, Attack}, Target, with, Self, CalcType, Value}})
+attempt({#parents{character = Character,
+                  owner = Owner},
+         Props,
+         {Character, attack, _Target, with, Owner}}) ->
+    {true, true, Props};
 
-%% calculate either hit, damage or wait for an attack in progress
-%% with this item
-attempt({#parents{}, Props, Attack = #attack{source = Source,
-                                         target = Target,
-                                         weapon = Self,
-                                         calc_type = CalcType}})
-  when Self == self() andalso
-       (CalcType == hit orelse CalcType == damage) ->
-    log(debug, [<<"Saw ">>, CalcType, <<"...">>]),
-    Character = proplists:get_value(character, Props),
-    case Character of
-        Source ->
-            log(debug, [self(), <<": Source (">>, Source, <<") is our character (">>, Character]),
-            erlmud_attack:update_attack(Attack, source, Props);
-        Target ->
-            log(debug, [self(), <<": Target (">>, Target, <<") is our character (">>, Character]),
-            erlmud_attack:update_attack(Attack, target, Props);
-        _ ->
-            log(debug, [<<"item attack ">>, CalcType, <<" attempt failed for ">>,
-                        self(), <<" since character ">>,
-                        proplists:get_value(character, Props),
-                        <<" is not equal to ">>, Source, <<" or ">>, Target]),
-            undefined
-    end;
+attempt({#parents{owner = Owner},
+         Props,
+         {allocate, _Required, 'of', _Type, to, Owner}}) ->
+    {true, true, Props};
+
 attempt({_, _, _Msg}) ->
     undefined.
 
-%% attack with this weapon succeeded, kick off a new attack process
-succeed({Props, Attack = #attack{target = Target,
-                                 attack = undefined}}) ->
-    Name = proplists:get_value(name, Props),
-    Args = [_Id = undefined,
-            _Props = [{owner, self()},
-                      {target, Target},
-                      {name, <<"attack_", Name/binary>>},
-                      {handlers, [erlmud_handler_attack,
-                                  erlmud_handler_set_child_property]}]],
-    {ok, AttackPid} = supervisor:start_child(erlmud_object_sup, Args),
-    log(debug, [<<"Attack ">>, AttackPid, <<" started, sending attempt and subscribing\n">>]),
-    erlmud_object:attempt(Attack,
-                          Attack#attack{attack = Attack},
-                          _ShouldSub = true),
-    [{attack, Attack} | Props];
+succeed({Props, {Character, attack, _Target, with, Owner}}) ->
+    [reserve(Character, Resource, Amount, Owner) || {resource, Resource, Amount} <- Props],
+    Props;
+
 succeed({Props, _}) ->
     Props.
 
 fail({Props, _, _}) ->
     Props.
 
-log(Level, IoData) ->
-    erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).
+reserve(Character, Resource, Amount, Owner) ->
+    erlmud_object:attempt(self(), {Character, reserve, Amount, 'of', Resource, for, Owner}).
+
+%log(Level, IoData) ->
+    %erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).

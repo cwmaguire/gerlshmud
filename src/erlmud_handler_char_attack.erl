@@ -20,27 +20,13 @@
 
 -include("include/erlmud.hrl").
 
-%% We'll handle timing with resource allocation
-
-%%attempt({_Owner, Props, {calc_next_attack_wait, Attack = #attack{source = Self}, Sent, Wait}})
-%%    when Self == self() ->
-%%    % TODO redo this to use stamina and concentration
-%%    ObjWait = proplists:get_value(attack_wait, Props, 0),
-%%    log(debug, [<<"Object attack wait is ">>, ObjWait, <<"\n">>]),
-%%    {succeed,
-%%     {calc_next_attack_wait, Attack, Sent, Wait + ObjWait},
-%%     false,
-%%     Props};
-attempt({_Owner, Props, {attack, Self, Target}})
+attempt({#parents{}, Props, {Self, attack, Target}})
   when Self == self(),
        is_pid(Target) ->
     {succeed, true, Props};
+attempt({#parents{}, Props, {Self, stop_attacking}}) ->
+    {succeed, true, Props};
 
-%% Individual attack vectors will do all the calculations
-%attempt({_Owner, Props, {calc_hit, _Attack, Self, _Target, _HitRoll}}) when Self == self() ->
-    %{succeed, true, Props};
-%attempt({_Onwer, Props, {die, Self}}) when Self == self() ->
-    %{succeed, true, Props};
 attempt(_) ->
     undefined.
 

@@ -25,9 +25,9 @@ attempt({_Owner, Props, {move, Self, Direction}}) when Self == self() ->
         Room ->
             {{resend, Self, {move, Self, Room, Direction}}, false, Props}
     end;
-attempt({_Owner, Props, {move, Self, _, _}}) when Self == self() ->
+attempt({_Owner, Props, {move, Self, _From, _Dir}}) when Self == self() ->
     {succeed, true, Props};
-attempt({_Owner, Props, {move, Self, _, _, _}}) when Self == self() ->
+attempt({_Owner, Props, {move, Self, _From, _To, _Exit}}) when Self == self() ->
     {succeed, true, Props};
 attempt(_) ->
     undefined.

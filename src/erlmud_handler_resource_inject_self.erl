@@ -14,16 +14,24 @@
 -module(erlmud_handler_resource_inject_self).
 -behaviour(erlmud_handler).
 
+%% @doc
+%% Captures reservation events reserving this process' character's resource
+%% by name and then resends it with this processes pid instead.
+
+-include("include/erlmud.hrl").
+
 -export([attempt/1]).
 -export([succeed/1]).
 -export([fail/1]).
 
-%% If something reserves this resource type for this owner then we need to inject
-%% ourself
-attempt({Owner, Props, {Owner, reserve, ResourceType, for, AttackVector}}) ->
+%% If something reserves this resource type for this character then we
+%% need to inject ourself
+attempt({#parents{owner = Owner},
+         Props,
+         {Owner, reserve, Amt, 'of', ResourceType, for, AttackVector}}) ->
     case proplists:get_value(resource_type, Props) of
         ResourceType ->
-            NewMessage = {Owner, reserve, self(), for, AttackVector},
+            NewMessage = {Owner, reserve, Amt, 'of', self(), for, AttackVector},
             Result = {resend, Owner, NewMessage},
             {Result, _Subscribe = true, Props};
         _ ->
