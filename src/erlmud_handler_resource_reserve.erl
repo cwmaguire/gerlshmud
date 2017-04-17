@@ -14,6 +14,8 @@
 -module(erlmud_handler_resource_reserve).
 -behaviour(erlmud_handler).
 
+-include("include/erlmud.hrl").
+
 -export([attempt/1]).
 -export([succeed/1]).
 -export([fail/1]).
@@ -35,27 +37,24 @@ attempt({_Owner, Props, {Character, unreserve, Self, for, _Proc}})
         _ ->
             {succeed, false, Props}
     end;
+attempt({#parents{}, Props, {Self, update_tick}}) when Self == self() ->
+    {succeed, false, Props};
+
 attempt(_) ->
     undefined.
 
 succeed({Props, {_Character, reserve, Amount, 'of', Self, for, Proc}})
   when Self == self() ->
     log(debug, [<<"Reserving ">>, Amount, <<" of ">>, Self, <<" for ">>, Proc, <<"\n">>]),
-    % If we send this to ourself then we can't handle it until after the
-    % new reservation property is set
-    %erlmud_object:attempt(Self, {Self, update_tick}),
-    Props2 = update_tick(Props),
-    Reservations = proplists:get(reservations, Props2, []),
-    [{reservations, Reservations ++ [{Proc, Amount}]} | proplists:delete(reservations, Props2)];
-
+    Reservations = proplists:get(reservations, Props, []),
+    Props2 = [{reservations, Reservations ++ [{Proc, Amount}]} | proplists:delete(reservations, Props)],
+    update_tick(Props2);
 succeed({Props, {_Character, unreserve, Self, for, Proc}})
   when Self == self() ->
     log(debug, [<<"Unreserving ">>, Self, <<" for ">>, Proc, <<"\n">>]),
-    % If we send this to ourself then we can't handle it until after the
-    % new reservation property is set
-    erlmud_object:attempt(Self, {Self, update_tick}),
     Reservations = proplists:get(reservations, Props, []),
-    [{reservations, lists:delete(Proc, Reservations)} | proplists:delete(reservations, Props)];
+    Props2 = [{reservations, lists:delete(Proc, Reservations)} | proplists:delete(reservations, Props)],
+    update_tick(Props2);
 succeed({Props, _}) ->
     Props.
 

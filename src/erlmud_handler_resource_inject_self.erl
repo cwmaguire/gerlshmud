@@ -37,6 +37,17 @@ attempt({#parents{owner = Owner},
         _ ->
             {succeed, false, Props}
     end;
+attempt({#parents{owner = Owner},
+         Props,
+         {Owner, unreserve, ResourceType, for, AttackVector}}) ->
+    case proplists:get_value(resource_type, Props) of
+        ResourceType ->
+            NewMessage = {Owner, unreserve, self(), for, AttackVector},
+            Result = {resend, Owner, NewMessage},
+            {Result, _Subscribe = true, Props};
+        _ ->
+            {succeed, false, Props}
+    end;
 attempt(_) ->
     undefined.
 

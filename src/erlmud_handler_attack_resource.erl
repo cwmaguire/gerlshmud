@@ -33,18 +33,40 @@ attempt({#parents{character = Character,
                   owner = Owner},
          Props,
          {Character, attack, _Target, with, Owner}}) ->
-    {true, true, Props};
+    {succeed, true, Props};
 
 attempt({#parents{owner = Owner},
          Props,
          {allocate, _Required, 'of', _Type, to, Owner}}) ->
-    {true, true, Props};
+    %% I could check if we need this resource, but we should only get it
+    %% because the owner is attacking and registered to receive it.
+    {succeed, true, Props};
+
+attempt({#parents{character = Character},
+         Props,
+         {move, Character, _From, _To, _Exit}}) ->
+    {succeed, true, Props};
+
+attempt({#parents{character = Character},
+         Props,
+         {die, Character}}) ->
+    {succeed, true, Props};
 
 attempt({_, _, _Msg}) ->
     undefined.
 
 succeed({Props, {Character, attack, _Target, with, Owner}}) ->
     [reserve(Character, Resource, Amount, Owner) || {resource, Resource, Amount} <- Props],
+    Props;
+
+succeed({Props, {move, Character, _From, _To, _Exit}}) ->
+    Owner = proplists:get_value(owner, Props),
+    [unreserve(Character, Resource, Owner) || {resource, Resource} <- Props],
+    Props;
+
+succeed({Props, {die, Character}}) ->
+    Owner = proplists:get_value(owner, Props),
+    unreserve(Character, Owner, Props),
     Props;
 
 succeed({Props, _}) ->
@@ -55,6 +77,12 @@ fail({Props, _, _}) ->
 
 reserve(Character, Resource, Amount, Owner) ->
     erlmud_object:attempt(self(), {Character, reserve, Amount, 'of', Resource, for, Owner}).
+
+unreserve(Character, Owner, Props) when is_list(Props) ->
+    [unreserve(Character, Resource, Owner) || {resource, Resource} <- Props];
+
+unreserve(Character, Resource, Owner) ->
+    erlmud_object:attempt(self(), {Character, unreserve, Resource, for, Owner}).
 
 %log(Level, IoData) ->
     %erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).

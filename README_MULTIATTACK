@@ -112,7 +112,21 @@ TODO:
 6) Have the character kick off a "stop attack on Target" attempt
    when the character moves.
 
+    check
+
+      The attack vector resource handlers listen for a character
+      move and unreserve the resource: no more resources, no more
+      attacks.
+
 7) Have attack vectors stop attacking on parent character death
+
+    check
+
+8) Resource properties should be PIDs, not names
+
+  We shouldn't need _resource_inject_self if we have the pids
+  of the resources.
+
 
 ASSUME NETWORK COST IS ZERO
 
