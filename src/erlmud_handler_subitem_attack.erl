@@ -71,31 +71,31 @@ attempt({#parents{top_item = TopItem},
 %% Defending: hit and damage
 %% I'm going to have to have top items broadcast wielded
 %% and active when their states change.
-attempt({#parents{top_item = #top_item{item = TopItem}},
+attempt({#parents{character = Character},
          Props,
-         {Attacker, calc, Hit, on, Character, with, AttackVector}}) ->
+         {_Attacker, calc, Hit, on, Character, with, AttackVector}}) ->
     case is_interested(Props) of
         true ->
-            case proplists:get_value(attack_hit_modifier, Props) of
+            case proplists:get_value(defence_hit_modifier, Props) of
                 undefined ->
                     {succeed, false, Props};
                 Amount ->
-                    {succeed, {Character, calc, Hit + Amount, on, Target, with, TopItem}}
+                    {succeed, {Character, calc, Hit + Amount, on, Character, with, AttackVector}}
             end;
         _ ->
             {succeed, false, Props}
     end;
-attempt({#parents{top_item = TopItem},
+attempt({#parents{character = Character},
          Props,
-         {Character, damage, Damage, to, Target, with, TopItem}}) ->
+         {Character, damage, Damage, to, Target, with, AttackVector}}) ->
 
     case is_interested(Props) of
         true ->
-            case proplists:get_value(attack_damage_modifier, Props) of
+            case proplists:get_value(defence_damage_modifier, Props) of
                 undefined ->
                     {succeed, false, Props};
                 Amount ->
-                    {succeed, {Character, calc, Damage + Amount, on, Target, with, TopItem}}
+                    {succeed, {Character, calc, Damage + Amount, on, Target, with, AttackVector}}
             end;
         _ ->
             {succeed, false, Props}

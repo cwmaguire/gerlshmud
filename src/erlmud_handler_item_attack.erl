@@ -46,6 +46,10 @@ attempt({#parents{character = Character,
             {false, "Item is not wielded or is not activated"}
     end;
 
+%% TODO handle counterattack and, if we're already attacking something,
+%%      decide whether to switch targets.
+%%      (maybe even kick of a 'switch_targets' attack)
+
 %% Defending
 %% I don't think we need to know when someone attacks our character,
 %% we'll automatically get events for calc-hit and calc-damage
@@ -119,6 +123,44 @@ attempt({_, _, _Msg}) ->
 succeed({Props, {Character, attack, Target}}) when is_pid(Target) ->
     erlmud_object:attempt(self(), {Character, attack, Target, with, self()}),
     Props;
+
+%% An attack by our character has been successfully instigated using this process:
+%% we'll register for resources and implement the attack when we have them.
+succeed({Props, {Character, attack, Target, with, _Self}}) ->
+    reserve(Character, proplists:get_value(resources, Props, [])),
+    lists:keystore(target, 1, Props, {target, Target});
+
+succeed({Props, {Character, stop_attack}}) ->
+    unreserve(Character, Props),
+    [{is_attacking, false} | Props];
+
+succeed({Props, {Character, calc, Hit, on, Target, with, Self}})
+  when is_pid(Target),
+       Self == self(),
+       Hit > 0 ->
+    erlmud_object:attempt(self(), {Character, calc, _InitialDamage = 0, to, Target, with, Self}),
+    Props;
+
+succeed({Props, {_Character, calc, _Miss, on, Target, with, Self}})
+  when is_pid(Target),
+       Self == self() ->
+    % TODO: say "you missed!"
+    Props;
+
+succeed({Props, {Character, calc, Damage, to, Target, with, Self}})
+  when Self == self(),
+       Damage > 0 ->
+    erlmud_object:attempt(self(), {Character, does, Damage, to, Target, with, Self}),
+    Props;
+
+succeed({Props, {_Character, calc, _NoDamage, to, _Target, with, Self}})
+  when Self == self() ->
+    %% Attack failed (No damage was done)
+    %% TODO: output something to the client like
+    %% "You manage to hit <target> but fail to do any damage"
+    %%       _if_ this is a player
+    Props;
+
 succeed({Props, _}) ->
     Props.
 
@@ -144,6 +186,18 @@ is_wielded(BodyPart, Props) when is_pid(BodyPart) ->
 
 active(Props) ->
     proplists:get_value(active, Props, false).
+
+unreserve(Owner, Props) ->
+    reserve_op(unreserve, Owner, Props).
+
+reserve(Owner, Props) ->
+    reserve_op(reserve, Owner, Props).
+
+reserve_op(Op, Character, Props) when is_list(Props) ->
+    [reserve_op(Op, Character, R) || R <- proplists:get_value(resources, Props, [])];
+
+reserve_op(Op, Character, Resource) ->
+    erlmud_object:attempt(self(), {Character, Op, Resource, for, self()}).
 
 %log(Level, IoData) ->
     %erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).

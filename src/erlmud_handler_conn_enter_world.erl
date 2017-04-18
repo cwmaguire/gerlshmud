@@ -13,11 +13,15 @@
 -module(erlmud_handler_conn_enter_world).
 -behaviour(erlmud_handler).
 
+-include("include/erlmud.hrl").
+
 -export([attempt/1]).
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({Owner, Props, {enter_world, Owner, _Room, Self}}) when Self == self() ->
+attempt({#parents{owner = Owner},
+         Props,
+         {enter_world, Owner, _Room, Self}}) when Self == self() ->
     {succeed, true, Props};
 attempt(_) ->
     undefined.

@@ -14,12 +14,14 @@
 -module(erlmud_handler_char_inject_self).
 -behaviour(erlmud_handler).
 
+-include("include/erlmud.hrl").
+
 -export([attempt/1]).
 -export([succeed/1]).
 -export([fail/1]).
 
 %attempt({_Owner, Props, {Action, Obj, ItemName, BodyPart}})
-attempt({_Owner, Props, {Attacker, attack, TargetName}})
+attempt({#parents{}, Props, {Attacker, attack, TargetName}})
   when is_binary(TargetName) ->
     case is_name(Props, TargetName) of
         true ->

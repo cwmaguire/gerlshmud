@@ -47,7 +47,9 @@ attempt({#parents{owner = Owner},
     NewMessage = {set_child_properties, self(), ParentProps},
     Props2 = lists:foldl(fun apply_parent_prop/2, Props, ParentProps),
     {{broadcast, NewMessage}, false, Props2};
-attempt({Owner, Props, {clear_child_property, Owner, Key = top_item, TopItem}}) ->
+attempt({#parents{owner = Owner},
+         Props,
+         {clear_child_property, Owner, Key = top_item, TopItem}}) ->
     NewMessage = {clear_child_property, self(), Key, TopItem},
     %% Only clear the top item if our #top_item{} has the same top_item Pid.
     %% Otherwise another item may have already set our top_item to itself
@@ -58,7 +60,9 @@ attempt({Owner, Props, {clear_child_property, Owner, Key = top_item, TopItem}}) 
                      Props
              end,
     {{broadcast, NewMessage}, false, Props2};
-attempt({Owner, Props, {clear_child_property, Owner, Key, Value}}) ->
+attempt({#parents{owner = Owner},
+         Props,
+         {clear_child_property, Owner, Key, Value}}) ->
     NewMessage = {clear_child_property, self(), Key, Value},
     Props2 = case proplists:get_value(Key, Props) of
                  Value ->

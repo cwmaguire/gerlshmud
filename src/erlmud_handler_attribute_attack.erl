@@ -27,73 +27,88 @@
 %%
 %% This attribute can be for a character, a body part or an item.
 %%
-attempt({Owner, Props, Attack = #attack{calc_type = CalcType}})
-  when (CalcType == hit orelse
-        CalcType == damage orelse
-        CalcType == wait) ->
-    case is_interested(activity_props(Props)) of
+
+%% Attack
+attempt({#parents{character = Character,
+                  top_item = TopItem = #top_item{item = Item}},
+         Props,
+         {Character, calc, Hit, on, Target, with, Item}}) ->
+    case is_interested(TopItem, Props) of
         true ->
-            case source_or_target(Owner, Attack, Props) of
-                source ->
-                    erlmud_attack:update_attack(Attack, source, Props);
-                dest ->
-                    erlmud_attack:update_attack(Attack, target, Props);
+            case proplists:get_value(attack_hit_modifier, Props) of
                 undefined ->
-                    {succeed, false, Props}
+                    {succeed, false, Props};
+                Amount ->
+                    {succeed, {Character, calc, Hit + Amount, on, Target, with, Item}}
             end;
-        false ->
+        _ ->
+            {succeed, false, Props}
+    end;
+attempt({#parents{character = Character,
+                  top_item = TopItem = #top_item{item = Item}},
+         Props,
+         {Character, damage, Damage, to, Target, with, Item}}) ->
+    case is_interested(TopItem, Props) of
+        true ->
+            case proplists:get_value(attack_damage_modifier, Props) of
+                undefined ->
+                    {succeed, false, Props};
+                Amount ->
+                    {succeed, {Character, calc, Damage + Amount, on, Target, with, Item}}
+            end;
+        _ ->
+            {succeed, false, Props}
+    end;
+
+%% Defend
+attempt({#parents{character = Character,
+                  top_item = TopItem = #top_item{item = Item}},
+         Props,
+         {Character, calc, Hit, on, Target, with, Item}}) ->
+    case is_interested(TopItem, Props) of
+        true ->
+            case proplists:get_value(defend_hit_modifier, Props) of
+                undefined ->
+                    {succeed, false, Props};
+                Amount ->
+                    {succeed, {Character, calc, Hit - Amount, on, Target, with, Item}}
+            end;
+        _ ->
+            {succeed, false, Props}
+    end;
+attempt({#parents{character = Character,
+                  top_item = TopItem = #top_item{item = Item}},
+         Props,
+         {Character, damage, Damage, to, Target, with, Item}}) ->
+    case is_interested(TopItem, Props) of
+        true ->
+            case proplists:get_value(defend_damage_modifier, Props) of
+                undefined ->
+                    {succeed, false, Props};
+                Amount ->
+                    {succeed, {Character, calc, Damage - Amount, on, Target, with, Item}}
+            end;
+        _ ->
             {succeed, false, Props}
     end;
 attempt({_, _, _Msg}) ->
     undefined.
 
-is_interested({item, BodyPart, _}) when BodyPart /= undefined->
+is_interested(#top_item{is_wielded = true,
+                        is_active = true},
+              _Props) ->
     true;
-is_interested({item, _NoBodyPart, _MustBeInUse = false}) ->
-    true;
-is_interested({item, _NoBodyPart, _MustBeInUse}) ->
-    false;
-is_interested({_NotItem, _DoesntMatter, _DoesntMatter}) ->
+is_interested(#top_item{}, Props) ->
+    proplists:get_value(must_be_wielded, Props, false);
+is_interested(_, _) ->
+    %% Everything that isn't bound to an item is always active for now
     true.
-
-activity_props(Props) ->
-    activity_props(proplists:get_value(top_item, Props), Props).
-
-%% When an item is in use it will be worn on, or wielded by, a body
-%% part. That is, it will have a body part property, similar to
-%% 'top_item', except that body parts don't have sub-parts.
-activity_props(item, Props) -> %% Why would proplists:get_value(top_item, Props) return 'item'?
-    activity_props(item, proplists:get_value(body_part, Props), Props);
-activity_props(_, _) ->
-    {not_item, undefined, undefined}.
-
-activity_props(item, BodyPart = undefined, _Props) ->
-    {item, BodyPart, undefined};
-activity_props(item, BodyPart, Props) ->
-    {item, BodyPart, proplists:get_value(must_be_in_use, Props, false)}.
-
 
 succeed({Props, _}) ->
     Props.
 
 fail({Props, _, _}) ->
     Props.
-
-source_or_target(Owner, Attack, Props) when is_list(Props) ->
-    Character = proplists:get_value(character, Props),
-    source_or_target(Attack, Owner, Character);
-source_or_target(#attack{source = Owner}, Owner, _) ->
-    source;
-source_or_target(#attack{source = Character}, _, Character) ->
-    source;
-source_or_target(#attack{weapon = BodyPart}, Owner, _) when BodyPart == Owner ->
-    source;
-source_or_target(#attack{target = Owner}, Owner, _) ->
-    target;
-source_or_target(#attack{target = Character}, _, Character) ->
-    target;
-source_or_target(_, _, _) ->
-    undefined.
 
 %log(Level, IoData) ->
     %erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).

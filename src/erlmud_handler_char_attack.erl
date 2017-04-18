@@ -20,67 +20,17 @@
 
 -include("include/erlmud.hrl").
 
-attempt({#parents{}, Props, {Self, attack, Target}})
-  when Self == self(),
-       is_pid(Target) ->
-    {succeed, true, Props};
-attempt({#parents{}, Props, {Self, stop_attacking}}) ->
-    {succeed, true, Props};
-
 attempt(_) ->
     undefined.
 
-succeed({Props, {attack, Self, Target}}) when Self == self() ->
-    log(debug, [<<"{attack, self(), ">>,
-                case Target of
-                    TPid when is_pid(TPid) -> TPid;
-                    TBin -> TBin
-                end,
-                <<"} succeeded.">>]),
-    %% Do we keep looping over this (it sends {attack, self(), Target})
-    %% until something stops the attack?
-    attack(Target, lists:keydelete(attack, 1, Props));
-succeed({Props, {stop_attack, AttackPid}}) ->
-    log(debug, [<<"Character ">>, self(), <<" attack ">>, AttackPid, <<" stopped; remove (if applicable) from props:\n\t">>, Props, <<"\n">>]),
-    lists:filter(fun({attack, {Pid, _}})
-                       when Pid == AttackPid ->
-                         false;
-                    (_) ->
-                         true
-                 end,
-                 Props);
-% Individual vectors should watch for character death
-%succeed({Props, {die, Self}}) when Self == self() ->
-    %lists:keydelete(attack, 1, lists:keydelete(target, 1, Props));
+%% TODO make it so these are only called if necessary
+%% ... but then, this module probably isn't necessary at all.
 succeed({Props, _}) ->
     Props.
 
-%fail({Props, target_is_dead, {calc_hit, _, _, _, _}}) ->
-    %Attack = proplists:get_value(attack, Props),
-    %log(debug, [<<"Remove attack ">>, Attack, <<"because target is dead">>]),
-    %lists:keydelete(attack, 1, Props);
 fail({Props, _, _}) ->
     Props.
 
-%% Individual attack vectors 
-
-attack(Target, Props) ->
-    %Args = [_Id = undefined,
-            %_Props = [{owner, self()},
-                      %{target, Target},
-                      %{name, <<"attack">>},
-                      %{handlers, [erlmud_handler_attack,
-                                  %erlmud_handler_set_child_property]}]],
-    %{ok, Attack} = supervisor:start_child(erlmud_object_sup, Args),
-    %log(debug, [<<"Attack ">>, Attack, <<" started, sending attempt and subscribing\n">>]),
-    %erlmud_object:attempt(Attack,
-                          %{self(), {attack, Attack}, Target},
-                          %_ShouldSub = true),
-    %[{attack, Attack}, {target, Target} | Props].
-
-    erlmud_object:attempt(self(), {self(), attack, Target}, _ShouldSub = true),
-    Props.
-
-log(Level, IoData) ->
-    erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).
+%log(Level, IoData) ->
+    %erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).
 

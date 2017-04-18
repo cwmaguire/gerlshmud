@@ -19,14 +19,18 @@
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({Owner, Props, {_Character, does, _Damage, to, Owner, with, _Vector}}) ->
+-include("include/erlmud.hrl").
+
+attempt({#parents{owner = Owner},
+         Props,
+         {_Character, does, _Damage, to, Owner, with, _AttackVector}}) ->
     {succeed, true, Props};
 attempt(_) ->
     undefined.
 
-succeed({Props, Msg = {Attacker, does, Damage, to, Owner, with, _Vector}}) ->
+succeed({Props, Msg = {Attacker, does, Damage, to, Owner, with, AttackVector}}) ->
     log([<<"saw ">>, Msg, <<"succeed">>]),
-    take_damage(Attacker, Owner, Damage, Props);
+    take_damage(Attacker, Owner, Damage, AttackVector, Props);
 succeed({Props, _Msg}) ->
     Props.
 
@@ -34,14 +38,14 @@ fail({Props, Message, _Reason}) ->
     log([<<"saw ">>, Message, <<" fail with props ">>, Props]),
     Props.
 
-take_damage(Attacker, Owner, Damage, Props) ->
+take_damage(Attacker, Owner, Damage, AttackVector, Props) ->
     log([<<"taking ">>, Damage, <<" points of damage.">>]),
     Hp = proplists:get_value(hitpoints, Props, 0) - Damage,
     case Hp of
         X when X < 1 ->
             log([<<"dying; hp = ">>, Hp]),
             Owner = proplists:get_value(owner, Props),
-            erlmud_object:attempt(Owner, {killed, Attacker, Owner});
+            erlmud_object:attempt(Owner, {Attacker, killed, Owner, with, AttackVector});
         _ ->
             log([<<"Not dying; hitpoints = ">>, Hp]),
             ok

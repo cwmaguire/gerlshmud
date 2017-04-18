@@ -14,23 +14,31 @@
 -module(erlmud_handler_body_part_inv).
 -behaviour(erlmud_handler).
 
+-include("include/erlmud.hrl").
+
 -export([can_add/2]).
 
 -export([attempt/1]).
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({Owner, Props, {move, Item, from, Self, to, Owner}})
+attempt({#parents{owner = Owner},
+         Props,
+         {move, Item, from, Self, to, Owner}})
   when Self == self(),
        is_pid(Item) ->
     {succeed, has_item(Item, Props), Props};
-attempt({Owner, Props, {move, Item, from, Owner, to, Self}})
+attempt({#parents{owner = Owner},
+         Props,
+         {move, Item, from, Owner, to, Self}})
   when Self == self(),
        is_pid(Item) ->
     NewMessage = {move, Item, from, Owner, to, Self, item_body_parts},
     Result = {resend, Owner, NewMessage},
     {Result, _Subscribe = true, Props};
-attempt({Owner, Props, {move, Item, from, Owner, to, Self, ItemBodyParts}})
+attempt({#parents{owner = Owner},
+         Props,
+         {move, Item, from, Owner, to, Self, ItemBodyParts}})
   when Self == self(),
        is_pid(Item),
        is_list(ItemBodyParts) ->

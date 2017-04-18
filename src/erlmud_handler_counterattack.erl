@@ -18,58 +18,37 @@
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({_Owner, Props, {damage, _Att, _Src, Self, _Dmg}}) when Self == self() ->
+-include("include/erlmud.hrl").
+
+%% Someone has damaged us
+attempt({#parents{},
+         Props,
+         {_Attacker, does, _Damange, to, Self, with, _AttackVector}})
+  when Self == self() ->
     log([<<"caught damager attempt">>]),
     {succeed, true, Props};
-attempt({_Owner, Props, {attack, _Att, Self, _Target}}) when Self == self() ->
+
+%% Someone is intending to attack us
+attempt({#parents{}, Props, {_Attacker, attack, Self}}) when Self == self() ->
     log([<<"caught attack attempt">>]),
     {succeed, true, Props};
-attempt({_Owner, Props, {stop_attack, Attack, Self, _Target}}) when Self == self() ->
-    log([<<"caught stop_attack attempt">>]),
-    case [Pid || {attack, Pid, _} <- Props, Pid == Attack] of
-        [_ | _] ->
-            lists:keydelete(attack, 1, Props);
-        _ ->
-            Props
-    end;
+
 attempt({_Owner, _Props, _Attempt}) ->
     %log([self(), <<" caught attempt but not subscribing">>, Attempt]),
     undefined.
 
-%succeed({Props, {attack, Attack, Self, Target}}) when Self == self() ->
-    %% I'm guessing this replaces the {attack, AttackPid} property
-    %% that erlmud_handler_char_attack adds
-    %% (previously erlmud_character)
-    %% No, this was it's own process so it had it's own
-    %% properties.
-    %lists:keystore(attack, 1, Props, {attack, {Attack, Target}});
-%% should we always counter-attack the most recent attacker?
-%% That should be an option for the particular behaviour to decide:
-%% a particularly tenacious enemy will stick to one attacker; a less decisive
-%% enemy might keep switching to attack the most recent thing that attacked it.
-%% (e.g. something stupid, or with a short memory)
-succeed({Props, {damage, _Att, Attacker, Self, _Dmg}}) when Self == self() ->
-    %log([<<"caught damage succeeded ">>]),
-
-    %% pitbull attack: stick with first character that damages us
-    %% TODO: make sure the attack originates from something we can attack back,
-    %%       not a poison or extreme cold or something.
-    Attack = proplists:get_value(attack, Props),
+succeed({Props, {Attacker, does, _Damage, to, _Character, with, AttackVector}}) ->
     Target = proplists:get_value(target, Props),
-    _ = case is_pid(Attack) andalso is_pid(Target) of
+    _ = case is_pid(Target) of
         false ->
             log([<<"no attacks yet, attack back props: ">>, Props]),
-            AttackWait = proplists:get_value(attack_wait, Props, 1000),
-            erlmud_object:attempt_after(AttackWait,
-                                        self(),
-                                        {attack, self(), Attacker});
+            erlmud_object:attempt(self(), {self(), counter_attack, Attacker});
         true ->
-            log([<<"already attacking ">>, Target, <<" with ">>, Attack, <<". Stick with it. Props: ">>, Props]),
+            log([<<"already attacking ">>, Target, <<" with ">>, AttackVector, <<". Stick with it. Props: ">>, Props]),
             ok
     end,
     Props;
 succeed({Props, _}) ->
-    %log([<<"Counterattack saw some success">>]),
     Props.
 
 fail({Props, Result, Msg}) ->
