@@ -25,8 +25,7 @@ attempt({#parents{}, Props, {Attacker, attack, TargetName}})
   when is_binary(TargetName) ->
     case is_name(Props, TargetName) of
         true ->
-            AttackTypes = proplists:get_value(attack_types, Props),
-            NewMessage = {Attacker, attack, self(), with, AttackTypes},
+            NewMessage = {Attacker, attack, self()},
             Result = {resend, Attacker, NewMessage},
             {Result, true, Props};
         _ ->
