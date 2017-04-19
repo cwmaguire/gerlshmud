@@ -113,7 +113,7 @@ fail({Props, _, _}) ->
     Props.
 
 is_interested(Props) ->
-    IsActive = true =:= proplists:get_value(active, Props),
+    IsActive = true =:= proplists:get_value(is_active, Props),
     IsActive andalso is_top_item_interested(Props).
 
 is_top_item_interested(Props) ->

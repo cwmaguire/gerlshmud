@@ -34,16 +34,20 @@
 -include("include/erlmud.hrl").
 
 %% Attacking
-attempt({#parents{character = Character,
-                  body_part = BodyPart},
+attempt({#parents{character = Character},
+         Props,
+         {Character, attack, _Target}}) ->
+    {succeed, true, Props};
+
+attempt({#parents{character = Character},
          Props,
          {Character, attack, _Target, with, Self}})
   when Self == self() ->
-    case is_wielded(BodyPart, Props) andalso active(Props) of
+    case is_interested(Props) of
         true ->
-            {true, true, Props};
+            {succeed, true, Props};
         false ->
-            {false, "Item is not wielded or is not activated"}
+            {{fail, "Item is not wielded or is not activated"}, false, Props}
     end;
 
 %% TODO handle counterattack and, if we're already attacking something,
@@ -168,24 +172,20 @@ fail({Props, _, _}) ->
     Props.
 
 is_interested(Props) ->
-    true =:= is_wielded(Props) andalso
-    true =:= proplists:get_value(active, Props).
+    is_wielded(Props) andalso is_active(Props).
 
 is_wielded(Props) ->
     BodyPart = proplists:get_value(body_part, Props),
     is_wielded(BodyPart, Props).
 
-is_wielded(BodyPart, Props) when is_pid(BodyPart) ->
+is_wielded({BodyPart, BodyPartType}, Props) when is_pid(BodyPart) ->
     WieldingBodyParts = proplists:get_value(wielding_body_parts, Props, []),
-    case proplists:get_value(body_part, Props) of
-        {_, BodyPartType} ->
-            lists:member(BodyPartType, WieldingBodyParts);
-        _ ->
-            false
-    end.
+    lists:member(BodyPartType, WieldingBodyParts);
+is_wielded(_, _) ->
+    false.
 
-active(Props) ->
-    proplists:get_value(active, Props, false).
+is_active(Props) ->
+    true == proplists:get_value(is_active, Props, false).
 
 unreserve(Owner, Props) ->
     reserve_op(unreserve, Owner, Props).
