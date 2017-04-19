@@ -1,3 +1,5 @@
+-define(PID(Value), {pid, Value}).
+
 -define(UNIVERSAL_HANDLERS, erlmud_handler_set_child_property).
 
 -define(ROOM_HANDLERS, {handlers, [erlmud_handler_room_inject_self,
@@ -80,10 +82,17 @@
                   {p_life, [{is_alive, true},
                             {owner, player},
                             ?LIFE_HANDLERS]},
+                  {hand0, [{name, <<"hand0">>},
+                           {owner, player},
+                           {max_items, 1},
+                           {body_part, hand},
+                           ?BODY_PART_HANDLERS]},
                   {fist, [{attack_damage_modifier, 5},
-                          {owner, player},
+                          {owner, hand0},
                           {character, player},
                           {wielding_body_parts, [hand]},
+                          {body_part, {?PID(hand0), hand}},
+                          {is_active, true},
                           ?ITEM_HANDLERS]},
                   {dexterity0, [{attack_hit_modifier, 1},
                                 {owner, player},

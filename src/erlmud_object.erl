@@ -316,7 +316,13 @@ send_(Pid, Msg) ->
 
 
 populate_(Props, IdPids) ->
-    [{K, proc(V, IdPids)} || {K, V} <- Props].
+    {_, Props2} = lists:foldl(fun set_pid/2, {IdPids, []}, Props),
+    Props2.
+
+set_pid({K, {{pid, V1}, V2}}, {IdPids, Props}) ->
+    {IdPids, [{K, {proc(V1, IdPids), V2}} | Props]};
+set_pid({K, V}, {IdPids, Props}) ->
+    {IdPids, [{K, proc(V, IdPids)} | Props]}.
 
 proc(MaybeId, IdPids) when is_atom(MaybeId) ->
     MaybePid = proplists:get_value(MaybeId, IdPids, MaybeId),
