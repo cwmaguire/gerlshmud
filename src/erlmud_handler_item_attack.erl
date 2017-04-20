@@ -47,7 +47,7 @@ attempt({#parents{character = Character},
         true ->
             {succeed, true, Props};
         false ->
-            {{fail, "Item is not wielded or is not activated"}, false, Props}
+            {{fail, <<"Item is not wielded or is not activated">>}, false, Props}
     end;
 
 %% TODO handle counterattack and, if we're already attacking something,
@@ -131,12 +131,14 @@ succeed({Props, {Character, attack, Target}}) when is_pid(Target) ->
 %% An attack by our character has been successfully instigated using this process:
 %% we'll register for resources and implement the attack when we have them.
 succeed({Props, {Character, attack, Target, with, _Self}}) ->
-    reserve(Character, proplists:get_value(resources, Props, [])),
-    lists:keystore(target, 1, Props, {target, Target});
+    reserve(Character, Props),
+    Props2 = lists:keystore(target, 1, Props, {target, Target}),
+    _Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, true});
 
 succeed({Props, {Character, stop_attack}}) ->
     unreserve(Character, Props),
-    [{is_attacking, false} | Props];
+    Props2 = lists:keystore(target, 1, Props, {target, undefined}),
+    _Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, false});
 
 succeed({Props, {Character, calc, Hit, on, Target, with, Self}})
   when is_pid(Target),
@@ -187,17 +189,18 @@ is_wielded(_, _) ->
 is_active(Props) ->
     true == proplists:get_value(is_active, Props, false).
 
-unreserve(Owner, Props) ->
-    reserve_op(unreserve, Owner, Props).
+unreserve(Character, Props) when is_list(Props) ->
+    [unreserve(Character, Resource) || {Resource, _Amt} <- proplists:get_value(resources, Props, [])];
+unreserve(Character, Resource) ->
+    erlmud_object:attempt(self(), {Character, unreserve, Resource, for, self()}).
 
-reserve(Owner, Props) ->
-    reserve_op(reserve, Owner, Props).
+reserve(Character, Props) when is_list(Props) ->
+    log(debug, [<<"Reserving">>]),
+    [reserve(Character, Resource, Amount) || {Resource, Amount} <- proplists:get_value(resources, Props, [])].
 
-reserve_op(Op, Character, Props) when is_list(Props) ->
-    [reserve_op(Op, Character, R) || R <- proplists:get_value(resources, Props, [])];
+reserve(Character, Resource, Amount) ->
+    log(debug, [<<"Reserving">>, list_to_binary(integer_to_list(Amount)), <<"of">>, list_to_binary(atom_to_list(Resource))]),
+    erlmud_object:attempt(self(), {Character, reserve, Amount, 'of', Resource, for, self()}).
 
-reserve_op(Op, Character, Resource) ->
-    erlmud_object:attempt(self(), {Character, Op, Resource, for, self()}).
-
-%log(Level, IoData) ->
-    %erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).
+log(Level, IoData) ->
+    erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).

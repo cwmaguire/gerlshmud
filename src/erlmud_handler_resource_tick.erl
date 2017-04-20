@@ -33,7 +33,7 @@ attempt({#parents{}, Props, {Self, tick, Ref, with, _Count}})
         Ref ->
             {succeed, true, Props};
         _ ->
-            {fail, unmatched_tick}
+            {{fail, <<"unmatched (stale?) resource tick">>}, false, Props}
     end;
 
 attempt(_) ->
@@ -45,6 +45,7 @@ succeed({Props, {Self, tick, Ref, with, Count}})
     Current = proplists:get_value(current, Props, 0),
     Max = proplists:get_value(max, Props, 0),
     New = min(Count + Current, Max),
+    PerTick = proplists:get_value(per_tick, Props, 1),
     Reservations = proplists:get_value(reservations, Props, []),
     {RotatedReservations, Remaining} =
         case {Reservations, New} of
@@ -54,11 +55,11 @@ succeed({Props, {Self, tick, Ref, with, Count}})
                 %% For now just make each tick take at _least_ a
                 %% second instead of trying to wait close to a second,
                 %% or tyring to correct for a long previous tick.
-                erlmud_object:attempt_after(1000, Self, {Self, tick, Ref, with, 1}),
+                erlmud_object:attempt_after(1000, Self, {Self, tick, Ref, with, PerTick}),
                 Type = proplists:get_value(type, Props),
                 allocate(Type, Reservations, New)
         end,
-    OtherProps = proptlists:delete(reservations, proplists:delete(current, Props)),
+    OtherProps = lists:keydelete(reservations, 1, lists:keydelete(current, 1, Props)),
     [{current, Remaining}, {reservations, RotatedReservations} | OtherProps];
 
 succeed({Props, _}) ->

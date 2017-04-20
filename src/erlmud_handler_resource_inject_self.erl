@@ -28,12 +28,13 @@
 %% need to inject ourself
 attempt({#parents{owner = Owner},
          Props,
-         {Owner, reserve, Amt, 'of', ResourceType, for, AttackVector}}) ->
-    case proplists:get_value(resource_type, Props) of
+         {Owner, reserve, Amt, 'of', ResourceType, for, AttackVector}}) 
+  when is_atom(ResourceType) ->
+    case proplists:get_value(type, Props) of
         ResourceType ->
             NewMessage = {Owner, reserve, Amt, 'of', self(), for, AttackVector},
             Result = {resend, Owner, NewMessage},
-            {Result, _Subscribe = true, Props};
+            {Result, _Subscribe = false, Props};
         _ ->
             {succeed, false, Props}
     end;

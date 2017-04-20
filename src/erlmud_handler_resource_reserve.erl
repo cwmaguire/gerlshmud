@@ -21,15 +21,10 @@
 -export([fail/1]).
 
 % if something reserves us and we have the same owner
-attempt({_Owner, Props, {Character, reserve, _Amount, 'of', Self, for, _Proc}})
+attempt({#parents{owner = Owner}, Props, {Owner, reserve, _Amount, 'of', Self, for, _Proc}})
   when Self == self() ->
-    case proplists:get_value(character, Props) of
-        Character ->
-            {succeed, true, Props};
-        _ ->
-            {succeed, false, Props}
-    end;
-attempt({_Owner, Props, {Character, unreserve, Self, for, _Proc}})
+    {succeed, true, Props};
+attempt({#parents{}, Props, {Character, unreserve, Self, for, _Proc}})
   when Self == self() ->
     case proplists:get_value(character, Props) of
         Character ->
@@ -46,13 +41,13 @@ attempt(_) ->
 succeed({Props, {_Character, reserve, Amount, 'of', Self, for, Proc}})
   when Self == self() ->
     log(debug, [<<"Reserving ">>, Amount, <<" of ">>, Self, <<" for ">>, Proc, <<"\n">>]),
-    Reservations = proplists:get(reservations, Props, []),
+    Reservations = proplists:get_value(reservations, Props, []),
     Props2 = [{reservations, Reservations ++ [{Proc, Amount}]} | proplists:delete(reservations, Props)],
     update_tick(Props2);
 succeed({Props, {_Character, unreserve, Self, for, Proc}})
   when Self == self() ->
     log(debug, [<<"Unreserving ">>, Self, <<" for ">>, Proc, <<"\n">>]),
-    Reservations = proplists:get(reservations, Props, []),
+    Reservations = proplists:get_value(reservations, Props, []),
     Props2 = [{reservations, lists:delete(Proc, Reservations)} | proplists:delete(reservations, Props)],
     update_tick(Props2);
 succeed({Props, _}) ->
@@ -67,17 +62,18 @@ log(Level, IoData) ->
 update_tick(Props) ->
     Self = self(),
     log(debug, [Self, <<" updating tick">>, <<"\n">>]),
-    Reservations = proplists:get(reservations, Props, []),
-    Tick = proplists:get(tick, Props, undefined),
+    Reservations = proplists:get_value(reservations, Props, []),
+    Tick = proplists:get_value(tick, Props, undefined),
+    PerTick = proplists:get_value(per_tick, Props, 1),
     case {Reservations, Tick} of
         {[_ | _], undefined} ->
             log(debug, [Self, <<" creating new tick">>, <<"\n">>]),
             Ref = make_ref(),
-            erlmud_object:attempt(Self, {Self, tick, Ref, with, 1}),
+            erlmud_object:attempt(Self, {Self, tick, Ref, with, PerTick}),
             [{tick, Ref} | Props];
         {[], _} ->
             log(debug, [Self, <<" deleting tick">>, <<"\n">>]),
-            proplists:delete(tick, Props);
+            lists:keydelete(tick, 1, Props);
         _ ->
             Props
     end.
