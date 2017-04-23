@@ -74,7 +74,6 @@
                           ?ROOM_HANDLERS]},
 
                   {player, [{owner, room},
-                            %{attack_wait, 10},
                             {item, p_fist},
                             {hitpoints, p_hp},
                             {life, p_life},
@@ -446,7 +445,7 @@
                   {stealth, [{owner, transmitter},
                              ?ATTRIBUTE_HANDLERS]} ]).
 
--define(WORLD_10, [{room, [{player},
+-define(WORLD_10, [{room, [{character, player},
                            {item, rifle},
                            ?ROOM_HANDLERS]},
 

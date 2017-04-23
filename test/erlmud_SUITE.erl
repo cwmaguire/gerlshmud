@@ -7,29 +7,30 @@
 
 % TODO test cancelling an attack by moving
 
-all() -> [player_attack].
-%all() ->
-    %[player_move,
-     %player_move_fail,
-     %player_move_exit_locked,
-     %player_get_item,
-     %player_drop_item,
-     %character_owner_add_remove,
-     %player_attack,
-     %player_attack_wait,
-     %attack_with_modifiers,
-     %one_sided_fight,
-     %counterattack_behaviour,
-     %player_wield,
-     %player_wield_first_available,
-     %player_wield_missing_body_part,
-     %player_wield_wrong_body_part,
-     %player_wield_body_part_is_full,
-     %player_remove,
-     %look_player,
-     %look_room,
-     %look_item,
-     %set_character].
+%all() -> [player_attack].
+%all() -> [character_owner_add_remove].
+all() ->
+    [player_move,
+     player_move_fail,
+     player_move_exit_locked,
+     player_get_item,
+     player_drop_item,
+     character_owner_add_remove,
+     player_attack,
+     player_resource_wait,
+     attack_with_modifiers,
+     one_sided_fight,
+     counterattack_behaviour,
+     player_wield,
+     player_wield_first_available,
+     player_wield_missing_body_part,
+     player_wield_wrong_body_part,
+     player_wield_body_part_is_full,
+     player_remove,
+     look_player,
+     look_room,
+     look_item,
+     set_character].
 
 init_per_testcase(_, Config) ->
     {ok, _Started} = application:ensure_all_started(erlmud),
@@ -157,18 +158,20 @@ player_attack(Config) ->
     false = val(is_alive, z_life),
     0 = val(hitpoints, z_hp).
 
-player_attack_wait(Config) ->
+player_resource_wait(Config) ->
     start(?WORLD_3),
     Player = erlmud_index:get(player),
+    Fist = erlmud_index:get(p_fist),
+    Stamina = erlmud_index:get(p_stamina),
     Zombie = erlmud_index:get(zombie),
-    erlmud_object:set(Player, {attack_wait, 10000}),
+    erlmud_object:set(Stamina, {current, 5}),
+    erlmud_object:set(Stamina, {tick_time, 10000}),
     attempt(Config, Player, {Player, attack, <<"zombie">>}),
     ?WAIT100,
     5 = val(hitpoints, z_hp),
     true = val(is_alive, z_life),
-    Attack = val(attack, Player),
-    Zombie = val(target, Player),
-    true = is_pid(Attack).
+    true = val(is_attacking, p_fist),
+    Zombie = val(target, Fist).
 
 one_sided_fight(Config) ->
     start(?WORLD_3),
