@@ -46,6 +46,7 @@ succeed({Props, {Self, tick, Ref, with, Count}})
     Max = proplists:get_value(max, Props, 0),
     New = min(Count + Current, Max),
     PerTick = proplists:get_value(per_tick, Props, 1),
+    TickTime = proplists:get_value(tick_time, Props, _OneSecond = 1000),
     Reservations = proplists:get_value(reservations, Props, []),
     {RotatedReservations, Remaining} =
         case {Reservations, New} of
@@ -55,7 +56,7 @@ succeed({Props, {Self, tick, Ref, with, Count}})
                 %% For now just make each tick take at _least_ a
                 %% second instead of trying to wait close to a second,
                 %% or tyring to correct for a long previous tick.
-                erlmud_object:attempt_after(1000, Self, {Self, tick, Ref, with, PerTick}),
+                erlmud_object:attempt_after(TickTime, Self, {Self, tick, Ref, with, PerTick}),
                 Type = proplists:get_value(type, Props),
                 allocate(Type, Reservations, New)
         end,
@@ -72,7 +73,7 @@ log(Level, IoData) ->
     erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).
 
 allocate(Type, [{Proc, Required} | Reservations], Available)
-  when Available > Required ->
+  when Available >= Required ->
     erlmud_object:attempt(Proc, {allocate, Required, 'of', Type, to, Proc}),
     RotatedReservations = Reservations ++ [{Proc, Required}],
     allocate(Type, RotatedReservations, Available - Required);

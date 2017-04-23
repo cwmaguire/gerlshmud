@@ -35,13 +35,6 @@ attempt({#parents{character = Character,
          {Character, attack, _Target, with, Owner}}) ->
     {succeed, true, Props};
 
-attempt({#parents{owner = Owner},
-         Props,
-         {allocate, _Required, 'of', _Type, to, Owner}}) ->
-    %% I could check if we need this resource, but we should only get it
-    %% because the owner is attacking and registered to receive it.
-    {succeed, true, Props};
-
 attempt({#parents{character = Character},
          Props,
          {move, Character, _From, _To, _Exit}}) ->

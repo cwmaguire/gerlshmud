@@ -108,6 +108,7 @@
                   {p_stamina, [{owner, player},
                                {type, stamina},
                                {per_tick, 1},
+                               {tick_time, 50},
                                {max, 10},
                                ?RESOURCE_HANDLERS]},
 

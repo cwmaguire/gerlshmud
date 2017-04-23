@@ -50,6 +50,12 @@ attempt({#parents{character = Character},
             {{fail, <<"Item is not wielded or is not activated">>}, false, Props}
     end;
 
+attempt({#parents{},
+         Props,
+         {allocate, _Required, 'of', _Type, to, Self}})
+  when Self == self() ->
+    {succeed, true, Props};
+
 %% TODO handle counterattack and, if we're already attacking something,
 %%      decide whether to switch targets.
 %%      (maybe even kick of a 'switch_targets' attack)
@@ -140,6 +146,24 @@ succeed({Props, {Character, stop_attack}}) ->
     Props2 = lists:keystore(target, 1, Props, {target, undefined}),
     _Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, false});
 
+succeed({Props, {allocate, Amt, 'of', Type, to, Self}})
+  when Self == self() ->
+    Allocated = update_allocated(Amt, Type, Props),
+    log(debug, [<<"Allocated = ">>, Allocated]),
+    Required = proplists:get_value(resources, Props, []),
+    log(debug, [<<"Required = ">>, Required]),
+    RemainingAllocated =
+        case has_resources(Allocated, Required) of
+            true ->
+                log(debug, [<<"Has resources">>]),
+                attack(Props),
+                deallocate(Allocated, Required);
+            _ ->
+                log(debug, [<<"Does not have resources">>]),
+                Allocated
+        end,
+    _Props = lists:keystore(allocated_resources, 1, Props, {allocated_resources, RemainingAllocated});
+
 succeed({Props, {Character, calc, Hit, on, Target, with, Self}})
   when is_pid(Target),
        Self == self(),
@@ -173,6 +197,11 @@ succeed({Props, _}) ->
 fail({Props, _, _}) ->
     Props.
 
+attack(Props) ->
+    Character = proplists:get_value(character, Props),
+    Target = proplists:get_value(target, Props),
+    erlmud_object:attempt(self(), {Character, calc, _InitialHit = 1, on, Target, with, self()}).
+
 is_interested(Props) ->
     is_wielded(Props) andalso is_active(Props).
 
@@ -201,6 +230,37 @@ reserve(Character, Props) when is_list(Props) ->
 reserve(Character, Resource, Amount) ->
     log(debug, [<<"Reserving">>, list_to_binary(integer_to_list(Amount)), <<"of">>, list_to_binary(atom_to_list(Resource))]),
     erlmud_object:attempt(self(), {Character, reserve, Amount, 'of', Resource, for, self()}).
+
+update_allocated(New, Type, Props) ->
+    Allocated = proplists:get_value(allocated_resources, Props, #{}),
+    Curr = maps:get(Type, Allocated, 0),
+    Allocated#{Type => Curr + New}.
+
+deallocate(Allocated, Required) ->
+    lists:foldl(fun subtract_required/2, Allocated, Required).
+
+subtract_required({Type, Required}, Allocated) ->
+    #{Type := Amt} = Allocated,
+    Allocated#{Type := min(0, Amt - Required)}.
+
+has_resources(Allocated, Required) ->
+    {_Spent, Remaining} = lists:foldl(fun apply_resources/2, {Allocated, []}, Required),
+    case lists:filter(fun is_resource_satisfied/1, Remaining) of
+        [] ->
+            true;
+        _ ->
+            false
+    end.
+
+apply_resources({Type, Required}, {Current, Applied0}) ->
+    CurrentAmt = maps:get(Type, Current, 0),
+    Applied1 = [{Type, Required - CurrentAmt} | Applied0],
+    {Current#{Type => 0}, Applied1}.
+
+is_resource_satisfied({_Type, Amount}) when Amount =< 0 ->
+    true;
+is_resource_satisfied(_) ->
+    false.
 
 log(Level, IoData) ->
     erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).
