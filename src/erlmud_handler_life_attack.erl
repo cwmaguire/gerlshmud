@@ -55,7 +55,7 @@ attempt(_) ->
 succeed({Props, {_Source, killed, Owner, with, _AttackVector}}) ->
     %log("Character ~p killed by ~p, sending die: ~p~nprops: ~p~n",
         %[Owner, Source, Owner, Props]),
-    erlmud_object:attempt(self(), {die, Owner}),
+    erlmud_object:attempt(self(), {Owner, die}),
     Props;
 
 succeed({Props, {Owner, die}}) ->

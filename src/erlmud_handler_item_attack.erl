@@ -64,65 +64,31 @@ attempt({#parents{},
 %% I don't think we need to know when someone attacks our character,
 %% we'll automatically get events for calc-hit and calc-damage
 
-%% Attack
-attempt({#parents{character = Character},
-         Props,
-         {Character, calc, Hit, on, Target, with, Self}})
-  when Self == self() ->
-    case is_interested(Props) of
-        true ->
-            case proplists:get_value(attack_hit_modifier, Props) of
-                undefined ->
-                    {succeed, false, Props};
-                Amount ->
-                    {succeed, {Character, calc, Hit + Amount, on, Target, with, Self}}
-            end;
-        _ ->
-            {succeed, false, Props}
-    end;
-attempt({#parents{character = Character},
-         Props,
-         {Character, damage, Damage, to, Target, with, Self}})
-  when Self == self() ->
-    case is_interested(Props) of
-        true ->
-            case proplists:get_value(attack_damage_modifier, Props) of
-                undefined ->
-                    {succeed, false, Props};
-                Amount ->
-                    {succeed, {Character, calc, Damage + Amount, on, Target, with, Self}}
-            end;
-        _ ->
-            {succeed, false, Props}
-    end;
-
 %% Defend
 attempt({#parents{character = Character},
          Props,
-         {Character, calc, Hit, on, Target, with, Self}})
-  when Self == self() ->
+         {Attacker, calc, Hit, on, Character, with, AttackVector}}) ->
     case is_interested(Props) of
         true ->
             case proplists:get_value(defend_hit_modifier, Props) of
                 undefined ->
                     {succeed, false, Props};
                 Amount ->
-                    {succeed, {Character, calc, Hit - Amount, on, Target, with, Self}}
+                    {succeed, {Attacker, calc, Hit - Amount, on, Character, with, AttackVector}}
             end;
         _ ->
             {succeed, false, Props}
     end;
 attempt({#parents{character = Character},
          Props,
-         {Character, damage, Damage, to, Target, with, Self}})
-  when Self == self() ->
+         {Attacker, damage, Damage, to, Character, with, AttackVector}}) ->
     case is_interested(Props) of
         true ->
             case proplists:get_value(defend_damage_modifier, Props) of
                 undefined ->
                     {succeed, false, Props};
                 Amount ->
-                    {succeed, {Character, calc, Damage - Amount, on, Target, with, Self}}
+                    {succeed, {Attacker, calc, Damage - Amount, on, Character, with, AttackVector}}
             end;
         _ ->
             {succeed, false, Props}
@@ -168,7 +134,8 @@ succeed({Props, {Character, calc, Hit, on, Target, with, Self}})
   when is_pid(Target),
        Self == self(),
        Hit > 0 ->
-    erlmud_object:attempt(self(), {Character, calc, _InitialDamage = 0, to, Target, with, Self}),
+    Damage = proplists:get_value(attack_damage_modifier, Props, 1),
+    erlmud_object:attempt(self(), {Character, calc, Damage, to, Target, with, Self}),
     Props;
 
 succeed({Props, {_Character, calc, _Miss, on, Target, with, Self}})
@@ -200,7 +167,8 @@ fail({Props, _, _}) ->
 attack(Props) ->
     Character = proplists:get_value(character, Props),
     Target = proplists:get_value(target, Props),
-    erlmud_object:attempt(self(), {Character, calc, _InitialHit = 1, on, Target, with, self()}).
+    Hit = proplists:get_value(attack_hit_modifier, Props, 1),
+    erlmud_object:attempt(self(), {Character, calc, Hit, on, Target, with, self()}).
 
 is_interested(Props) ->
     is_wielded(Props) andalso is_active(Props).
@@ -244,23 +212,24 @@ subtract_required({Type, Required}, Allocated) ->
     Allocated#{Type := min(0, Amt - Required)}.
 
 has_resources(Allocated, Required) ->
-    {_Spent, Remaining} = lists:foldl(fun apply_resources/2, {Allocated, []}, Required),
-    case lists:filter(fun is_resource_satisfied/1, Remaining) of
+    {_, AllocApplied} = lists:foldl(fun apply_resource/2, {Allocated, []}, Required),
+    case lists:filter(fun is_resource_lacking/1, AllocApplied) of
         [] ->
             true;
         _ ->
             false
     end.
 
-apply_resources({Type, Required}, {Current, Applied0}) ->
-    CurrentAmt = maps:get(Type, Current, 0),
-    Applied1 = [{Type, Required - CurrentAmt} | Applied0],
-    {Current#{Type => 0}, Applied1}.
+apply_resource(_Resource = {Type, Required},
+               {Allocated, Applied0}) ->
+    AllocAmt = maps:get(Type, Allocated, 0),
+    Applied1 = [{Type, Required - AllocAmt} | Applied0],
+    {Allocated#{Type => 0}, Applied1}.
 
-is_resource_satisfied({_Type, Amount}) when Amount =< 0 ->
-    true;
-is_resource_satisfied(_) ->
-    false.
+is_resource_lacking({_Type, Amount}) when Amount =< 0 ->
+    false;
+is_resource_lacking(_) ->
+    true.
 
 log(Level, IoData) ->
     erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).

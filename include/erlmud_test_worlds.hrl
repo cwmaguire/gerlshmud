@@ -94,6 +94,7 @@
                             {body_part, hand},
                             ?BODY_PART_HANDLERS]},
                   {p_fist, [{attack_damage_modifier, 5},
+                            {attack_hit_modifier, 1},
                             {owner, p_hand},
                             {character, player},
                             {wielding_body_parts, [hand]},
