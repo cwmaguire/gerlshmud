@@ -127,6 +127,8 @@ TODO:
   We shouldn't need _resource_inject_self if we have the pids
   of the resources.
 
+  Each character resource would need it's own unique name
+
 
 ASSUME NETWORK COST IS ZERO
 
