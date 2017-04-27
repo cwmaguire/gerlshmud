@@ -34,7 +34,7 @@ attempt({#parents{owner = Owner}, Props, {move, Self, from, Owner, to, Target}})
        Owner /= Target,
        is_pid(Target) ->
     {succeed, true, Props};
-attempt({#parents{owner = Owner}, Props, {move, Self, from, Owner, to, Target, _ItemBodyParts}})
+attempt({#parents{owner = Owner}, Props, {move, Self, from, Owner, to, {Target, _BodyPart}}})
   when Self == self(),
        Owner /= Target,
        is_pid(Target) ->
@@ -48,9 +48,19 @@ attempt(_) ->
     undefined.
 
 %% Move to body part
-succeed({Props, {move, Self, from, _OldOwner, to, NewOwner, _ItemBodyParts}})
+succeed({Props, {move, Self, from, _OldOwner, to, {NewOwner, BodyPartType}}})
   when Self == self() ->
-    lists:keystore(owner, 1, Props, {owner, NewOwner});
+    %% If we wield something, it becomes active automatically
+    IsWielded = is_wielded({NewOwner, BodyPartType}, Props),
+    IsActive = proplists:get_value(is_active, Props, false) or IsWielded,
+    Props2 = lists:foldl(fun apply_prop/2,
+                        Props,
+                        [{owner, NewOwner},
+                         {body_part, {NewOwner, BodyPartType}},
+                         {is_wielded, IsWielded},
+                         {is_active, IsActive}]),
+    set_child_properties(Props2),
+    Props2;
 
 %% Move to non-body part
 %% New is_wielded, top_item and body_part properties will come from
@@ -62,19 +72,7 @@ succeed({Props, {move, Self, from, _OldOwner, to, NewOwner}})
 %% gaining an item
 succeed({Props, {move, Item, from, Source, to, Self}}) when Self == self() ->
     log(debug, [<<"Getting ">>, Item, <<" from ">>, Source, <<"\n">>]),
-    ChildProps = [{body_part, body_part(Props)},
-                  {top_item, top_item(Props)},
-                  {is_active, erlmud_object:value(is_active, Props, boolean)},
-                  {is_wielded, is_wielded(Props)}],
-    TopItem = #top_item{item = Self,
-                        is_active = erlmud_object:value(is_active, Props, boolean),
-                        is_wielded = is_wielded(Props)},
-    ChildProps = [{body_part, body_part(Props)},
-                  {top_item, TopItem}],
-                  %{top_item, top_item(Props)},
-                  %{is_active, erlmud_object:value(is_active, Props, boolean)},
-                  %{is_wielded, is_wielded(Props)}],
-    erlmud_object:attempt(Item, {set_child_properties, self(), ChildProps}),
+    set_child_properties(Item, Props),
     [{item, Item} | Props];
 
 %% Losing an item
@@ -90,6 +88,19 @@ succeed({Props, _}) ->
 
 fail({Props, _, _}) ->
     Props.
+
+set_child_properties(Props) ->
+    set_child_properties(self(), Props).
+
+set_child_properties(Child, Props) ->
+    TopItem = #top_item{item = self(),
+                        is_active = erlmud_object:value(is_active, Props, boolean),
+                        is_wielded = is_wielded(Props)},
+    ChildProps = [{body_part, body_part(Props)},
+                  {top_item, TopItem},
+                  {is_active, erlmud_object:value(is_active, Props, boolean)},
+                  {is_wielded, is_wielded(Props)}],
+    erlmud_object:attempt(Child, {set_child_properties, self(), ChildProps}).
 
 top_item(Props) ->
     DefaultTopItem = #top_item{item = self()},
@@ -112,14 +123,14 @@ is_wielded(Props) ->
     %% parts upon which, when equipped, we are considered wielded.
     IsWielded orelse is_wielded(BodyPart, Props).
 
-is_wielded(BodyPart, Props) when is_pid(BodyPart) ->
+is_wielded({BodyPart, BodyPartType}, Props) when is_pid(BodyPart) ->
     WieldingBodyParts = proplists:get_value(wielding_body_parts, Props, []),
-    case proplists:get_value(body_part, Props) of
-        {_, BodyPartType} ->
-            lists:member(BodyPartType, WieldingBodyParts);
-        _ ->
-            false
-    end.
+    lists:member(BodyPartType, WieldingBodyParts);
+is_wielded(_, _) ->
+    false.
+
+apply_prop({K, V}, Props) ->
+    lists:keystore(K, 1, Props, {K, V}).
 
 log(Level, IoData) ->
     erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).

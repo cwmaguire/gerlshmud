@@ -8,29 +8,29 @@
 % TODO test cancelling an attack by moving
 
 %all() -> [player_attack].
-%all() -> [character_owner_add_remove].
-all() ->
-    [player_move,
-     player_move_fail,
-     player_move_exit_locked,
-     player_get_item,
-     player_drop_item,
-     character_owner_add_remove,
-     player_attack,
-     player_resource_wait,
-     attack_with_modifiers,
-     one_sided_fight,
-     counterattack_behaviour,
-     player_wield,
-     player_wield_first_available,
-     player_wield_missing_body_part,
-     player_wield_wrong_body_part,
-     player_wield_body_part_is_full,
-     player_remove,
-     look_player,
-     look_room,
-     look_item,
-     set_character].
+all() -> [attack_with_modifiers].
+%all() ->
+    %[player_move,
+     %player_move_fail,
+     %player_move_exit_locked,
+     %player_get_item,
+     %player_drop_item,
+     %character_owner_add_remove,
+     %player_attack,
+     %player_resource_wait,
+     %attack_with_modifiers,
+     %one_sided_fight,
+     %counterattack_behaviour,
+     %player_wield,
+     %player_wield_first_available,
+     %player_wield_missing_body_part,
+     %player_wield_wrong_body_part,
+     %player_wield_body_part_is_full,
+     %player_remove,
+     %look_player,
+     %look_room,
+     %look_item,
+     %set_character].
 
 init_per_testcase(_, Config) ->
     {ok, _Started} = application:ensure_all_started(erlmud),
@@ -207,6 +207,8 @@ counterattack_behaviour(Config) ->
     undefined = val(attack, Zombie),
     ok.
 
+%% TODO make sure that the giant is counterattacking
+%% It works though.
 attack_with_modifiers(Config) ->
     start(?WORLD_8),
     Room = erlmud_index:get(room),
@@ -216,6 +218,9 @@ attack_with_modifiers(Config) ->
     attempt(Config, Player, {move, <<"force field">>, from, Room, to, Player}),
     attempt(Config, Player, {move, <<"shield">>, from, Room, to, Player}),
     ?WAIT100,
+    attempt(Config, Player, {move, <<"force field">>, from, Player, to, first_available_body_part}),
+    attempt(Config, Player, {move, <<"shield">>, from, Player, to, first_available_body_part}),
+    ?WAIT100,
     attempt(Config, Player, {Player, attack, <<"pete">>}),
     ?WAIT100,
     ?WAIT100,
@@ -224,8 +229,16 @@ attack_with_modifiers(Config) ->
     %% so the giant should die and the player should be alive.
     10 = val(hitpoints, p_hp),
     true = val(is_alive, p_life),
-    true = wait_loop(fun() -> val(attack, Player) end, undefined, 10),
-    true = 0 >= val(hitpoints, g_hp),
+    WaitFun =
+        fun() ->
+            case val(hitpoints, g_hp) of
+                ZeroOrLess when is_integer(ZeroOrLess), ZeroOrLess =< 0 ->
+                    true;
+                _ ->
+                    false
+            end
+        end,
+    true = wait_loop(WaitFun, true, 10),
     false = val(is_alive, g_life),
     undefined = val(attack, Giant),
     ok.

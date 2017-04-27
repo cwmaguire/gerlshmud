@@ -46,12 +46,15 @@ attempt({#parents{owner = Owner},
         {false, Reason} ->
             {{fail, Reason}, _Subscribe = false, Props};
         _ ->
-            {succeed, _Subscribe = true, Props}
+            BodyPartType = proplists:get_value(body_part, Props, undefined),
+            NewMessage = {move, Item, from, Owner, to, {Self, BodyPartType}},
+            Result = {resend, Owner, NewMessage},
+            {Result, _Subscribe = true, Props}
     end;
 attempt(_) ->
     undefined.
 
-succeed({Props, {move, Item, from, OldOwner, to, Self, _ItemBodyParts}})
+succeed({Props, {move, Item, from, OldOwner, to, {Self, _BodyPart}}})
   when Self == self() ->
     log(debug, [<<"Getting ">>, Item, <<" from ">>, OldOwner, <<"\n">>]),
     BodyPartType = proplists:get_value(body_part, Props),
@@ -88,7 +91,7 @@ can_add([], _, _, Result) ->
     log(debug, [<<"can_add([], _, _, ">>, Result ,<<")">>]),
     Result;
 can_add(_, _, _, {false, Reason}) ->
-    log(debug, [<<"can_add([_ | _], _, _, {false, ">>, list_to_binary(Reason),<<"})">>]),
+    log(debug, [<<"can_add([_ | _], _, _, {false, ", Reason/binary, "})">>]),
     {false, Reason};
 can_add([Fun | Funs], Props, ItemBodyParts, true) ->
     log(debug, [<<"can_add([">>, Fun, <<" | ">>,
@@ -110,7 +113,7 @@ has_matching_body_part(Props, ItemBodyParts) ->
         {_, true} ->
             true;
         {_, _} ->
-            {false, "Item is not compatible with body part"}
+            {false, <<"Item is not compatible with body part">>}
     end.
 
 has_space(Props, _) ->
@@ -123,7 +126,7 @@ has_space(Props, _) ->
         MaxItems when NumItems < MaxItems ->
             true;
         _ ->
-            {false, "Body part is full"}
+            {false, <<"Body part is full">>}
     end.
 
 clear_child_body_part(Props, Item, Target) ->
