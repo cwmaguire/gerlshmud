@@ -60,6 +60,16 @@ attempt({#parents{},
 %%      decide whether to switch targets.
 %%      (maybe even kick of a 'switch_targets' attack)
 
+attempt({#parents{},
+         Props,
+         {Self, counter_attack, _Target}}) when Self == self ->
+    case proplists:get_value(target, Props) of
+        Pid when is_pid(Pid) ->
+            {succeed, true, Props};
+        _ ->
+            {{fail, <<"already attacking something">>}, _Subscript = false, Props}
+    end;
+
 %% Defending
 %% I don't think we need to know when someone attacks our character,
 %% we'll automatically get events for calc-hit and calc-damage

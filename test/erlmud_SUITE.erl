@@ -224,7 +224,7 @@ attack_with_modifiers(Config) ->
     attempt(Config, Player, {Player, attack, <<"pete">>}),
     ?WAIT100,
     ?WAIT100,
-    timer:sleep(500),
+    timer:sleep(5000),
     %% The giant shouldn't be able to attack the player at all,
     %% so the giant should die and the player should be alive.
     10 = val(hitpoints, p_hp),
@@ -238,7 +238,7 @@ attack_with_modifiers(Config) ->
                     false
             end
         end,
-    true = wait_loop(WaitFun, true, 10),
+    true = wait_loop(WaitFun, true, 30),
     false = val(is_alive, g_life),
     undefined = val(attack, Giant),
     ok.

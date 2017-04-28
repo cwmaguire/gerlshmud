@@ -14,6 +14,7 @@
                                         erlmud_handler_char_move,
                                         erlmud_handler_char_inject_self,
                                         erlmud_handler_char_enter_world,
+                                        erlmud_handler_counterattack,
                                         ?UNIVERSAL_HANDLERS]}).
 
 -define(ITEM_HANDLERS, {handlers, [erlmud_handler_item_attack,

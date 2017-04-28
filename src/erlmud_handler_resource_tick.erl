@@ -53,8 +53,8 @@ succeed({Props, {Self, tick, Ref, with, Count}})
             {[], Max} ->
                 {[], Max};
             _ ->
-                %% For now just make each tick take at _least_ a
-                %% second instead of trying to wait close to a second,
+                %% For now just make each tick take at _least_ PerTick
+                %% millis instead of trying to wait close to a PerTick,
                 %% or tyring to correct for a long previous tick.
                 erlmud_object:attempt_after(TickTime, Self, {Self, tick, Ref, with, PerTick}),
                 Type = proplists:get_value(type, Props),

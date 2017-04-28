@@ -20,33 +20,18 @@
 
 -include("include/erlmud.hrl").
 
-%% Someone has damaged us
-attempt({#parents{},
-         Props,
-         {_Attacker, does, _Damange, to, Self, with, _AttackVector}})
-  when Self == self() ->
-    log([<<"caught damager attempt">>]),
-    {succeed, true, Props};
-
-%% Someone is intending to attack us
 attempt({#parents{}, Props, {_Attacker, attack, Self}}) when Self == self() ->
     log([<<"caught attack attempt">>]),
     {succeed, true, Props};
 
-attempt({_Owner, _Props, _Attempt}) ->
-    %log([self(), <<" caught attempt but not subscribing">>, Attempt]),
+attempt({#parents{}, _, _}) ->
     undefined.
 
-succeed({Props, {Attacker, does, _Damage, to, _Character, with, AttackVector}}) ->
-    Target = proplists:get_value(target, Props),
-    _ = case is_pid(Target) of
-        false ->
-            log([<<"no attacks yet, attack back props: ">>, Props]),
-            erlmud_object:attempt(self(), {self(), counter_attack, Attacker});
-        true ->
-            log([<<"already attacking ">>, Target, <<" with ">>, AttackVector, <<". Stick with it. Props: ">>, Props]),
-            ok
-    end,
+succeed({Props, {Attacker, attack, _Self}}) ->
+    erlmud_object:attempt(self(), {self(), counter_attack, Attacker}),
+    Props;
+succeed({Props, {_Self, counter_attack, Target}}) ->
+    erlmud_object:attempt(self(), {self(), attack, Target}),
     Props;
 succeed({Props, _}) ->
     Props.
