@@ -21,15 +21,34 @@
 -include("include/erlmud.hrl").
 
 attempt({#parents{}, Props, {_Attacker, attack, Self}}) when Self == self() ->
-    log([<<"caught attack attempt">>]),
+    log([<<"caught attack attempt of ">>, _Attacker, attack, Self]),
+    {succeed, true, Props};
+
+attempt({#parents{}, Props, {Self, attack, _Target}}) when Self == self() ->
     {succeed, true, Props};
 
 attempt({#parents{}, _, _}) ->
     undefined.
 
-succeed({Props, {Attacker, attack, _Self}}) ->
-    erlmud_object:attempt(self(), {self(), counter_attack, Attacker}),
-    Props;
+succeed({Props, {_Character, stop_attack}}) ->
+    _Props = lists:keystore(is_attacking, 1, Props, {is_attacking, false});
+
+succeed({Props, {Attacker, attack, Target}}) ->
+    case proplists:get_value(owner, Props) of
+        Attacker ->
+            _Props = lists:key_store(is_attacking, 1, Props, {is_attacking, true});
+        Target ->
+            case proplists:get_value(is_attacking, Props) of
+                true ->
+                    ok;
+                _ ->
+                    erlmud_object:attempt(self(), {self(), counter_attack, Attacker})
+            end,
+            Props;
+        _ ->
+            Props
+    end;
+
 succeed({Props, {_Self, counter_attack, Target}}) ->
     erlmud_object:attempt(self(), {self(), attack, Target}),
     Props;

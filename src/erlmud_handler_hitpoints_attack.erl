@@ -47,7 +47,7 @@ take_damage(Attacker, Owner, Damage, AttackVector, Props) ->
             Owner = proplists:get_value(owner, Props),
             erlmud_object:attempt(Owner, {Attacker, killed, Owner, with, AttackVector});
         _ ->
-            log([<<"Not dying; hitpoints = ">>, Hp]),
+            %log([<<"Not dying; hitpoints = ">>, Hp]),
             ok
     end,
     lists:keystore(hitpoints, 1, Props, {hitpoints, Hp}).

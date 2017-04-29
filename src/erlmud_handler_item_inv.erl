@@ -52,7 +52,9 @@ succeed({Props, {move, Self, from, _OldOwner, to, {NewOwner, BodyPartType}}})
   when Self == self() ->
     %% If we wield something, it becomes active automatically
     IsWielded = is_wielded({NewOwner, BodyPartType}, Props),
-    IsActive = proplists:get_value(is_active, Props, false) or IsWielded,
+    IsAutoActive = proplists:get_value(is_auto_active, Props, false),
+    IsActive = proplists:get_value(is_active, Props, false) orelse
+               (IsWielded andalso IsAutoActive),
     Props2 = lists:foldl(fun apply_prop/2,
                         Props,
                         [{owner, NewOwner},

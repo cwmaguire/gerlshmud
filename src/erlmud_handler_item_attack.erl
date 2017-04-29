@@ -62,12 +62,12 @@ attempt({#parents{},
 
 attempt({#parents{},
          Props,
-         {Self, counter_attack, _Target}}) when Self == self ->
+         {Self, counter_attack, _Target}}) when Self == self() ->
     case proplists:get_value(target, Props) of
         Pid when is_pid(Pid) ->
-            {succeed, true, Props};
+            {{fail, <<"already attacking something">>}, _Subscript = false, Props};
         _ ->
-            {{fail, <<"already attacking something">>}, _Subscript = false, Props}
+            {succeed, true, Props}
     end;
 
 %% Defending
@@ -103,6 +103,7 @@ attempt({#parents{character = Character},
         _ ->
             {succeed, false, Props}
     end;
+
 attempt({_, _, _Msg}) ->
     undefined.
 

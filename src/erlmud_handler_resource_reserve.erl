@@ -42,7 +42,13 @@ succeed({Props, {_Character, reserve, Amount, 'of', Self, for, Proc}})
   when Self == self() ->
     log(debug, [<<"Reserving ">>, Amount, <<" of ">>, Self, <<" for ">>, Proc, <<"\n">>]),
     Reservations = proplists:get_value(reservations, Props, []),
-    Props2 = [{reservations, Reservations ++ [{Proc, Amount}]} | proplists:delete(reservations, Props)],
+    Props2 = case lists:member({Proc, Amount}, Reservations) of
+                 true ->
+                     Props;
+                 false ->
+                    [{reservations, Reservations ++ [{Proc, Amount}]} | proplists:delete(reservations, Props)]
+             end,
+    %io:format("New props (with reservations): ~p~n", [Props2]),
     update_tick(Props2);
 succeed({Props, {_Character, unreserve, Self, for, Proc}})
   when Self == self() ->

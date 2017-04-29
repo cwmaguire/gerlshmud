@@ -26,9 +26,10 @@
 log(Level, Terms) when is_atom(Level) ->
     case whereis(?MODULE) of
         undefined ->
-            io:format("No ~p logger process found~nLevel: ~p~nTerms: ~p~n",
-                      [?MODULE, Level, Terms]);
+            %io:format("No ~p logger process found~nLevel: ~p~nTerms: ~p~n",
+                      %[?MODULE, Level, Terms]);
             %exit("no logger process found");
+            ok;
         _ ->
             ok
     end,
@@ -152,8 +153,8 @@ handle_info(Info, State) ->
     {noreply, State}.
 
 terminate(Reason, #state{html_file = HtmlFile}) ->
-    ct:pal("Terminating erlmud_event_log: ~p~n", [Reason]),
-    io:format("Terminating erlmud_event_log: ~p~n", [Reason]),
+    %ct:pal("Terminating erlmud_event_log: ~p~n", [Reason]),
+    %io:format("Terminating erlmud_event_log: ~p~n", [Reason]),
     io:format(HtmlFile,
               "<script language=\"JavaScript\">"
               "createClassCheckboxes();"

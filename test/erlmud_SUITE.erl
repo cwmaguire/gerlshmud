@@ -36,7 +36,7 @@ init_per_testcase(_, Config) ->
     {ok, _Started} = application:ensure_all_started(erlmud),
     {ok, _Pid} = erlmud_test_socket:start(),
     TestObject = spawn_link(fun mock_object/0),
-    ct:pal("mock_object is ~p~n", [TestObject]),
+    %ct:pal("mock_object is ~p~n", [TestObject]),
     erlmud_index:put("TestObject", TestObject),
     [{test_object, TestObject} | Config].
 
@@ -462,26 +462,26 @@ start_obj(Id, Props) ->
 
 attempt(Config, Target, Message) ->
     TestObject = proplists:get_value(test_object, Config),
-    ct:pal("Test object pid: ~p~n", [TestObject]),
+    %ct:pal("Test object pid: ~p~n", [TestObject]),
     TestObject ! {attempt, Target, Message}.
 
 mock_object() ->
-    ct:pal("mock_object ~p receiving~n", [self()]),
+    %ct:pal("mock_object ~p receiving~n", [self()]),
     receive
         X ->
-            ct:pal("mock_object ~p received: ~p~n", [self(), X]),
+            %ct:pal("mock_object ~p received: ~p~n", [self(), X]),
             case X of
-                {'$gen_call', Msg = {From, MonitorRef}, props} ->
-                    ct:pal("mock_object ~p rec'd gen_call: ~p ~n", [self(), Msg]),
+                {'$gen_call', _Msg = {From, MonitorRef}, props} ->
+                    %ct:pal("mock_object ~p rec'd gen_call: ~p ~n", [self(), Msg]),
                     From ! {MonitorRef, _MockProps = []};
                 {attempt, Target, Message} ->
-                    ct:pal("mock_object ~p Sending {attempt, ~p, ~p}", [self(), Target, Message]),
+                    %ct:pal("mock_object ~p Sending {attempt, ~p, ~p}", [self(), Target, Message]),
                     erlmud_object:attempt(Target, Message, false);
                 stop ->
-                    ct:pal("mock_object ~p stopping", [self()]),
+                    %ct:pal("mock_object ~p stopping", [self()]),
                     exit(normal);
-                Other ->
-                    ct:pal("mock_object ~p received other:~n\t~p~n", [self(), Other]),
+                _Other ->
+                    %ct:pal("mock_object ~p received other:~n\t~p~n", [self(), Other]),
                     ok
             end
     end,
