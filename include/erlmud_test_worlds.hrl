@@ -329,6 +329,7 @@
                             {stamina, p_stamina},
                             {body_part, p_back},
                             {body_part, hand0},
+                            {body_part, hand1},
                             {race, race0},
                             ?CHARACTER_HANDLERS]},
 
@@ -399,6 +400,7 @@
                             {wielding_body_parts, [hand]},
                             {body_part, {?PID(hand0), hand}},
                             {is_active, true},
+                            {is_auto_active, true},
                             {resources, [{stamina, 5}]},
                             ?ITEM_HANDLERS]},
 
@@ -429,6 +431,7 @@
                   {g_hand_r, [{name, <<"right hand">>},
                               {owner, giant},
                               {body_part, hand},
+                              {item, g_club},
                               ?BODY_PART_HANDLERS]},
 
                   {strength1, [{owner, giant},
@@ -449,7 +452,19 @@
                   {race0, [{owner, giant},
                            {defence_damage_modifier, 50},
                            {desc, [<<"giant">>]},
-                           ?ATTRIBUTE_HANDLERS]}
+                           ?ATTRIBUTE_HANDLERS]},
+
+                  {g_club, [{name, <<"giant club">>},
+                            {attack_damage_modifier, 50},
+                            {attack_hit_modifier, 5},
+                            {owner, g_hand_r},
+                            {character, giant},
+                            {wielding_body_parts, [hand]},
+                            {body_part, {?PID(g_hand_r), hand}},
+                            {is_active, true},
+                            {is_auto_active, true},
+                            {resources, [{stamina, 5}]},
+                            ?ITEM_HANDLERS]}
                  ]).
 
 -define(WORLD_9, [{room, [{character, dog},

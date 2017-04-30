@@ -6,6 +6,7 @@
 -define(WAIT100, receive after 100 -> ok end).
 
 % TODO test cancelling an attack by moving
+% TODO test updating a skill when a target is killed with a weapon (or when damage is dealt, or both)
 
 %all() -> [player_attack].
 all() -> [attack_with_modifiers].

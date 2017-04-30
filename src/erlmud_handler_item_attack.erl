@@ -14,19 +14,6 @@
 -module(erlmud_handler_item_attack).
 -behaviour(erlmud_handler).
 
-%% This handler is specific to items and controls whether this item
-%% process can participate in an attack or not. The character will
-%% kick off a generic attack and then the generic attack handler attached
-%% to this item process will further kick off a process-specific attack
-%% for this process. This handler will listen to that specific attack
-%% for it's process and determine if the properties of this item
-%% allow for the item to attack. This prevents us from having logic in
-%% the generic handler that is specific to items.
-%% The generic handler can work out kicking off the hit roll and damage
-%% since other handlers and other processes (e.g. attributes) will modify
-%% the hit roll and damage with logic specific to this character, body part,
-%% item, etc.
-
 -export([attempt/1]).
 -export([succeed/1]).
 -export([fail/1]).
@@ -36,8 +23,27 @@
 %% Attacking
 attempt({#parents{character = Character},
          Props,
-         {Character, attack, _Target}}) ->
+         {Attacker, attack, Target}})
+  when Attacker == Character;
+       Target == Character->
     {succeed, true, Props};
+
+attempt({#parents{character = Character},
+         Props,
+         {Character, counterattack, Target}) ->
+    IsAttacking = proplists:get_value(is_attacking, Props, false),
+    log(debug, [self(), <<"attacking">>, Target, <<"with character ">>, Character, <<", is_attacking: ">>, IsAttacking]),
+    case IsAttacking of
+        false ->
+            {succeed, true, Props};
+        false ->
+            %% If _other_ items aren't yet attacking the Target then they'll join in.
+            %% I'm not sure how that would happen unless the player can set what they're
+            %% attacking with for each individual attack. In that case they'll need to
+            %% set what their default counterattack is.
+            {succeed, false, Props}
+    end,
+    Props;
 
 attempt({#parents{character = Character},
          Props,
@@ -56,18 +62,14 @@ attempt({#parents{},
   when Self == self() ->
     {succeed, true, Props};
 
-%% TODO handle counterattack and, if we're already attacking something,
-%%      decide whether to switch targets.
-%%      (maybe even kick of a 'switch_targets' attack)
-
 attempt({#parents{},
          Props,
-         {Self, counter_attack, _Target}}) when Self == self() ->
+         {_Attacker, killed, Target, with, _AttackVector}}) ->
     case proplists:get_value(target, Props) of
-        Pid when is_pid(Pid) ->
-            {{fail, <<"already attacking something">>}, _Subscript = false, Props};
+        Target ->
+            {succeed, true, Props};
         _ ->
-            {succeed, true, Props}
+            {succeed, false, Props}
     end;
 
 %% Defending
@@ -107,9 +109,56 @@ attempt({#parents{character = Character},
 attempt({_, _, _Msg}) ->
     undefined.
 
-succeed({Props, {Character, attack, Target}}) when is_pid(Target) ->
-    erlmud_object:attempt(self(), {Character, attack, Target, with, self()}),
+succeed({Props, {_Attacker, killed, _Target, with, _AttackVector}}) ->
+    Character = proplists:get_value(character, Props),
+    unreserve(Character, Props),
+    Props2 = lists:keystore(target, 1, Props, {target, undefined}),
+    _Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, false});
+
+%% I feel like the character should kick off a counter-attack message when hit, but that means
+%% on _every_ hit I'm sending out a counter-attack message that's going to get ignored.
+%% If the _item_ sees the attack it can check if it's already engaged in a target.
+%% However, if the player decides to change targets, then I'd need a different event to
+%% differentiate from "Char attack Target (because it attacked us)" and "Char attack Target
+%% (because the player said so)".
+%%
+%% I think I'll assume that event messages are free. If I start letting optimization creep
+%% in (especially without measuring) this design is going to get gross fast.
+%%
+%% I'm probably going to need some counterattack logic at some point anyway.
+%%
+%% We only get one handler per event so if I need a counterattack handler I can give it a
+%% distinct, but similar, event.
+
+succeed({Props, {Attacker, attack, Target}}) when is_pid(Target) ->
+    Character = proplists:get_value(character, Props),
+    IsAttacking = proplists:get_value(is_attacking, Props, false),
+    log(debug, [self(), <<"attacking">>, Target, <<"with character ">>, Character, <<", is_attacking: ">>, IsAttacking]),
+    case {Character, IsAttacking} of
+        {Attacker, false} ->
+            erlmud_object:attempt(self(), {Attacker, attack, Target, with, self()});
+        {Target, false} ->
+            erlmud_object:attempt(Character, {Character, attack, Attacker});
+        _ ->
+            ok
+    end,
     Props;
+
+succeed({Props, {Attacker, counterattack, Target}}) when is_pid(Target) ->
+    Character = proplists:get_value(character, Props),
+    IsAttacking = proplists:get_value(is_attacking, Props, false),
+    log(debug, [self(), <<"attacking">>, Target, <<"with character ">>, Character, <<", is_attacking: ">>, IsAttacking]),
+    case {Character, IsAttacking} of
+        {Attacker, false} ->
+            erlmud_object:attempt(self(), {Attacker, attack, Target, with, self()});
+        {Target, false} ->
+            erlmud_object:attempt(Character, {Character, attack, Attacker});
+        _ ->
+            ok
+    end,
+    Props;
+
+
 
 %% An attack by our character has been successfully instigated using this process:
 %% we'll register for resources and implement the attack when we have them.
@@ -117,11 +166,6 @@ succeed({Props, {Character, attack, Target, with, _Self}}) ->
     reserve(Character, Props),
     Props2 = lists:keystore(target, 1, Props, {target, Target}),
     _Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, true});
-
-succeed({Props, {Character, stop_attack}}) ->
-    unreserve(Character, Props),
-    Props2 = lists:keystore(target, 1, Props, {target, undefined}),
-    _Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, false});
 
 succeed({Props, {allocate, Amt, 'of', Type, to, Self}})
   when Self == self() ->
