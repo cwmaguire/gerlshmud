@@ -241,7 +241,6 @@ attack_with_modifiers(Config) ->
         end,
     true = wait_loop(WaitFun, true, 30),
     false = val(is_alive, g_life),
-    undefined = val(attack, Giant),
     ok.
 
 wait_loop(Fun, ExpectedResult, _Count = 0) ->

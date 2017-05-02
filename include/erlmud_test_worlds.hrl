@@ -14,7 +14,7 @@
                                         erlmud_handler_char_move,
                                         erlmud_handler_char_inject_self,
                                         erlmud_handler_char_enter_world,
-                                        erlmud_handler_counterattack,
+                                        %erlmud_handler_counterattack,
                                         ?UNIVERSAL_HANDLERS]}).
 
 -define(ITEM_HANDLERS, {handlers, [erlmud_handler_item_attack,
@@ -99,7 +99,7 @@
                             {character, player},
                             {wielding_body_parts, [hand]},
                             {body_part, {?PID(p_hand), hand}},
-                            {is_active, true},
+                            {is_attack, true},
                             {resources, [{stamina, 5}]},
                             ?ITEM_HANDLERS]},
                   {dexterity0, [{attack_hit_modifier, 1},
@@ -333,7 +333,6 @@
                             {race, race0},
                             ?CHARACTER_HANDLERS]},
 
-
                   {p_hp, [{hitpoints, 10},
                           {owner, player},
                           ?HITPOINTS_HANDLERS]},
@@ -347,7 +346,8 @@
                                  {wielding_body_parts, [back]},
                                  {name, <<"force field">>},
                                  {desc, [name]},
-                                 {defence_damage_modifier, -100},
+                                 {defence_damage_modifier, 100},
+                                 {is_defence, true},
                                  ?ITEM_HANDLERS]},
 
                   {shield, [{owner, player},
@@ -355,7 +355,8 @@
                             {wielding_body_parts, [hand]},
                             {name, <<"shield">>},
                             {desc, [name]},
-                            {defence_hit_modifier, -100},
+                            {defence_hit_modifier, 100},
+                            {is_defence, true},
                             ?ITEM_HANDLERS]},
 
                   {strength0, [{owner, player},
@@ -399,8 +400,8 @@
                             {character, player},
                             {wielding_body_parts, [hand]},
                             {body_part, {?PID(hand0), hand}},
-                            {is_active, true},
-                            {is_auto_active, true},
+                            {is_attack, true},
+                            {is_auto_attack, true},
                             {resources, [{stamina, 5}]},
                             ?ITEM_HANDLERS]},
 
@@ -418,6 +419,7 @@
                            {attribute, strength1},
                            {attribute, dexterity1},
                            {attribute, race},
+                           {stamina, g_stamina},
                            ?CHARACTER_HANDLERS]},
 
                   {g_hp, [{hitpoints, 310},
@@ -449,6 +451,13 @@
                                 {desc, [<<"dexterity ">>, value]},
                                 ?ATTRIBUTE_HANDLERS]},
 
+                  {g_stamina, [{owner, giant},
+                               {type, stamina},
+                               {per_tick, 1},
+                               {tick_time, 10},
+                               {max, 10},
+                               ?RESOURCE_HANDLERS]},
+
                   {race0, [{owner, giant},
                            {defence_damage_modifier, 50},
                            {desc, [<<"giant">>]},
@@ -461,8 +470,8 @@
                             {character, giant},
                             {wielding_body_parts, [hand]},
                             {body_part, {?PID(g_hand_r), hand}},
-                            {is_active, true},
-                            {is_auto_active, true},
+                            {is_attack, true},
+                            {is_auto_attack, true},
                             {resources, [{stamina, 5}]},
                             ?ITEM_HANDLERS]}
                  ]).

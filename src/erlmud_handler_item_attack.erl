@@ -23,33 +23,33 @@
 %% Attacking
 attempt({#parents{character = Character},
          Props,
-         {Attacker, attack, Target}})
-  when Attacker == Character;
-       Target == Character->
+         {Attacker, attack, _Target}})
+  %when Attacker == Character, is_pid(Target);
+       %Target == Character ->
+  when Attacker == Character ->
     {succeed, true, Props};
 
 attempt({#parents{character = Character},
          Props,
-         {Character, counterattack, Target}) ->
+         {Character, counter_attack, Target}}) ->
     IsAttacking = proplists:get_value(is_attacking, Props, false),
     log(debug, [self(), <<"attacking">>, Target, <<"with character ">>, Character, <<", is_attacking: ">>, IsAttacking]),
     case IsAttacking of
         false ->
             {succeed, true, Props};
-        false ->
+        _ ->
             %% If _other_ items aren't yet attacking the Target then they'll join in.
             %% I'm not sure how that would happen unless the player can set what they're
             %% attacking with for each individual attack. In that case they'll need to
             %% set what their default counterattack is.
             {succeed, false, Props}
-    end,
-    Props;
+    end;
 
 attempt({#parents{character = Character},
          Props,
          {Character, attack, _Target, with, Self}})
   when Self == self() ->
-    case is_interested(Props) of
+    case should_attack(Props) of
         true ->
             {succeed, true, Props};
         false ->
@@ -80,13 +80,16 @@ attempt({#parents{},
 attempt({#parents{character = Character},
          Props,
          {Attacker, calc, Hit, on, Character, with, AttackVector}}) ->
-    case is_interested(Props) of
+    case should_defend(Props) of
         true ->
-            case proplists:get_value(defend_hit_modifier, Props) of
+            case proplists:get_value(defence_hit_modifier, Props) of
                 undefined ->
                     {succeed, false, Props};
                 Amount ->
-                    {succeed, {Attacker, calc, Hit - Amount, on, Character, with, AttackVector}}
+                    {succeed,
+                     {Attacker, calc, Hit - Amount, on, Character, with, AttackVector},
+                     true,
+                     Props}
             end;
         _ ->
             {succeed, false, Props}
@@ -94,17 +97,23 @@ attempt({#parents{character = Character},
 attempt({#parents{character = Character},
          Props,
          {Attacker, damage, Damage, to, Character, with, AttackVector}}) ->
-    case is_interested(Props) of
+    case should_defend(Props) of
         true ->
-            case proplists:get_value(defend_damage_modifier, Props) of
+            case proplists:get_value(defence_damage_modifier, Props) of
                 undefined ->
                     {succeed, false, Props};
                 Amount ->
-                    {succeed, {Attacker, calc, Damage - Amount, on, Character, with, AttackVector}}
+                    {succeed,
+                     {Attacker, calc, Damage - Amount, on, Character, with, AttackVector},
+                     true,
+                     props}
             end;
         _ ->
             {succeed, false, Props}
     end;
+
+attempt({#parents{character = Character}, Props, {Character, stop_attack}}) ->
+    {succeed, true, Props};
 
 attempt({_, _, _Msg}) ->
     undefined.
@@ -133,18 +142,19 @@ succeed({Props, {_Attacker, killed, _Target, with, _AttackVector}}) ->
 succeed({Props, {Attacker, attack, Target}}) when is_pid(Target) ->
     Character = proplists:get_value(character, Props),
     IsAttacking = proplists:get_value(is_attacking, Props, false),
-    log(debug, [self(), <<"attacking">>, Target, <<"with character ">>, Character, <<", is_attacking: ">>, IsAttacking]),
     case {Character, IsAttacking} of
         {Attacker, false} ->
+            log(debug, [Character, <<"attacking">>, Target, <<" with ">>, self(), <<"(is_attacking: ">>, IsAttacking, <<")">>]),
             erlmud_object:attempt(self(), {Attacker, attack, Target, with, self()});
         {Target, false} ->
-            erlmud_object:attempt(Character, {Character, attack, Attacker});
+            ok;
+            %erlmud_object:attempt(Character, {Character, attack, Attacker});
         _ ->
             ok
     end,
     Props;
 
-succeed({Props, {Attacker, counterattack, Target}}) when is_pid(Target) ->
+succeed({Props, {Attacker, counter_attack, Target}}) when is_pid(Target) ->
     Character = proplists:get_value(character, Props),
     IsAttacking = proplists:get_value(is_attacking, Props, false),
     log(debug, [self(), <<"attacking">>, Target, <<"with character ">>, Character, <<", is_attacking: ">>, IsAttacking]),
@@ -157,8 +167,6 @@ succeed({Props, {Attacker, counterattack, Target}}) when is_pid(Target) ->
             ok
     end,
     Props;
-
-
 
 %% An attack by our character has been successfully instigated using this process:
 %% we'll register for resources and implement the attack when we have them.
@@ -213,6 +221,11 @@ succeed({Props, {_Character, calc, _NoDamage, to, _Target, with, Self}})
     %%       _if_ this is a player
     Props;
 
+succeed({Props, {Character, stop_attack}}) ->
+    unreserve(Character, Props),
+    Props2 = lists:keystore(target, 1, Props, {target, undefined}),
+    _Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, false});
+
 succeed({Props, _}) ->
     Props.
 
@@ -225,8 +238,11 @@ attack(Props) ->
     Hit = proplists:get_value(attack_hit_modifier, Props, 1),
     erlmud_object:attempt(self(), {Character, calc, Hit, on, Target, with, self()}).
 
-is_interested(Props) ->
-    is_wielded(Props) andalso is_active(Props).
+should_attack(Props) ->
+    is_wielded(Props) andalso is_attack(Props).
+
+should_defend(Props) ->
+    is_wielded(Props) andalso is_defence(Props).
 
 is_wielded(Props) ->
     BodyPart = proplists:get_value(body_part, Props),
@@ -238,8 +254,11 @@ is_wielded({BodyPart, BodyPartType}, Props) when is_pid(BodyPart) ->
 is_wielded(_, _) ->
     false.
 
-is_active(Props) ->
-    true == proplists:get_value(is_active, Props, false).
+is_attack(Props) ->
+    true == proplists:get_value(is_attack, Props, false).
+
+is_defence(Props) ->
+    true == proplists:get_value(is_defence, Props, false).
 
 unreserve(Character, Props) when is_list(Props) ->
     [unreserve(Character, Resource) || {Resource, _Amt} <- proplists:get_value(resources, Props, [])];

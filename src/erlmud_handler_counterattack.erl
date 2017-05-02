@@ -36,7 +36,7 @@ succeed({Props, {_Character, stop_attack}}) ->
 succeed({Props, {Attacker, attack, Target}}) ->
     case proplists:get_value(owner, Props) of
         Attacker ->
-            _Props = lists:key_store(is_attacking, 1, Props, {is_attacking, true});
+            _Props = lists:keystore(is_attacking, 1, Props, {is_attacking, true});
         Target ->
             case proplists:get_value(is_attacking, Props) of
                 true ->

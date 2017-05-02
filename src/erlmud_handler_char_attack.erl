@@ -20,11 +20,23 @@
 
 -include("include/erlmud.hrl").
 
+attempt({#parents{}, Props, {_Attacker, attack, Self}}) when Self == self() ->
+    {succeed, true, Props};
+attempt({#parents{}, Props, {Self, attack, _Target, with, _AttackVector}}) when Self == self() ->
+    {succeed, true, Props};
 attempt(_) ->
     undefined.
 
-%% TODO make it so these are only called if necessary
-%% ... but then, this module probably isn't necessary at all.
+succeed({Props, {_Self, attack, _Target, with, _AttackVector}}) ->
+    lists:keystore(is_attacking, 1, Props, {is_attacking, true});
+succeed({Props, {Attacker, attack, _Self}}) ->
+    case proplists:get_value(is_attacking, Props) of
+        true ->
+            ok;
+        _ ->
+            erlmud_object:attempt(self(), {self(), counter_attack, Attacker})
+    end,
+    Props;
 succeed({Props, _}) ->
     Props.
 

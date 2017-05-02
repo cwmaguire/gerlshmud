@@ -67,7 +67,7 @@ attempt({#parents{character = Character,
          {Character, calc, Hit, on, Target, with, Item}}) ->
     case is_interested(TopItem, Props) of
         true ->
-            case proplists:get_value(defend_hit_modifier, Props) of
+            case proplists:get_value(defence_hit_modifier, Props) of
                 undefined ->
                     {succeed, false, Props};
                 Amount ->
@@ -82,7 +82,7 @@ attempt({#parents{character = Character,
          {Character, damage, Damage, to, Target, with, Item}}) ->
     case is_interested(TopItem, Props) of
         true ->
-            case proplists:get_value(defend_damage_modifier, Props) of
+            case proplists:get_value(defence_damage_modifier, Props) of
                 undefined ->
                     {succeed, false, Props};
                 Amount ->

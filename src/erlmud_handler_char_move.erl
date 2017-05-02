@@ -37,6 +37,12 @@ succeed({Props, {move, Self, Source, Target, _Exit}}) when Self == self() ->
     log(debug, [<<"setting ">>, Self, <<"'s room to ">>, Target, <<"\n">>]),
     NewProps = set(owner, Target, Props),
     log(debug, [<<" finished moving rooms \n">>]),
+    case proplists:get_value(is_attacking, Props) of
+        true ->
+            erlmud_object:attempt(self(), {self(), stop_attack});
+        _ ->
+            ok
+    end,
     NewProps;
 succeed({Props, {move, Self, Source, Direction}}) when Self == self(), is_atom(Direction) ->
     log(debug, [<<"succeeded in moving ">>, Direction, <<" from ">>, Source, <<"\n">>]),
