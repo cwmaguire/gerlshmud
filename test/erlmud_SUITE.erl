@@ -9,29 +9,30 @@
 % TODO test updating a skill when a target is killed with a weapon (or when damage is dealt, or both)
 
 %all() -> [player_attack].
-all() -> [attack_with_modifiers].
-%all() ->
-    %[player_move,
-     %player_move_fail,
-     %player_move_exit_locked,
-     %player_get_item,
-     %player_drop_item,
-     %character_owner_add_remove,
-     %player_attack,
-     %player_resource_wait,
-     %attack_with_modifiers,
-     %one_sided_fight,
-     %counterattack_behaviour,
-     %player_wield,
-     %player_wield_first_available,
-     %player_wield_missing_body_part,
-     %player_wield_wrong_body_part,
-     %player_wield_body_part_is_full,
-     %player_remove,
-     %look_player,
-     %look_room,
-     %look_item,
-     %set_character].
+%all() -> [player_wield].
+%all() -> [attack_with_modifiers].
+all() ->
+    [player_move,
+     player_move_fail,
+     player_move_exit_locked,
+     player_get_item,
+     player_drop_item,
+     character_owner_add_remove,
+     player_attack,
+     player_resource_wait,
+     attack_with_modifiers,
+     one_sided_fight,
+     counterattack_behaviour,
+     player_wield,
+     player_wield_first_available,
+     player_wield_missing_body_part,
+     player_wield_wrong_body_part,
+     player_wield_body_part_is_full,
+     player_remove,
+     look_player,
+     look_room,
+     look_item,
+     set_character].
 
 init_per_testcase(_, Config) ->
     {ok, _Started} = application:ensure_all_started(erlmud),
@@ -177,44 +178,57 @@ player_resource_wait(Config) ->
 one_sided_fight(Config) ->
     start(?WORLD_3),
     Player = erlmud_index:get(player),
-    Zombie = erlmud_index:get(zombie),
+    _Zombie = erlmud_index:get(zombie),
     attempt(Config, Player, {Player, attack, <<"zombie">>}),
-    ?WAIT100,
-    ?WAIT100,
+    WaitFun =
+        fun() ->
+            case val(hitpoints, z_hp) of
+                ZeroOrLess when is_integer(ZeroOrLess), ZeroOrLess =< 0 ->
+                    true;
+                _ ->
+                    false
+            end
+        end,
+    true = wait_loop(WaitFun, true, 30),
     1000 = val(hitpoints, p_hp),
     true = val(is_alive, p_life),
-    undefined = val(attack, Player),
-    0 = val(hitpoints, z_hp),
-    false = val(is_alive, z_life),
-    undefined = val(attack, Zombie).
+    false = val(is_alive, z_life).
 
 counterattack_behaviour(Config) ->
     start(?WORLD_3),
     Player = erlmud_index:get(player),
     erlmud_object:set(Player, {attack_wait, 20}),
-    Zombie = erlmud_index:get(zombie),
-    Handlers = val(handlers, zombie),
-    ct:pal("Zombie handlers: ~n\t~p~n", [Handlers]),
-    erlmud_object:set(Zombie, {handlers, [erlmud_handler_counterattack | Handlers]}),
+    %Zombie = erlmud_index:get(zombie),
+    %% Counterattack is now handled by items so we'll limit the attacks
+    %% with the amount of stamina available
+    Stamina = val(stamina, zombie),
+    erlmud_object:set(Stamina, {current, 5}),
+    erlmud_object:set(Stamina, {tick_time, 100000}),
     ?WAIT100,
     attempt(Config, Player, {Player, attack, <<"zombie">>}),
-    ?WAIT100,
-    ?WAIT100,
+
+    WaitFun =
+        fun() ->
+            case val(hitpoints, z_hp) of
+                ZeroOrLess when is_integer(ZeroOrLess), ZeroOrLess =< 0 ->
+                    true;
+                _ ->
+                    false
+            end
+        end,
+    true = wait_loop(WaitFun, true, 30),
+
+    false = val(is_alive, z_life),
     true = 1000 > val(hitpoints, p_hp),
     true = val(is_alive, p_life),
-    undefined = val(attack, Player),
-    0 = val(hitpoints, z_hp),
-    false = val(is_alive, z_life),
-    undefined = val(attack, Zombie),
     ok.
 
-%% TODO make sure that the giant is counterattacking
-%% It works though.
 attack_with_modifiers(Config) ->
     start(?WORLD_8),
     Room = erlmud_index:get(room),
     Player = erlmud_index:get(player),
-    Giant = erlmud_index:get(giant),
+    %% TODO make sure that the giant is counterattacking
+    _Giant = erlmud_index:get(giant),
     ?WAIT100,
     attempt(Config, Player, {move, <<"force field">>, from, Room, to, Player}),
     attempt(Config, Player, {move, <<"shield">>, from, Room, to, Player}),
@@ -224,8 +238,7 @@ attack_with_modifiers(Config) ->
     ?WAIT100,
     attempt(Config, Player, {Player, attack, <<"pete">>}),
     ?WAIT100,
-    ?WAIT100,
-    timer:sleep(5000),
+
     %% The giant shouldn't be able to attack the player at all,
     %% so the giant should die and the player should be alive.
     10 = val(hitpoints, p_hp),
@@ -264,9 +277,10 @@ player_wield(Config) ->
     Helmet = val(item, Player),
     attempt(Config, Player, {move, <<"helmet">>, from, Player, to, <<"head">>}),
     ?WAIT100,
+    ?WAIT100,
     undefined = val(item, Player),
     Helmet = val(item, head1),
-    Head = val(body_part, Helmet).
+    {Head, head} = val(body_part, Helmet).
 
 player_wield_first_available(Config) ->
     start(?WORLD_4),

@@ -51,21 +51,30 @@ attempt({#parents{owner = Owner},
             Result = {resend, Owner, NewMessage},
             {Result, _Subscribe = true, Props}
     end;
+attempt({#parents{owner = Owner},
+         Props,
+         {move, _Item, from, Owner, to, {Self, _BodyPartType}}})
+  when Self == self() ->
+    {succeed, true, Props};
 attempt(_) ->
     undefined.
 
-succeed({Props, {move, Item, from, OldOwner, to, {Self, _BodyPart}}})
+succeed({Props, {move, Item, from, OldOwner, to, {Self, _BodyPartType}}})
   when Self == self() ->
     log(debug, [<<"Getting ">>, Item, <<" from ">>, OldOwner, <<"\n">>]),
-    BodyPartType = proplists:get_value(body_part, Props),
-    erlmud_object:attempt(Item, {set_child_property, self(), body_part, {self(), BodyPartType}}),
+    %BodyPartType = proplists:get_value(body_part, Props),
+
+    % Temp comment: the item will set the body part property to {BodyPartPid, BodyPartType}
+    %erlmud_object:attempt(Item, {set_child_property, self(), body_part, {self(), BodyPartType}}),
     [{item, Item} | Props];
 succeed({Props, {move, Item, from, Self, to, NewOwner}})
   when Self == self() ->
     clear_child_body_part(Props, Item, NewOwner);
-succeed({Props, {move, Item, from, Self, to, NewOwner, _ItemBodyParts}})
-  when Self == self() ->
-    clear_child_body_part(Props, Item, NewOwner);
+%% TODO I'm not sure if this gets used: _ItemBodyParts indicates this is an intermediate event
+%% that should turn into a {BodyPart, BodyPartType} event
+%succeed({Props, {move, Item, from, Self, to, NewOwner, _ItemBodyParts}})
+  %when Self == self() ->
+    %clear_child_body_part(Props, Item, NewOwner);
 succeed({Props, _}) ->
     Props.
 

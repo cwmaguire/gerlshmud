@@ -80,6 +80,7 @@
                             {attribute, dexterity0},
                             {attack_types, [hand]},
                             {stamina, p_stamina},
+                            {body_part, p_hand},
                             ?CHARACTER_HANDLERS]},
                   {p_hp, [{hitpoints, 1000},
                           {owner, player},
@@ -109,33 +110,63 @@
                   {p_stamina, [{owner, player},
                                {type, stamina},
                                {per_tick, 1},
-                               {tick_time, 50},
+                               {tick_time, 10},
                                {max, 10},
                                ?RESOURCE_HANDLERS]},
 
                   {zombie, [{owner, room},
                             {attack_wait, 10},
-                            {item, sword},
                             {name, <<"zombie">>},
                             {hitpoints, z_hp},
                             {life, z_life},
                             {attribute, dexterity1},
+                            {body_part, z_hand},
+                            %% TODO Do something with this
+                            %% "melee" can even be an attack command that's
+                            %% more specific than just attack:
+                            %% "spell zombie"
+                            %% "melee zombie"
+                            %% "shoot zombie"
                             {attack_types, [melee]},
+                            {stamina, z_stamina},
                             ?CHARACTER_HANDLERS]},
+
+                  {z_hand, [{name, <<"left hand">>},
+                            {owner, zombie},
+                            {body_part, hand},
+                            {max_items, 1},
+                            {item, sword},
+                            ?BODY_PART_HANDLERS]},
+
                   {z_hp, [{hitpoints, 10},
                           {owner, zombie},
                           ?HITPOINTS_HANDLERS]},
+
                   {z_life, [{is_alive, true},
                             {owner, zombie},
                             ?LIFE_HANDLERS]},
+
                   {dexterity1, [{attack_hit_modifier, 1},
                                 {owner, zombie},
                                 {character, zombie},
                                 ?ATTRIBUTE_HANDLERS]},
+
+                  {z_stamina, [{owner, zombie},
+                               {type, stamina},
+                               {per_tick, 1},
+                               {tick_time, 10},
+                               {max, 10},
+                               {current, 0},
+                               ?RESOURCE_HANDLERS]},
+
                   {sword, [{attack_damage_modifier, 5},
                            {owner, zombie},
                            {character, zombie},
-                           {attack, melee},
+                           {is_attack, true},
+                           {is_auto_attack, true},
+                           {resources, [{stamina, 5}]},
+                           {wielding_body_parts, [hand]},
+                           {body_part, {?PID(z_hand), hand}},
                            ?ITEM_HANDLERS]}]).
 
 -define(WORLD_4, [{room, [{player, player}, ?ROOM_HANDLERS]},
@@ -332,6 +363,7 @@
                             {body_part, hand1},
                             {race, race0},
                             ?CHARACTER_HANDLERS]},
+
 
                   {p_hp, [{hitpoints, 10},
                           {owner, player},

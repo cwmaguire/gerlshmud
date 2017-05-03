@@ -50,6 +50,9 @@ attempt({_Owner, Props, {move, Item, from, Self, to, BodyPart, _ItemBodyParts}})
        is_pid(Item),
        is_pid(BodyPart) ->
     {succeed, true, Props};
+attempt({_Owner, Props, {move, _Item, from, Self, to, {_BodyPart, _BodyPartType}}})
+  when Self == self() ->
+    {succeed, true, Props};
 attempt({_Owner, Props, {move, Item, from, _Room, to, Self}})
   when Self == self() andalso
        is_pid(Item) ->
@@ -61,10 +64,12 @@ succeed({Props, {move, Item, from, Source, to, Self}}) when Self == self() ->
     log(debug, [<<"Getting ">>, Item, <<" from ">>, Source, <<"\n">>]),
     erlmud_object:attempt(Item, {set_child_property, self(), character, self()}),
     [{item, Item} | Props];
+succeed({Props, {move, Item, from, Self, to, {_BodyPart, _BodyPartType}}}) when Self == self() ->
+    lists:keydelete(Item, 2, Props);
 succeed({Props, {move, Item, from, Self, to, Target}}) when Self == self() ->
     clear_child_character(Props, Item, Target);
-succeed({Props, {move, Item, from, Self, to, Target, _ItemBodyParts}}) when Self == self() ->
-    clear_child_character(Props, Item, Target);
+%succeed({Props, {move, Item, from, Self, to, Target, _ItemBodyParts}}) when Self == self() ->
+    %clear_child_character(Props, Item, Target);
 succeed({Props, _}) ->
     Props.
 
