@@ -79,6 +79,8 @@
                             {life, p_life},
                             {attribute, dexterity0},
                             {attack_types, [hand]},
+                            %% TODO: why is stamina a first class property
+                            %% instead of just an attribute?
                             {stamina, p_stamina},
                             {body_part, p_hand},
                             ?CHARACTER_HANDLERS]},
@@ -104,6 +106,7 @@
                             {resources, [{stamina, 5}]},
                             ?ITEM_HANDLERS]},
                   {dexterity0, [{attack_hit_modifier, 1},
+                                {defence_hit_modifier, 99},
                                 {owner, player},
                                 {character, player},
                                 ?ATTRIBUTE_HANDLERS]},

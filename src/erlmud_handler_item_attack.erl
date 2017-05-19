@@ -106,13 +106,18 @@ attempt({#parents{character = Character},
                     {succeed,
                      {Attacker, calc, Damage - Amount, on, Character, with, AttackVector},
                      true,
-                     props}
+                     Props}
             end;
         _ ->
             {succeed, false, Props}
     end;
 
 attempt({#parents{character = Character}, Props, {Character, stop_attack}}) ->
+    {succeed, true, Props};
+
+attempt({#parents{character = Character},
+         Props,
+         {die, Character}}) ->
     {succeed, true, Props};
 
 attempt({_, _, _Msg}) ->
@@ -225,6 +230,12 @@ succeed({Props, {Character, stop_attack}}) ->
     unreserve(Character, Props),
     Props2 = lists:keystore(target, 1, Props, {target, undefined}),
     _Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, false});
+
+succeed({Props, {die, Character}}) ->
+    unreserve(Character, Props),
+    Props2 = lists:keystore(target, 1, Props, {target, undefined}),
+    _Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, false});
+
 
 succeed({Props, _}) ->
     Props.
