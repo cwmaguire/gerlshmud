@@ -12,7 +12,9 @@
 %all() -> [player_wield].
 %all() -> [attack_with_modifiers].
 %all() -> [one_sided_fight].
-all() -> [counterattack_behaviour].
+%all() -> [counterattack_behaviour].
+%all() -> [player_wield_body_part_is_full].
+all() -> [player_remove].
 %all() ->
     %[player_move,
      %player_move_fail,
@@ -304,7 +306,7 @@ player_wield_first_available(Config) ->
     ?WAIT100,
     undefined = val(item, Player),
     Helmet = val(item, head1),
-    Head = val(body_part, Helmet).
+    {Head, head} = val(body_part, Helmet).
 
 player_wield_missing_body_part(Config) ->
     start(?WORLD_4),
@@ -318,7 +320,7 @@ player_wield_missing_body_part(Config) ->
     attempt(Config, Player, {move, <<"helmet">>, from, Player, to, <<"head">>}),
     ?WAIT100,
     Helmet = val(item, head1),
-    Head = val(body_part, Helmet),
+    {Head, head} = val(body_part, Helmet),
     undefined = val(item, player).
 
 player_wield_wrong_body_part(Config) ->
@@ -333,7 +335,7 @@ player_wield_wrong_body_part(Config) ->
     attempt(Config, Player, {move, <<"helmet">>, from, Player, to, <<"head">>}),
     ?WAIT100,
     Helmet = val(item, head1),
-    Head = val(body_part, Helmet),
+    {Head, head} = val(body_part, Helmet),
     undefined = val(item, player).
 
 player_wield_body_part_is_full(Config) ->
@@ -343,14 +345,16 @@ player_wield_body_part_is_full(Config) ->
     Finger2 = erlmud_index:get(finger2),
     Ring1 = erlmud_index:get(ring1),
     Ring2 = erlmud_index:get(ring2),
-    [Ring1, Ring2] = all(item, player),
+    AllItems = [_, _] = all(item, player),
+    true = lists:member(Ring1, AllItems),
+    true = lists:member(Ring2, AllItems),
     [] = all(item, finger1),
     [] = all(item, finger2),
     attempt(Config, Player, {move, <<"ring1">>, from, Player, to, <<"finger1">>}),
     ?WAIT100,
     [Ring2] = all(item, player),
     [Ring1] = all(item, finger1),
-    Finger1 = val(body_part, Ring1),
+    {Finger1, finger} = val(body_part, Ring1),
     [] = all(item, finger2),
     attempt(Config, Player, {move, <<"ring2">>, from, Player, to, <<"finger1">>}),
     ?WAIT100,
@@ -362,7 +366,7 @@ player_wield_body_part_is_full(Config) ->
     [] = all(item, player),
     [Ring1] = all(item, finger1),
     [Ring2] = all(item, finger2),
-    Finger2 = val(body_part, Ring2).
+    {Finger2, finger} = val(body_part, Ring2).
 
 player_remove(Config) ->
     start(?WORLD_4),
@@ -374,10 +378,11 @@ player_remove(Config) ->
     ?WAIT100,
     undefined = val(item, player),
     Helmet = val(item, head1),
-    Head = val(body_part, Helmet),
-    Head = val(body_part, DexBuff),
+    {Head, head} = val(body_part, Helmet),
+    {Head, head} = val(body_part, DexBuff),
     attempt(Config, Player, {move, <<"helmet">>, from, <<"head">>, to, Player}),
     ?WAIT100,
+    %% TODO this doesn't make any sense for the player to have a single item
     Helmet = val(item, player),
     undefined = val(body_part, Helmet),
     undefined = val(body_part, DexBuff),
@@ -386,11 +391,11 @@ player_remove(Config) ->
     ?WAIT100,
     undefined = val(item, player),
     Helmet = val(item, head1),
-    Head = val(body_part, Helmet),
-    Head = val(body_part, DexBuff),
+    {Head, body} = val(body_part, Helmet),
+    {Head, body} = val(body_part, DexBuff),
     attempt(Config, Player, {move, <<"helmet">>, from, current_body_part, to, Player}),
     ?WAIT100,
-    Helmet = val(item, player),
+    {Helmet, head} = val(item, player),
     undefined = val(body_part, Helmet),
     undefined = val(body_part, DexBuff),
     undefined = val(item, head1).
