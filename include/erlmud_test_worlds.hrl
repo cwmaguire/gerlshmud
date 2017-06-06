@@ -182,6 +182,7 @@
                            {owner, player}, ?BODY_PART_HANDLERS]},
                   {helmet, [{name, <<"helmet">>},
                             {owner, player},
+                            {character, player},
                             {attribute, dex_buff},
                             {body_parts, [head]}, ?ITEM_HANDLERS]},
                   {dex_buff, [{name, <<"dex_buff">>},
@@ -251,7 +252,7 @@
                   {weight0, [{owner, player},
                              {type, weight},
                              {value, <<"128">>},
-                             {desc, <<"weighs ">>, value, <<"kg">>},
+                             {desc, [<<"weighs ">>, value, <<"kg">>]},
                              ?ATTRIBUTE_HANDLERS]},
 
                   {gender0, [{owner, player},

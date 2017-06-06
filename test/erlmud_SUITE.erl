@@ -14,7 +14,8 @@
 %all() -> [one_sided_fight].
 %all() -> [counterattack_behaviour].
 %all() -> [player_wield_body_part_is_full].
-all() -> [player_remove].
+%all() -> [player_remove].
+all() -> [look_player].
 %all() ->
     %[player_move,
      %player_move_fail,
@@ -391,11 +392,11 @@ player_remove(Config) ->
     ?WAIT100,
     undefined = val(item, player),
     Helmet = val(item, head1),
-    {Head, body} = val(body_part, Helmet),
-    {Head, body} = val(body_part, DexBuff),
+    {Head, head} = val(body_part, Helmet),
+    {Head, head} = val(body_part, DexBuff),
     attempt(Config, Player, {move, <<"helmet">>, from, current_body_part, to, Player}),
     ?WAIT100,
-    {Helmet, head} = val(item, player),
+    Helmet = val(item, player),
     undefined = val(body_part, Helmet),
     undefined = val(body_part, DexBuff),
     undefined = val(item, head1).

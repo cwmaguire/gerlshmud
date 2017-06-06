@@ -140,7 +140,8 @@ has_space(Props, _) ->
 
 clear_child_body_part(Props, Item, Target) ->
     log(debug, [<<"Giving ">>, Item, <<" to ">>, Target, <<"\n\tProps: ">>, Props, <<"\n">>]),
-    erlmud_object:attempt(Item, {clear_child_property, Target, body_part, self()}),
+    BodyPartType = proplists:get_value(body_part, Props, undefined),
+    erlmud_object:attempt(Item, {clear_child_property, Target, body_part, {self(), BodyPartType}}),
     lists:keydelete(Item, 2, Props).
 
 log(Level, IoData) ->
