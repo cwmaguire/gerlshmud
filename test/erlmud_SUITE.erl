@@ -8,42 +8,33 @@
 % TODO test cancelling an attack by moving
 % TODO test updating a skill when a target is killed with a weapon (or when damage is dealt, or both)
 
-%all() -> [player_attack].
-%all() -> [player_wield].
-%all() -> [attack_with_modifiers].
-%all() -> [one_sided_fight].
-%all() -> [counterattack_behaviour].
-%all() -> [player_wield_body_part_is_full].
-%all() -> [player_remove].
-all() -> [look_player].
-%all() ->
-    %[player_move,
-     %player_move_fail,
-     %player_move_exit_locked,
-     %player_get_item,
-     %player_drop_item,
-     %character_owner_add_remove,
-     %player_attack,
-     %player_resource_wait,
-     %attack_with_modifiers,
-     %one_sided_fight,
-     %counterattack_behaviour,
-     %player_wield,
-     %player_wield_first_available,
-     %player_wield_missing_body_part,
-     %player_wield_wrong_body_part,
-     %player_wield_body_part_is_full,
-     %player_remove,
-     %look_player,
-     %look_room,
-     %look_item,
-     %set_character].
+all() ->
+    [player_move,
+     player_move_fail,
+     player_move_exit_locked,
+     player_get_item,
+     player_drop_item,
+     character_owner_add_remove,
+     player_attack,
+     player_resource_wait,
+     attack_with_modifiers,
+     one_sided_fight,
+     counterattack_behaviour,
+     player_wield,
+     player_wield_first_available,
+     player_wield_missing_body_part,
+     player_wield_wrong_body_part,
+     player_wield_body_part_is_full,
+     player_remove,
+     look_player,
+     look_room,
+     look_item,
+     set_character].
 
 init_per_testcase(_, Config) ->
     {ok, _Started} = application:ensure_all_started(erlmud),
     {ok, _Pid} = erlmud_test_socket:start(),
     TestObject = spawn_link(fun mock_object/0),
-    %ct:pal("mock_object is ~p~n", [TestObject]),
     erlmud_index:put("TestObject", TestObject),
     [{test_object, TestObject} | Config].
 
@@ -80,7 +71,6 @@ get_props(Pid) when is_pid(Pid) ->
     Props.
 
 player_move(Config) ->
-    %erlmud_dbg:add(erlmud_object),
     start(?WORLD_1),
     Player = erlmud_index:get(player),
     RoomNorth =  erlmud_index:get(room_nw),

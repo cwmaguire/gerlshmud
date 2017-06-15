@@ -13,11 +13,13 @@
 -module(erlmud_handler_conn_send).
 -behaviour(erlmud_handler).
 
+-include("include/erlmud.hrl").
+
 -export([attempt/1]).
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({Player, Props, {send, Player, _Message}}) ->
+attempt({#parents{owner = Owner}, Props, {send, Owner, _Message}}) ->
     {succeed, true, Props};
 attempt(_) ->
     undefined.

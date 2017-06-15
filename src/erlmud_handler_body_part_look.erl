@@ -14,13 +14,15 @@
 -module(erlmud_handler_body_part_look).
 -behaviour(erlmud_handler).
 
+-include("include/erlmud.hrl").
+
 -export([attempt/1]).
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({Owner, Props, {describe, _Source, Owner, deep, _Context}}) ->
+attempt({#parents{owner = Owner}, Props, {describe, _Source, Owner, deep, _Context}}) ->
     {succeed, true, Props};
-attempt({_Owner, Props, {describe, _Source, _Target, _Context}}) ->
+attempt({#parents{}, Props, {describe, _Source, _Target, _Context}}) ->
     {succeed, false, Props};
 attempt(_) ->
     undefined.

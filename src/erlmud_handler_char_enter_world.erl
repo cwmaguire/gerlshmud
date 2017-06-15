@@ -17,7 +17,7 @@
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({undefined, Props, {enter_world, Self, _Room, _Conn}})
+attempt({_, Props, {enter_world, Self, _Room, _Conn}})
   when Self == self() ->
     {succeed, true, Props};
 attempt(_) ->
@@ -26,8 +26,7 @@ attempt(_) ->
 succeed({Props, {enter_world, _Player, Room, Conn}}) ->
     log(debug, [<<"Player ">>, self(),
                 <<" successfully entered the world in room ">>, Room, <<"\n">>]),
-    [{conn_object, Conn}, {room, Room}, {owner, Room} | Props];
-    %[{conn_object, Conn}, {room, Room} | Props];
+    lists:foldl(fun keyreplace/2, Props, [{conn_object, Conn}, {room, Room}, {owner, Room}]);
 succeed({Props, _Other}) ->
     Props.
 
@@ -37,6 +36,9 @@ fail({Props, Reason, {enter_world, _Player}}) ->
     Props;
 fail({Props, _Reason, _Message}) ->
     Props.
+
+keyreplace(NewKV = {Key, _}, Props) ->
+    [NewKV | lists:keydelete(Key, 1, Props)].
 
 log(Level, IoData) ->
     erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).

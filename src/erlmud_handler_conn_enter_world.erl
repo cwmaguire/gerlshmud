@@ -28,7 +28,7 @@ attempt(_) ->
 
 succeed({Props, {enter_world, Player, _Room, _Conn}}) ->
     log(debug, [<<"Player ">>, self(), <<" successfully entered the world\n">>]),
-    [{owner, Player} | Props];
+    [{owner, Player} | lists:keydelete(owner, 1, Props)];
 succeed({Props, _Other}) ->
     Props.
 
