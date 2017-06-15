@@ -14,11 +14,13 @@
 -module(erlmud_handler_char_look).
 -behaviour(erlmud_handler).
 
+-include("include/erlmud.hrl").
+
 -export([attempt/1]).
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({_Owner, Props, {look, Source, TargetName}}) when Source =/= self(),
+attempt({#parents{}, Props, {look, Source, TargetName}}) when Source =/= self(),
                                                   is_binary(TargetName) ->
     log(debug, [<<"Checking if name ">>, TargetName, <<" matches">>]),
     SelfName = proplists:get_value(name, Props, <<>>),
@@ -37,12 +39,14 @@ attempt({_Owner, Props, {look, Source, TargetName}}) when Source =/= self(),
                  <<".\n">>]),
             {succeed, false, Props}
     end;
-attempt({Room = _Owner, Props,
+attempt({#parents{owner = Room},
+         Props,
         _JustPlainLook = {look, SelfSource}})
   when SelfSource == self() ->
     NewMessage = {look, SelfSource, Room},
     {{resend, SelfSource, NewMessage}, _ShouldSubscribe = false, Props};
-attempt({OwnerRoom, Props,
+attempt({#parents{owner = OwnerRoom},
+         Props,
         _DescFromParent = {describe, _Source, OwnerRoom, _RoomContext}}) ->
     {succeed, true, Props};
 attempt(_) ->

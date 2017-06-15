@@ -1,8 +1,12 @@
+-define(PID(Value), {pid, Value}).
+
+-define(UNIVERSAL_HANDLERS, erlmud_handler_set_child_property).
+
 -define(ROOM_HANDLERS, {handlers, [erlmud_handler_room_inject_self,
                                    erlmud_handler_room_inv,
                                    erlmud_handler_room_look,
                                    erlmud_handler_room_move,
-                                   erlmud_handler_set_character]}).
+                                   ?UNIVERSAL_HANDLERS]}).
 
 -define(CHARACTER_HANDLERS, {handlers, [erlmud_handler_char_attack,
                                         erlmud_handler_char_look,
@@ -10,42 +14,48 @@
                                         erlmud_handler_char_move,
                                         erlmud_handler_char_inject_self,
                                         erlmud_handler_char_enter_world,
-                                        erlmud_handler_set_character]}).
+                                        %erlmud_handler_counterattack,
+                                        ?UNIVERSAL_HANDLERS]}).
 
 -define(ITEM_HANDLERS, {handlers, [erlmud_handler_item_attack,
                                    erlmud_handler_item_look,
                                    erlmud_handler_item_inv,
                                    erlmud_handler_item_inject_self,
-                                   erlmud_handler_set_character]}).
+                                   ?UNIVERSAL_HANDLERS]}).
 
 -define(CONN_HANDLERS, {handlers, [erlmud_handler_conn_enter_world,
                                    erlmud_handler_conn_move,
                                    erlmud_handler_conn_send,
-                                   erlmud_handler_set_character]}).
+                                   ?UNIVERSAL_HANDLERS]}).
 
 -define(BODY_PART_HANDLERS, {handlers, [erlmud_handler_body_part_look,
                                         erlmud_handler_body_part_inv,
                                         erlmud_handler_body_part_inject_self,
-                                        erlmud_handler_set_character]}).
+                                        ?UNIVERSAL_HANDLERS]}).
 
 -define(ATTRIBUTE_HANDLERS, {handlers, [erlmud_handler_attribute_look,
-                                        erlmud_handler_set_character,
-                                        erlmud_handler_attribute_attack]}).
+                                        erlmud_handler_attribute_attack,
+                                        ?UNIVERSAL_HANDLERS]}).
 
 -define(EXIT_HANDLERS, {handlers, [erlmud_handler_exit_move,
-                                   erlmud_handler_set_character]}).
+                                   ?UNIVERSAL_HANDLERS]}).
 
 -define(HITPOINTS_HANDLERS, {handlers, [erlmud_handler_hitpoints_attack,
-                                        erlmud_handler_set_character]}).
+                                        ?UNIVERSAL_HANDLERS]}).
 
 -define(LIFE_HANDLERS, {handlers, [erlmud_handler_life_attack,
-                                   erlmud_handler_set_character]}).
+                                   ?UNIVERSAL_HANDLERS]}).
 
 -define(STAT_HANDLERS, {handlers, [erlmud_handler_stat_look,
-                                   erlmud_handler_set_character]}).
+                                   ?UNIVERSAL_HANDLERS]}).
+
+-define(RESOURCE_HANDLERS, {handlers, [erlmud_handler_resource_inject_self,
+                                       erlmud_handler_resource_tick,
+                                       erlmud_handler_resource_reserve,
+                                       ?UNIVERSAL_HANDLERS]}).
 
 -define(TEST_CONN_HANDLERS, {handlers, [erlmud_handler_test_connection_attack,
-                                        erlmud_handler_set_character]}).
+                                        ?UNIVERSAL_HANDLERS]}).
 
 -define(WORLD_1, [{room_nw, [{exit, exit_ns}, {exit, exit_ew}, {character, player}, ?ROOM_HANDLERS]},
                   {room_s, [{exit, exit_ns}, ?ROOM_HANDLERS]},
@@ -65,11 +75,14 @@
                           ?ROOM_HANDLERS]},
 
                   {player, [{owner, room},
-                            {attack_wait, 10},
-                            {item, fist},
                             {hitpoints, p_hp},
                             {life, p_life},
                             {attribute, dexterity0},
+                            {attack_types, [hand]},
+                            %% TODO: why is stamina a first class property
+                            %% instead of just an attribute?
+                            {stamina, p_stamina},
+                            {body_part, p_hand},
                             ?CHARACTER_HANDLERS]},
                   {p_hp, [{hitpoints, 1000},
                           {owner, player},
@@ -77,36 +90,86 @@
                   {p_life, [{is_alive, true},
                             {owner, player},
                             ?LIFE_HANDLERS]},
-                  {fist, [{attack_damage_modifier, 5},
-                          {owner, player},
-                          {character, player},
-                          ?ITEM_HANDLERS]},
+                  {p_hand, [{name, <<"hand0">>},
+                            {item, p_fist},
+                            {owner, player},
+                            {max_items, 1},
+                            {body_part, hand},
+                            ?BODY_PART_HANDLERS]},
+                  {p_fist, [{attack_damage_modifier, 5},
+                            {attack_hit_modifier, 1},
+                            {owner, p_hand},
+                            {character, player},
+                            {wielding_body_parts, [hand]},
+                            {body_part, {?PID(p_hand), hand}},
+                            {is_attack, true},
+                            {resources, [{stamina, 5}]},
+                            ?ITEM_HANDLERS]},
                   {dexterity0, [{attack_hit_modifier, 1},
+                                {defence_hit_modifier, 99},
                                 {owner, player},
                                 {character, player},
                                 ?ATTRIBUTE_HANDLERS]},
+                  {p_stamina, [{owner, player},
+                               {type, stamina},
+                               {per_tick, 1},
+                               {tick_time, 10},
+                               {max, 10},
+                               ?RESOURCE_HANDLERS]},
 
                   {zombie, [{owner, room},
                             {attack_wait, 10},
-                            {item, sword},
                             {name, <<"zombie">>},
                             {hitpoints, z_hp},
                             {life, z_life},
                             {attribute, dexterity1},
+                            {body_part, z_hand},
+                            %% TODO Do something with this
+                            %% "melee" can even be an attack command that's
+                            %% more specific than just attack:
+                            %% "spell zombie"
+                            %% "melee zombie"
+                            %% "shoot zombie"
+                            {attack_types, [melee]},
+                            {stamina, z_stamina},
                             ?CHARACTER_HANDLERS]},
+
+                  {z_hand, [{name, <<"left hand">>},
+                            {owner, zombie},
+                            {body_part, hand},
+                            {max_items, 1},
+                            {item, sword},
+                            ?BODY_PART_HANDLERS]},
+
                   {z_hp, [{hitpoints, 10},
                           {owner, zombie},
                           ?HITPOINTS_HANDLERS]},
+
                   {z_life, [{is_alive, true},
                             {owner, zombie},
                             ?LIFE_HANDLERS]},
+
                   {dexterity1, [{attack_hit_modifier, 1},
                                 {owner, zombie},
                                 {character, zombie},
                                 ?ATTRIBUTE_HANDLERS]},
+
+                  {z_stamina, [{owner, zombie},
+                               {type, stamina},
+                               {per_tick, 1},
+                               {tick_time, 10},
+                               {max, 10},
+                               {current, 0},
+                               ?RESOURCE_HANDLERS]},
+
                   {sword, [{attack_damage_modifier, 5},
                            {owner, zombie},
                            {character, zombie},
+                           {is_attack, true},
+                           {is_auto_attack, true},
+                           {resources, [{stamina, 5}]},
+                           {wielding_body_parts, [hand]},
+                           {body_part, {?PID(z_hand), hand}},
                            ?ITEM_HANDLERS]}]).
 
 -define(WORLD_4, [{room, [{player, player}, ?ROOM_HANDLERS]},
@@ -119,7 +182,12 @@
                            {owner, player}, ?BODY_PART_HANDLERS]},
                   {helmet, [{name, <<"helmet">>},
                             {owner, player},
-                            {body_parts, [head]}, ?ITEM_HANDLERS]}]).
+                            {character, player},
+                            {attribute, dex_buff},
+                            {body_parts, [head]}, ?ITEM_HANDLERS]},
+                  {dex_buff, [{name, <<"dex_buff">>},
+                              {owner, helmet},
+                              ?ATTRIBUTE_HANDLERS]}]).
 
 -define(WORLD_5, [{player, [{item, helmet},
                             {body_part, head1},
@@ -184,7 +252,7 @@
                   {weight0, [{owner, player},
                              {type, weight},
                              {value, <<"128">>},
-                             {desc, <<"weighs ">>, value, <<"kg">>},
+                             {desc, [<<"weighs ">>, value, <<"kg">>]},
                              ?ATTRIBUTE_HANDLERS]},
 
                   {gender0, [{owner, player},
@@ -293,10 +361,10 @@
                             {life, p_life},
                             {attribute, strength0},
                             {attribute, dexterity0},
-                            %{item, force_field},
-                            %{item, shield},
-                            {body_part, back0},
+                            {stamina, p_stamina},
+                            {body_part, p_back},
                             {body_part, hand0},
+                            {body_part, hand1},
                             {race, race0},
                             ?CHARACTER_HANDLERS]},
 
@@ -311,16 +379,20 @@
 
                   {force_field, [{owner, player},
                                  {body_parts, [back]},
+                                 {wielding_body_parts, [back]},
                                  {name, <<"force field">>},
                                  {desc, [name]},
-                                 {defence_damage_modifier, -100},
+                                 {defence_damage_modifier, 100},
+                                 {is_defence, true},
                                  ?ITEM_HANDLERS]},
 
                   {shield, [{owner, player},
                             {body_parts, [hand]},
+                            {wielding_body_parts, [hand]},
                             {name, <<"shield">>},
                             {desc, [name]},
-                            {defence_hit_modifier, -100},
+                            {defence_hit_modifier, 100},
+                            {is_defence, true},
                             ?ITEM_HANDLERS]},
 
                   {strength0, [{owner, player},
@@ -337,31 +409,54 @@
                                 {desc, [<<"dexterity ">>, value]},
                                 ?ATTRIBUTE_HANDLERS]},
 
+                  {p_stamina, [{owner, player},
+                               {type, stamina},
+                               {per_tick, 1},
+                               {tick_time, 10},
+                               {max, 10},
+                               ?RESOURCE_HANDLERS]},
+
                   {hand0,   [{name, <<"left hand">>},
                              {owner, player},
                              {body_part, hand},
+                             {max_items, 1},
+                             {item, p_fist},
                              ?BODY_PART_HANDLERS]},
 
-                  {back0,   [{name, <<"back">>},
+                  {hand1,   [{name, <<"right hand">>},
+                             {owner, player},
+                             {body_part, hand},
+                             {max_items, 1},
+                             ?BODY_PART_HANDLERS]},
+
+                  {p_fist, [{name, <<"left fist">>},
+                            {attack_damage_modifier, 50},
+                            {attack_hit_modifier, 1},
+                            {owner, p_hand},
+                            {character, player},
+                            {wielding_body_parts, [hand]},
+                            {body_part, {?PID(hand0), hand}},
+                            {is_attack, true},
+                            {is_auto_attack, true},
+                            {resources, [{stamina, 5}]},
+                            ?ITEM_HANDLERS]},
+
+                  {p_back,   [{name, <<"back">>},
                              {owner, player},
                              {body_part, back},
+                             {max_items, 2},
                              ?BODY_PART_HANDLERS]},
 
                   {giant, [{owner, room},
                            {name, <<"Pete">>},
                            {hitpoints, g_hp},
                            {life, g_life},
-                           {body_part, hand1},
+                           {body_part, g_hand_r},
                            {attribute, strength1},
                            {attribute, dexterity1},
                            {attribute, race},
-                           {handlers, [erlmud_handler_counterattack,
-                                       erlmud_handler_char_attack,
-                                       erlmud_handler_char_look,
-                                       erlmud_handler_char_inv,
-                                       erlmud_handler_char_move,
-                                       erlmud_handler_char_inject_self,
-                                       erlmud_handler_char_enter_world]}]},
+                           {stamina, g_stamina},
+                           ?CHARACTER_HANDLERS]},
 
                   {g_hp, [{hitpoints, 310},
                           {owner, giant},
@@ -371,10 +466,11 @@
                             {owner, giant},
                             ?LIFE_HANDLERS]},
 
-                  {hand1,   [{name, <<"right hand">>},
-                             {owner, giant},
-                             {body_part, hand},
-                             ?BODY_PART_HANDLERS]},
+                  {g_hand_r, [{name, <<"right hand">>},
+                              {owner, giant},
+                              {body_part, hand},
+                              {item, g_club},
+                              ?BODY_PART_HANDLERS]},
 
                   {strength1, [{owner, giant},
                                {type, strength},
@@ -391,10 +487,29 @@
                                 {desc, [<<"dexterity ">>, value]},
                                 ?ATTRIBUTE_HANDLERS]},
 
+                  {g_stamina, [{owner, giant},
+                               {type, stamina},
+                               {per_tick, 1},
+                               {tick_time, 10},
+                               {max, 10},
+                               ?RESOURCE_HANDLERS]},
+
                   {race0, [{owner, giant},
                            {defence_damage_modifier, 50},
                            {desc, [<<"giant">>]},
-                           ?ATTRIBUTE_HANDLERS]}
+                           ?ATTRIBUTE_HANDLERS]},
+
+                  {g_club, [{name, <<"giant club">>},
+                            {attack_damage_modifier, 50},
+                            {attack_hit_modifier, 5},
+                            {owner, g_hand_r},
+                            {character, giant},
+                            {wielding_body_parts, [hand]},
+                            {body_part, {?PID(g_hand_r), hand}},
+                            {is_attack, true},
+                            {is_auto_attack, true},
+                            {resources, [{stamina, 5}]},
+                            ?ITEM_HANDLERS]}
                  ]).
 
 -define(WORLD_9, [{room, [{character, dog},
@@ -415,7 +530,7 @@
                   {stealth, [{owner, transmitter},
                              ?ATTRIBUTE_HANDLERS]} ]).
 
--define(WORLD_10, [{room, [{playggggglayer},
+-define(WORLD_10, [{room, [{character, player},
                            {item, rifle},
                            ?ROOM_HANDLERS]},
 
@@ -431,17 +546,21 @@
 
                    {suppressor, [{owner, rifle},
                                  {name, <<"suppressor">>},
+                                 {top_item, rifle},
                                  ?ITEM_HANDLERS]},
 
                    {grip, [{owner, rifle},
                            {name, <<"grip">>},
+                           {top_item, rifle},
                            ?ITEM_HANDLERS]},
 
                    {clip, [{owner, rifle},
                            {name, <<"clip">>},
+                           {top_item, rifle},
                            {item, bullet},
                            ?ITEM_HANDLERS]},
 
                    {bullet, [{owner, clip},
                              {name, <<"bullet">>},
+                             {top_item, rifle},
                              ?ITEM_HANDLERS]} ]).

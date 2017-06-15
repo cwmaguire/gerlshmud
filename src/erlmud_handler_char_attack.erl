@@ -18,68 +18,31 @@
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({_Owner, Props, {calc_next_attack_wait, Attack, Self, Target, Sent, Wait}})
-    when Self == self() ->
-    ObjWait = proplists:get_value(attack_wait, Props, 0),
-    log(debug, [<<"Object attack wait is ">>, ObjWait, <<"\n">>]),
-    {succeed,
-     {calc_next_attack_wait, Attack, Self, Target, Sent, Wait + ObjWait},
-     false,
-     Props};
-attempt({_Owner, Props, {attack, Self, Target}})
-  when Self == self(),
-       is_pid(Target) ->
+-include("include/erlmud.hrl").
+
+attempt({#parents{}, Props, {_Attacker, attack, Self}}) when Self == self() ->
     {succeed, true, Props};
-attempt({_Owner, Props, {calc_hit, _Attack, Self, _Target, _HitRoll}}) when Self == self() ->
-    {succeed, true, Props};
-attempt({_Onwer, Props, {die, Self}}) when Self == self() ->
+attempt({#parents{}, Props, {Self, attack, _Target, with, _AttackVector}}) when Self == self() ->
     {succeed, true, Props};
 attempt(_) ->
     undefined.
 
-succeed({Props, {attack, Self, Target}}) when Self == self() ->
-    log(debug, [<<"{attack, self(), ">>,
-                case Target of
-                    TPid when is_pid(TPid) -> TPid;
-                    TBin -> TBin
-                end,
-                <<"} succeeded. Starting attack process">>]),
-    attack(Target, lists:keydelete(attack, 1, Props));
-succeed({Props, {stop_attack, AttackPid}}) ->
-    log(debug, [<<"Character ">>, self(), <<" attack ">>, AttackPid, <<" stopped; remove (if applicable) from props:\n\t">>, Props, <<"\n">>]),
-    lists:filter(fun({attack, {Pid, _}})
-                       when Pid == AttackPid ->
-                         false;
-                    (_) ->
-                         true
-                 end,
-                 Props);
-succeed({Props, {die, Self}}) when Self == self() ->
-    lists:keydelete(attack, 1, lists:keydelete(target, 1, Props));
+succeed({Props, {_Self, attack, _Target, with, _AttackVector}}) ->
+    lists:keystore(is_attacking, 1, Props, {is_attacking, true});
+succeed({Props, {Attacker, attack, _Self}}) ->
+    case proplists:get_value(is_attacking, Props) of
+        true ->
+            ok;
+        _ ->
+            erlmud_object:attempt(self(), {self(), counter_attack, Attacker})
+    end,
+    Props;
 succeed({Props, _}) ->
     Props.
 
-fail({Props, target_is_dead, {calc_hit, _, _, _, _}}) ->
-    Attack = proplists:get_value(attack, Props),
-    log(debug, [<<"Remove attack ">>, Attack, <<"because target is dead">>]),
-    lists:keydelete(attack, 1, Props);
 fail({Props, _, _}) ->
     Props.
 
-attack(Target, Props) ->
-    Args = [_Id = undefined,
-            _Props = [{owner, self()},
-                      {target, Target},
-                      {name, <<"attack">>},
-                      {handlers, [erlmud_handler_attack,
-                                  erlmud_handler_set_character]}]],
-    {ok, Attack} = supervisor:start_child(erlmud_object_sup, Args),
-    log(debug, [<<"Attack ">>, Attack, <<" started, sending attempt and subscribing\n">>]),
-    erlmud_object:attempt(Attack,
-                          {attack, Attack, self(), Target},
-                          _ShouldSub = true),
-    [{attack, Attack}, {target, Target} | Props].
-
-log(Level, IoData) ->
-    erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).
+%log(Level, IoData) ->
+    %erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).
 

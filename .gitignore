@@ -5,3 +5,5 @@ deps
 ebin
 rel
 relx*
+logs
+.erlang.mk

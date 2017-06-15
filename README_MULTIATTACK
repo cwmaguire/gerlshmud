@@ -1,0 +1,317 @@
+
+NOTES ABOUT MULTIATTACK
+
+
+TODO:
+
+1) make sure generic attack handlers register with resources
+
+  check
+
+2) make sure items have top items
+
+  check
+
+3) make sure items have parent body parts
+
+  An item in a wielding body part can kick off an attack
+  with itself as the attacking item
+
+  check
+
+    The generic handler attached to a process will kick of an item
+    specific attack and then check if it's wielded and active.
+
+3.1)  A sub-item can recognize an attack where the attack item
+      is its "top level item"
+
+    check
+    uncheck
+
+      I think I broke this by taking out the original custom item attack handler
+
+      I can fix this by having the custom item attack handler subscribe to attacks
+      by the top item, but then how does the regular attack handler latch on to that?
+
+      If the custom attack handler takes it, then it has to duplicate the generic
+      attack handler logic.
+
+      Then again, all it needs to do is participate in calc_hit and calc_damage.
+
+      erlmud_handler_attribute_attack has a good setup, I should use that if I can figure
+      out why proplists:value(top_item, Props) would return 'item'
+
+    check again
+
+      I've added a #top_item{item = ..., is_active = ..., is_wielded = ...} record
+      that I can pass to child objects of items. This tells the child items if the parent
+      is participating in attacks.
+
+3.2)  This is done with "set_child_property" to "broadcast"
+      a property down to all children (such as "our character
+      is _______")
+
+    check
+
+3.3) How do I know if an item can attack?
+  Some examples:
+    Anything held in the hands:
+      knife
+      shield
+      torch
+      gun
+      fork
+      nothing
+    Antything mounted as a weapon:
+      laser turret
+    Any mind attack:
+      spell
+      psionic power
+      mutant mental ability
+
+  Maybe have "body_part_type" and then have items that look for that
+  type?
+    Maybe some weapons just need any body part as a parent: e.g.
+    a laser turret.
+
+    Maybe "hand weapons" need to be held in the hands.
+
+    Yeah, create a body_part_type that's required and then allow
+    for "any".
+
+    Make it attack_body_part_type to distinguish from the 'body_parts'
+    property of items. The 'body_parts' property says what body parts
+    an item can be added to: e.g. a ring can only go on a finger (unless)
+    it's an alien or the ring is not a human finger-sized ring.
+
+      What's an example of something that can be worn on a body part
+      but could not be attacked with? Something that's not ridiculous,
+      like a sword on a foot.
+
+    check
+
+      There is now a 'wielded_body_parts' property that tracks which body
+      parts an item can be attached to and be able to participate in an
+      attack.
+
+4) Finish the generic handler that allows any item, body_part,
+   spell, or anything else to participate in attacks.
+
+    check
+
+      I'll keep this as a stand-in until I need custom logic
+
+5) Convert the "Owner" param in events to a record that has:
+   - Owner
+   - Character
+   - Top Item
+   ... so I don't have to look them up.
+
+    check
+
+6) Have the character kick off a "stop attack on Target" attempt
+   when the character moves.
+
+    check
+
+      The attack vector resource handlers listen for a character
+      move and unreserve the resource: no more resources, no more
+      attacks.
+
+7) Have attack vectors stop attacking on parent character death
+
+    check
+
+8) Resource properties should be PIDs, not names
+
+  We shouldn't need _resource_inject_self if we have the pids
+  of the resources.
+
+  Each character resource would need it's own unique name
+
+
+ASSUME NETWORK COST IS ZERO
+
+All attack objects register with the resource objects.
+
+When the resource objects send out a tick attempt the attack
+objects subscribe.
+  No. What if tick means the multiple different attack objects
+  can go?
+
+  When the resource tick succeeds then, if the resource has
+  enough for any attack objects then it sends out an allocation
+  attempt.
+
+  attack objects register to their own allocation events
+
+Every object can affect the tick and either fail it or bump
+up the reource tick amount.
+
+When the allocation succeeds, the attack objects, if they have
+all the resources they need, can then start a calc_hit attempt.
+
+
+
+So I need:
+
+resource object
+
+
+
+
+I don't need a separate attack process.
+
+  If I have an attack process then it needs to have the properties
+  of it's parent object (e.g. weapon, spell, hand, anything wielded)
+
+  Actually, handlers aren't objects. Each object gets a set of handlers and
+  each handler gets the properties of the object when it handles an
+  event.
+
+  REMEMBER: objects don't exist, they are just a list of properties.
+
+  (Well, once a list of properties is assigned to a process with a list
+   of handlers and non-handler properties then it _is_ a sort of object)
+
+  So I can stick with my current erlmud_handler_item_attack. I could also
+  have a body_part_attack, spell_attack, etc.
+
+  I think I'm going to have a generic attack handler that I can attach
+  to any object like an item, a body part, a spell, etc.
+
+  What logic would I need that's unique to each attack vector: do I need
+  to handle item-specific attacks and spell-specific attacks?
+
+    What would an item attack need?
+      - body part - comes from props
+      - top-item - props
+      - required resources - props
+      - attack type - props
+        i.e. is this a melee attack? spell? explosion? gun? etc.
+
+      If necessary I can have custom to_hit and damage calc logic
+      in process-specific objects: e.g. a sword could have a custom handler
+      for to_hit, calc_damage, or both.
+
+      Maybe a custom handler to see if this process _can_ attack?
+        e.g. a spell needs to be ... I dunno, memorized? activated?
+             a gun needs to be loaded
+             a melee weapon must be wielded
+             etc.
+
+        However, I _could_ do all of that just with the existence of properties:
+        if there are valid body parts from which to attack then there will be a
+        property for that. I'd just need to go through the list of attack checks.
+
+        Nah, I think I like custom "can this process attack" handlers better.
+
+      I could have functions in the properties:
+        is_interested_fun(#parents{}, Props)
+        calc_hit_fun(#parents{}, Props)
+        calc_damage_fun(#parents{}, Props)
+
+        ... but that puts me into a kind of meta-coding where I'm loading functions
+        up and running them rather than having them hard-coded in a module. I don't
+        think that's wise at this point.
+
+  I'm going to go with the idea that anything wielded or "ready" will be used to
+  attack.
+
+    Body parts will have to be marked "ready" in order to be used.
+    e.g. to strike with a hand the hand will have to be marked ready to strike.
+
+As an aside, a dual-wield situation can be handled by being a bigger drain
+on concentration. Potentially even on a "dual-wield" resource. I have a ton
+of options for things that can be modelled as drainable resources. A
+drainable resource is a great way of communicating between arbitrary sets of
+competing objects.
+
+Resources should have a max. If they have the max then they shouldn't send out
+a tick attempt.
+
+How would a resource tick handler communicate with a resource
+registration handler
+  what events will a resource need to handle:
+    - tick
+    - reservation fulfilled
+
+  I think when a reservation is fulfilled immediate that it can
+  send an attempt.
+
+Each object is a list of properties.
+
+  These properties include handlers.
+
+  Each handler must return undefined if it does not handle
+  the event.
+
+Cases where something reserves a resource:
+  - Nothing else has reserved -> start ticking
+  - Something else has reserved -> keep ticking
+
+Cases where something unreserves a resource
+  - Nothing else has reserved -> stop ticking
+  - Something else has reserved -> keep ticking
+
+
+ALL ITEMS AND BODY PARTS CAN ATTACK
+
+All items and body parts can attack by having an erlmud_handler_attack
+handler.
+
+Each items attack handler will be responsible for registering with all
+necessary resources belonging to the character that is the ancestor of
+the process.
+
+e.g. if the item is a sword then the sword might register with the
+stamina and concentration resources of the character that owns the arm
+that is weilding the sword.
+
+
+Additive and Multiplicative Hit/Dmg Modifiers:
+
+In order to mix and match +/- with * I could have four values:
+Minus integer,
+Plus integer,
+Minus multiplier,
+Plus multiplier.
+
+Once the attempt is finished I could do:
+(Minus integer * minus multiplier) + (Plus integer * plus multiplier)
+
+e.g. if a sword does +2 to hit and a ring does * 1.1 to hit, then
+I'd have to add up all the integers, multiple all the scaling, then
+apply the scaling to the integers.
+
+e.g. A sword does +2 to hit, a ring does * 1.1 to hit, attacker dexteriy
+does +1 to hit, attacker spell does * 2 against the enemy race, the enemy
+armor does -3 to hit and the enemy dexterity does * 1.1 to hit. An enemy
+priest does a -1 to hit buff and the weather does * 0.5 to hit.
+
+The enemy dexterity shouldn't apply to the _positive_ (i.e. successful)
+numbers, it should multiple the negative (i.e. fail) numbers:
+
+Positive: (+2 + 1) * 1.1 * 2 * 0.5 = 3.3
+Negative: (-1) * 1.1 = -1.1
+Total: 3.3 - 1.1 = 2.2
+
+In this way I can have multiplier effects and additive/subtractive effects.
+The base value is 1 so I could even have _only_ multiplier effects.
+However, there might have to be a base negative amount as well in case I
+only had negative multipliers.
+That works out well because +1 + -1 = 0, ... i.e. if nothing affects the
+attack it will fail with 0.
+
+So, I'd probably want weapons to have a base damage, and then have skills,
+spells, attributes, environment, etc. potentially do multipliers.
+
+At that point I might have a Hit map instead of just a hit number:
+#{pos => 1, neg => -1, pos_multiplier => 1, neg_multiplier => 1}
+
+e.g.
+{succeed, {C, calc, neg_mult(Hit, NegMult), on, T, with, W}}
+
+where neg_mult/2 is a function that multiplies the negative multiplier
+by it's amount. Since the negative multiplier starts out at one that works
+out nicely.

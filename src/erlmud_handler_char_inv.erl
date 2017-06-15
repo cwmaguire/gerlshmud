@@ -50,6 +50,9 @@ attempt({_Owner, Props, {move, Item, from, Self, to, BodyPart, _ItemBodyParts}})
        is_pid(Item),
        is_pid(BodyPart) ->
     {succeed, true, Props};
+attempt({_Owner, Props, {move, _Item, from, Self, to, {_BodyPart, _BodyPartType}}})
+  when Self == self() ->
+    {succeed, true, Props};
 attempt({_Owner, Props, {move, Item, from, _Room, to, Self}})
   when Self == self() andalso
        is_pid(Item) ->
@@ -59,21 +62,24 @@ attempt(_) ->
 
 succeed({Props, {move, Item, from, Source, to, Self}}) when Self == self() ->
     log(debug, [<<"Getting ">>, Item, <<" from ">>, Source, <<"\n">>]),
-    erlmud_object:attempt(Item, {set_character, self(), self()}),
+    erlmud_object:attempt(Item, {set_child_property, self(), character, self()}),
     [{item, Item} | Props];
+succeed({Props, {move, Item, from, Self, to, {_BodyPart, _BodyPartType}}}) when Self == self() ->
+    lists:keydelete(Item, 2, Props);
 succeed({Props, {move, Item, from, Self, to, Target}}) when Self == self() ->
-    log(debug, [<<"Giving ">>, Item, <<" to ">>, Target, <<"\n\tProps: ">>, Props, <<"\n">>]),
-    erlmud_object:attempt(Item, {set_character, Target, undefined}),
-    lists:keydelete(Item, 2, Props);
-succeed({Props, {move, Item, from, Self, to, Target, _ItemBodyParts}}) when Self == self() ->
-    log(debug, [<<"Giving ">>, Item, <<" to ">>, Target, <<"\n\tProps: ">>, Props, <<"\n">>]),
-    erlmud_object:attempt(Item, {set_character, Target, undefined}),
-    lists:keydelete(Item, 2, Props);
+    clear_child_character(Props, Item, Target);
+%succeed({Props, {move, Item, from, Self, to, Target, _ItemBodyParts}}) when Self == self() ->
+    %clear_child_character(Props, Item, Target);
 succeed({Props, _}) ->
     Props.
 
 fail({Props, _, _}) ->
     Props.
+
+clear_child_character(Props, Item, Target) ->
+    log(debug, [<<"Giving ">>, Item, <<" to ">>, Target, <<"\n\tProps: ">>, Props, <<"\n">>]),
+    erlmud_object:attempt(Item, {clear_child_property, Target, character, self()}),
+    lists:keydelete(Item, 2, Props).
 
 log(Level, IoData) ->
     erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).

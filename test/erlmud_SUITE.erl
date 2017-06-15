@@ -5,6 +5,9 @@
 
 -define(WAIT100, receive after 100 -> ok end).
 
+% TODO test cancelling an attack by moving
+% TODO test updating a skill when a target is killed with a weapon (or when damage is dealt, or both)
+
 all() ->
     [player_move,
      player_move_fail,
@@ -13,7 +16,7 @@ all() ->
      player_drop_item,
      character_owner_add_remove,
      player_attack,
-     player_attack_wait,
+     player_resource_wait,
      attack_with_modifiers,
      one_sided_fight,
      counterattack_behaviour,
@@ -32,7 +35,6 @@ init_per_testcase(_, Config) ->
     {ok, _Started} = application:ensure_all_started(erlmud),
     {ok, _Pid} = erlmud_test_socket:start(),
     TestObject = spawn_link(fun mock_object/0),
-    ct:pal("mock_object is ~p~n", [TestObject]),
     erlmud_index:put("TestObject", TestObject),
     [{test_object, TestObject} | Config].
 
@@ -69,7 +71,6 @@ get_props(Pid) when is_pid(Pid) ->
     Props.
 
 player_move(Config) ->
-    %erlmud_dbg:add(erlmud_object),
     start(?WORLD_1),
     Player = erlmud_index:get(player),
     RoomNorth =  erlmud_index:get(room_nw),
@@ -149,79 +150,116 @@ character_owner_add_remove(Config) ->
 player_attack(Config) ->
     start(?WORLD_3),
     Player = erlmud_index:get(player),
-    attempt(Config, Player, {attack, Player, <<"zombie">>}),
+    attempt(Config, Player, {Player, attack, <<"zombie">>}),
     receive after 1000 -> ok end,
     false = val(is_alive, z_life),
     0 = val(hitpoints, z_hp).
 
-player_attack_wait(Config) ->
+player_resource_wait(Config) ->
     start(?WORLD_3),
     Player = erlmud_index:get(player),
+    Fist = erlmud_index:get(p_fist),
+    Stamina = erlmud_index:get(p_stamina),
     Zombie = erlmud_index:get(zombie),
-    erlmud_object:set(Player, {attack_wait, 10000}),
-    attempt(Config, Player, {attack, Player, <<"zombie">>}),
+    erlmud_object:set(Stamina, {current, 5}),
+    erlmud_object:set(Stamina, {tick_time, 10000}),
+    attempt(Config, Player, {Player, attack, <<"zombie">>}),
     ?WAIT100,
     5 = val(hitpoints, z_hp),
     true = val(is_alive, z_life),
-    Attack = val(attack, Player),
-    Zombie = val(target, Player),
-    true = is_pid(Attack).
+    true = val(is_attacking, p_fist),
+    Zombie = val(target, Fist).
 
 one_sided_fight(Config) ->
     start(?WORLD_3),
     Player = erlmud_index:get(player),
-    Zombie = erlmud_index:get(zombie),
-    attempt(Config, Player, {attack, Player, <<"zombie">>}),
+    _Zombie = erlmud_index:get(zombie),
+    attempt(Config, Player, {Player, attack, <<"zombie">>}),
+    WaitFun =
+        fun() ->
+            case val(hitpoints, z_hp) of
+                ZeroOrLess when is_integer(ZeroOrLess), ZeroOrLess =< 0 ->
+                    true;
+                _ ->
+                    false
+            end
+        end,
+    true = wait_loop(WaitFun, true, 30),
+    ?WAIT100,
+    ?WAIT100,
+    ?WAIT100,
+    ?WAIT100,
+    ?WAIT100,
+    ?WAIT100,
+    ?WAIT100,
     ?WAIT100,
     ?WAIT100,
     1000 = val(hitpoints, p_hp),
     true = val(is_alive, p_life),
-    undefined = val(attack, Player),
-    0 = val(hitpoints, z_hp),
-    false = val(is_alive, z_life),
-    undefined = val(attack, Zombie).
+    false = val(is_alive, z_life).
 
 counterattack_behaviour(Config) ->
     start(?WORLD_3),
     Player = erlmud_index:get(player),
-    erlmud_object:set(Player, {attack_wait, 20}),
-    Zombie = erlmud_index:get(zombie),
-    Handlers = val(handlers, zombie),
-    ct:pal("Zombie handlers: ~n\t~p~n", [Handlers]),
-    erlmud_object:set(Zombie, {handlers, [erlmud_handler_counterattack | Handlers]}),
+    %erlmud_object:set(Player, {attack_wait, 20}),
+    %Zombie = erlmud_index:get(zombie),
+    %% Counterattack is now handled by items so we'll limit the attacks
+    %% with the amount of stamina available
+    Stamina = val(stamina, zombie),
+    erlmud_object:set(Stamina, {current, 5}),
+    erlmud_object:set(Stamina, {tick_time, 100000}),
+    Dexterity = erlmud_index:get(dexterity0),
+    erlmud_object:set(Dexterity, {defence_hit_modifier, 0}),
     ?WAIT100,
-    attempt(Config, Player, {attack, Player, <<"zombie">>}),
-    ?WAIT100,
-    ?WAIT100,
+    attempt(Config, Player, {Player, attack, <<"zombie">>}),
+
+    WaitFun =
+        fun() ->
+            case val(hitpoints, z_hp) of
+                ZeroOrLess when is_integer(ZeroOrLess), ZeroOrLess =< 0 ->
+                    true;
+                _ ->
+                    false
+            end
+        end,
+    true = wait_loop(WaitFun, true, 30),
+
+    false = val(is_alive, z_life),
     true = 1000 > val(hitpoints, p_hp),
     true = val(is_alive, p_life),
-    undefined = val(attack, Player),
-    0 = val(hitpoints, z_hp),
-    false = val(is_alive, z_life),
-    undefined = val(attack, Zombie),
     ok.
 
 attack_with_modifiers(Config) ->
     start(?WORLD_8),
     Room = erlmud_index:get(room),
     Player = erlmud_index:get(player),
-    Giant = erlmud_index:get(giant),
+    %% TODO make sure that the giant is counterattacking
+    _Giant = erlmud_index:get(giant),
     ?WAIT100,
     attempt(Config, Player, {move, <<"force field">>, from, Room, to, Player}),
     attempt(Config, Player, {move, <<"shield">>, from, Room, to, Player}),
     ?WAIT100,
-    attempt(Config, Player, {attack, Player, <<"pete">>}),
+    attempt(Config, Player, {move, <<"force field">>, from, Player, to, first_available_body_part}),
+    attempt(Config, Player, {move, <<"shield">>, from, Player, to, first_available_body_part}),
     ?WAIT100,
+    attempt(Config, Player, {Player, attack, <<"pete">>}),
     ?WAIT100,
-    timer:sleep(500),
+
     %% The giant shouldn't be able to attack the player at all,
     %% so the giant should die and the player should be alive.
     10 = val(hitpoints, p_hp),
     true = val(is_alive, p_life),
-    true = wait_loop(fun() -> val(attack, Player) end, undefined, 10),
-    true = 0 >= val(hitpoints, g_hp),
+    WaitFun =
+        fun() ->
+            case val(hitpoints, g_hp) of
+                ZeroOrLess when is_integer(ZeroOrLess), ZeroOrLess =< 0 ->
+                    true;
+                _ ->
+                    false
+            end
+        end,
+    true = wait_loop(WaitFun, true, 30),
     false = val(is_alive, g_life),
-    undefined = val(attack, Giant),
     ok.
 
 wait_loop(Fun, ExpectedResult, _Count = 0) ->
@@ -241,24 +279,30 @@ player_wield(Config) ->
     start(?WORLD_4),
     Player = erlmud_index:get(player),
     Helmet = erlmud_index:get(helmet),
+    Head = erlmud_index:get(head1),
     Helmet = val(item, Player),
     attempt(Config, Player, {move, <<"helmet">>, from, Player, to, <<"head">>}),
     ?WAIT100,
+    ?WAIT100,
     undefined = val(item, Player),
-    Helmet = val(item, head1).
+    Helmet = val(item, head1),
+    {Head, head} = val(body_part, Helmet).
 
 player_wield_first_available(Config) ->
     start(?WORLD_4),
     Player = erlmud_index:get(player),
+    Head = erlmud_index:get(head1),
     Helmet = erlmud_index:get(helmet),
     attempt(Config, Player, {move, <<"helmet">>, from, Player, to, first_available_body_part}),
     ?WAIT100,
     undefined = val(item, Player),
-    Helmet = val(item, head1).
+    Helmet = val(item, head1),
+    {Head, head} = val(body_part, Helmet).
 
 player_wield_missing_body_part(Config) ->
     start(?WORLD_4),
     Player = erlmud_index:get(player),
+    Head = erlmud_index:get(head1),
     Helmet = erlmud_index:get(helmet),
     attempt(Config, Player, {move, <<"helmet">>, from, Player, to, <<"finger">>}),
     ?WAIT100,
@@ -267,11 +311,13 @@ player_wield_missing_body_part(Config) ->
     attempt(Config, Player, {move, <<"helmet">>, from, Player, to, <<"head">>}),
     ?WAIT100,
     Helmet = val(item, head1),
+    {Head, head} = val(body_part, Helmet),
     undefined = val(item, player).
 
 player_wield_wrong_body_part(Config) ->
     start(?WORLD_5),
     Player = erlmud_index:get(player),
+    Head = erlmud_index:get(head1),
     Helmet = erlmud_index:get(helmet),
     attempt(Config, Player, {move, <<"helmet">>, from, Player, to, <<"finger">>}),
     ?WAIT100,
@@ -280,20 +326,26 @@ player_wield_wrong_body_part(Config) ->
     attempt(Config, Player, {move, <<"helmet">>, from, Player, to, <<"head">>}),
     ?WAIT100,
     Helmet = val(item, head1),
+    {Head, head} = val(body_part, Helmet),
     undefined = val(item, player).
 
 player_wield_body_part_is_full(Config) ->
     start(?WORLD_6),
     Player = erlmud_index:get(player),
+    Finger1 = erlmud_index:get(finger1),
+    Finger2 = erlmud_index:get(finger2),
     Ring1 = erlmud_index:get(ring1),
     Ring2 = erlmud_index:get(ring2),
-    [Ring1, Ring2] = all(item, player),
+    AllItems = [_, _] = all(item, player),
+    true = lists:member(Ring1, AllItems),
+    true = lists:member(Ring2, AllItems),
     [] = all(item, finger1),
     [] = all(item, finger2),
     attempt(Config, Player, {move, <<"ring1">>, from, Player, to, <<"finger1">>}),
     ?WAIT100,
     [Ring2] = all(item, player),
     [Ring1] = all(item, finger1),
+    {Finger1, finger} = val(body_part, Ring1),
     [] = all(item, finger2),
     attempt(Config, Player, {move, <<"ring2">>, from, Player, to, <<"finger1">>}),
     ?WAIT100,
@@ -304,27 +356,39 @@ player_wield_body_part_is_full(Config) ->
     ?WAIT100,
     [] = all(item, player),
     [Ring1] = all(item, finger1),
-    [Ring2] = all(item, finger2).
+    [Ring2] = all(item, finger2),
+    {Finger2, finger} = val(body_part, Ring2).
 
 player_remove(Config) ->
     start(?WORLD_4),
     Player = erlmud_index:get(player),
+    Head = erlmud_index:get(head1),
     Helmet = erlmud_index:get(helmet),
+    DexBuff = erlmud_index:get(dex_buff),
     attempt(Config, Player, {move, <<"helmet">>, from, Player, to, <<"head">>}),
     ?WAIT100,
     undefined = val(item, player),
     Helmet = val(item, head1),
+    {Head, head} = val(body_part, Helmet),
+    {Head, head} = val(body_part, DexBuff),
     attempt(Config, Player, {move, <<"helmet">>, from, <<"head">>, to, Player}),
     ?WAIT100,
+    %% TODO this doesn't make any sense for the player to have a single item
     Helmet = val(item, player),
+    undefined = val(body_part, Helmet),
+    undefined = val(body_part, DexBuff),
     undefined = val(item, head1),
     attempt(Config, Player, {move, <<"helmet">>, from, Player, to, <<"head">>}),
     ?WAIT100,
     undefined = val(item, player),
     Helmet = val(item, head1),
+    {Head, head} = val(body_part, Helmet),
+    {Head, head} = val(body_part, DexBuff),
     attempt(Config, Player, {move, <<"helmet">>, from, current_body_part, to, Player}),
     ?WAIT100,
     Helmet = val(item, player),
+    undefined = val(body_part, Helmet),
+    undefined = val(body_part, DexBuff),
     undefined = val(item, head1).
 
 look_player(_Config) ->
@@ -421,26 +485,26 @@ start_obj(Id, Props) ->
 
 attempt(Config, Target, Message) ->
     TestObject = proplists:get_value(test_object, Config),
-    ct:pal("Test object pid: ~p~n", [TestObject]),
+    %ct:pal("Test object pid: ~p~n", [TestObject]),
     TestObject ! {attempt, Target, Message}.
 
 mock_object() ->
-    ct:pal("mock_object ~p receiving~n", [self()]),
+    %ct:pal("mock_object ~p receiving~n", [self()]),
     receive
         X ->
-            ct:pal("mock_object ~p received: ~p~n", [self(), X]),
+            %ct:pal("mock_object ~p received: ~p~n", [self(), X]),
             case X of
-                {'$gen_call', Msg = {From, MonitorRef}, props} ->
-                    ct:pal("mock_object ~p rec'd gen_call: ~p ~n", [self(), Msg]),
+                {'$gen_call', _Msg = {From, MonitorRef}, props} ->
+                    %ct:pal("mock_object ~p rec'd gen_call: ~p ~n", [self(), Msg]),
                     From ! {MonitorRef, _MockProps = []};
                 {attempt, Target, Message} ->
-                    ct:pal("mock_object ~p Sending {attempt, ~p, ~p}", [self(), Target, Message]),
+                    %ct:pal("mock_object ~p Sending {attempt, ~p, ~p}", [self(), Target, Message]),
                     erlmud_object:attempt(Target, Message, false);
                 stop ->
-                    ct:pal("mock_object ~p stopping", [self()]),
+                    %ct:pal("mock_object ~p stopping", [self()]),
                     exit(normal);
-                Other ->
-                    ct:pal("mock_object ~p received other:~n\t~p~n", [self(), Other]),
+                _Other ->
+                    %ct:pal("mock_object ~p received other:~n\t~p~n", [self(), Other]),
                     ok
             end
     end,

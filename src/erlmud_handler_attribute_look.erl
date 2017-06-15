@@ -15,14 +15,20 @@
 
 -behaviour(erlmud_handler).
 
+-include("include/erlmud.hrl").
+
 %% object behaviour
 -export([attempt/1]).
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({Owner, Props, {describe, _Source, Owner, deep, _Context}}) ->
+attempt({#parents{owner = Owner},
+         Props,
+         {describe, _Source, Owner, deep, _Context}}) ->
     {succeed, true, Props};
-attempt({Owner, Props, {describe, _Source, Owner, shallow, _Context}}) ->
+attempt({#parents{owner = Owner},
+         Props,
+         {describe, _Source, Owner, shallow, _Context}}) ->
     ShouldSubscribe = _AttributeIsRace = race == proplists:get_value(type, Props),
     {succeed, ShouldSubscribe, Props};
 attempt(_) ->

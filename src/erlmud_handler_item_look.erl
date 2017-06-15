@@ -14,11 +14,13 @@
 -module(erlmud_handler_item_look).
 -behaviour(erlmud_handler).
 
+-include("include/erlmud.hrl").
+
 -export([attempt/1]).
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({_Owner, Props, {look, Source, TargetName}})
+attempt({#parents{}, Props, {look, Source, TargetName}})
   when Source =/= self(),
        is_binary(TargetName) ->
     log([<<"Checking if name ">>, TargetName, <<" matches">>]),
@@ -36,13 +38,19 @@ attempt({_Owner, Props, {look, Source, TargetName}})
                  <<".\n">>]),
             {succeed, false, Props}
     end;
-attempt({_Owner, Props, {describe, _Source, Self}}) when Self == self() ->
+attempt({#parents{}, Props, {describe, _Source, Self}}) when Self == self() ->
     {succeed, true, Props};
-attempt({Owner, Props, {describe, _Source, Owner, _Context}}) ->
+attempt({#parents{owner = Owner},
+         Props,
+         {describe, _Source, Owner, _Context}}) ->
     {succeed, true, Props};
-attempt({Owner, Props, {describe, _Source, Owner, deep, _Context}}) ->
+attempt({#parents{owner = Owner},
+         Props,
+         {describe, _Source, Owner, deep, _Context}}) ->
     {succeed, true, Props};
-attempt({Owner, Props, {describe, _Source, Owner, _Depth, _Context}}) ->
+attempt({#parents{owner = Owner},
+         Props,
+         {describe, _Source, Owner, _Depth, _Context}}) ->
     {succeed, false, Props};
 attempt(_) ->
     undefined.

@@ -25,9 +25,9 @@ attempt({_Owner, Props, {move, Self, Direction}}) when Self == self() ->
         Room ->
             {{resend, Self, {move, Self, Room, Direction}}, false, Props}
     end;
-attempt({_Owner, Props, {move, Self, _, _}}) when Self == self() ->
+attempt({_Owner, Props, {move, Self, _From, _Dir}}) when Self == self() ->
     {succeed, true, Props};
-attempt({_Owner, Props, {move, Self, _, _, _}}) when Self == self() ->
+attempt({_Owner, Props, {move, Self, _From, _To, _Exit}}) when Self == self() ->
     {succeed, true, Props};
 attempt(_) ->
     undefined.
@@ -37,6 +37,12 @@ succeed({Props, {move, Self, Source, Target, _Exit}}) when Self == self() ->
     log(debug, [<<"setting ">>, Self, <<"'s room to ">>, Target, <<"\n">>]),
     NewProps = set(owner, Target, Props),
     log(debug, [<<" finished moving rooms \n">>]),
+    case proplists:get_value(is_attacking, Props) of
+        true ->
+            erlmud_object:attempt(self(), {self(), stop_attack});
+        _ ->
+            ok
+    end,
     NewProps;
 succeed({Props, {move, Self, Source, Direction}}) when Self == self(), is_atom(Direction) ->
     log(debug, [<<"succeeded in moving ">>, Direction, <<" from ">>, Source, <<"\n">>]),

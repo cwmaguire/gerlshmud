@@ -14,20 +14,20 @@
 -module(erlmud_object).
 -behaviour(gen_server).
 
+-include("include/erlmud.hrl").
+
 %% API.
 -export([start_link/2]).
 -export([populate/2]).
 -export([attempt/2]).
 -export([attempt/3]).
 -export([attempt_after/3]).
-%-export([add/3]).
-%-export([remove/3]).
-%-export([get/2]).
 -export([set/2]).
 -export([props/1]).
 
 %% Util
 -export([has_pid/2]).
+-export([value/3]).
 
 %% gen_server.
 -export([init/1]).
@@ -46,7 +46,6 @@
                 subs = [] :: ordsets:ordset(pid())}).
 
 -type proplist() :: [{atom(), any()}].
-%-type attempt() :: {atom(), Pid, Pid, Pid}.
 
 -callback added(atom(), pid()) -> ok.
 -callback removed(atom(), pid()) -> ok.
@@ -202,16 +201,28 @@ exit_has_room(Props, Room) ->
 attempt_(Msg,
          Procs,
          State = #state{props = Props}) ->
-    Owner = proplists:get_value(owner, Props),
+    Parents = parents(Props),
     %% So far it looks like nothing actually changes the object properties on attempt
     %% but I'm leaving it in for now
-    {Handler, Results = {Result, Msg2, ShouldSubscribe, Props2}} = ensure_message(Msg, run_handlers({Owner, Props, Msg})),
-    log([self(), <<" {owner, ">>, Owner, <<"} ">>,
+    %% I found a case: you attempt to shoot someone and you miss: the clip can lose a round ...
+    %% except the clip could just listen for the result and decrement the ammunition then.
+    {Handler, Results = {Result, Msg2, ShouldSubscribe, Props2}} = ensure_message(Msg, run_handlers({Parents, Props, Msg})),
+    log([self(), <<" {owner, ">>, Parents#parents.owner, <<"} ">>,
          Handler, <<"attempt: ">>, Msg, <<" -> ">>,
          ShouldSubscribe, <<", ">>, binary_fail_reason(Result)]),
     MergedProcs = merge(self(), is_room(Props), Results, Procs),
     _ = handle(Result, Msg2, MergedProcs, Props2),
     State#state{props = Props2}.
+
+parents(Props) ->
+    Owner = proplists:get_value(owner, Props),
+    Character = proplists:get_value(character, Props),
+    TopItem = proplists:get_value(top_item, Props),
+    BodyPart = proplists:get_value(body_part, Props),
+    #parents{owner = Owner,
+             character = Character,
+             top_item = TopItem,
+             body_part = BodyPart}.
 
 is_room(Props) ->
     proplists:get_value(is_room, Props, false).
@@ -273,10 +284,12 @@ handle({broadcast, Msg}, _Msg, _Procs, Props) ->
     %to only broadcast "down".
     NotParents = [Prop || Prop = {Key, _} <- Props,
                           Key /= owner,
-                          Key /= character],
+                          Key /= character,
+                          Key /= body_part,
+                          Key /= top_item],
     log([<<"Broadcasting: ">>, Msg]),
-    log([<<"    to: ">>, procs(NotParents)]),
-    log([<<"    from props: ">>, NotParents]),
+    log([<<"to: ">>, procs(NotParents)]),
+    log([<<"from props: ">>, NotParents]),
     [broadcast(V, Msg) || V <- procs(NotParents)].
 
 broadcast(Pid, Msg) ->
@@ -303,7 +316,13 @@ send_(Pid, Msg) ->
 
 
 populate_(Props, IdPids) ->
-    [{K, proc(V, IdPids)} || {K, V} <- Props].
+    {_, Props2} = lists:foldl(fun set_pid/2, {IdPids, []}, Props),
+    Props2.
+
+set_pid({K, {{pid, V1}, V2}}, {IdPids, Props}) ->
+    {IdPids, [{K, {proc(V1, IdPids), V2}} | Props]};
+set_pid({K, V}, {IdPids, Props}) ->
+    {IdPids, [{K, proc(V, IdPids)} | Props]}.
 
 proc(MaybeId, IdPids) when is_atom(MaybeId) ->
     MaybePid = proplists:get_value(MaybeId, IdPids, MaybeId),
@@ -385,6 +404,20 @@ handle_fail(_, Response = {{stop, _}, _, _}) ->
 handle_fail(HandlerModule, Failure = {_, Reason, Message}) ->
     Props = HandlerModule:fail(Failure),
     {Props, Reason, Message}.
+
+value(Prop, Props, integer) ->
+    prop(Prop, Props, fun is_integer/1, 0);
+value(Prop, Props, boolean) ->
+    prop(Prop, Props, fun is_boolean/1, false).
+
+prop(Prop, Props, Fun, Default) ->
+    Val = proplists:get_value(Prop, Props),
+    case Fun(Val) of
+        true ->
+            Val;
+        _ ->
+            Default
+    end.
 
 log(To, Stage, Msg, Procs) when is_tuple(Msg) ->
     erlmud_event_log:log(To,

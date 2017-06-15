@@ -15,11 +15,15 @@
 
 -behaviour(erlmud_handler).
 
+-include("include/erlmud.hrl").
+
 -export([attempt/1]).
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({Owner, Props, {look, _Source, Owner, _Context}}) ->
+attempt({#parents{owner = Owner},
+         Props,
+         {look, _Source, Owner, _Context}}) ->
     {succeed, true, Props};
 attempt(_) ->
     undefined.

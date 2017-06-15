@@ -14,23 +14,31 @@
 -module(erlmud_handler_body_part_inv).
 -behaviour(erlmud_handler).
 
+-include("include/erlmud.hrl").
+
 -export([can_add/2]).
 
 -export([attempt/1]).
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({Owner, Props, {move, Item, from, Self, to, Owner}})
+attempt({#parents{owner = Owner},
+         Props,
+         {move, Item, from, Self, to, Owner}})
   when Self == self(),
        is_pid(Item) ->
     {succeed, has_item(Item, Props), Props};
-attempt({Owner, Props, {move, Item, from, Owner, to, Self}})
+attempt({#parents{owner = Owner},
+         Props,
+         {move, Item, from, Owner, to, Self}})
   when Self == self(),
        is_pid(Item) ->
     NewMessage = {move, Item, from, Owner, to, Self, item_body_parts},
     Result = {resend, Owner, NewMessage},
     {Result, _Subscribe = true, Props};
-attempt({Owner, Props, {move, Item, from, Owner, to, Self, ItemBodyParts}})
+attempt({#parents{owner = Owner},
+         Props,
+         {move, Item, from, Owner, to, Self, ItemBodyParts}})
   when Self == self(),
        is_pid(Item),
        is_list(ItemBodyParts) ->
@@ -38,20 +46,35 @@ attempt({Owner, Props, {move, Item, from, Owner, to, Self, ItemBodyParts}})
         {false, Reason} ->
             {{fail, Reason}, _Subscribe = false, Props};
         _ ->
-            {succeed, _Subscribe = true, Props}
+            BodyPartType = proplists:get_value(body_part, Props, undefined),
+            NewMessage = {move, Item, from, Owner, to, {Self, BodyPartType}},
+            Result = {resend, Owner, NewMessage},
+            {Result, _Subscribe = true, Props}
     end;
+attempt({#parents{owner = Owner},
+         Props,
+         {move, _Item, from, Owner, to, {Self, _BodyPartType}}})
+  when Self == self() ->
+    {succeed, true, Props};
 attempt(_) ->
     undefined.
 
-succeed({Props, {move, Item, from, _OldOwner, to, Self, _ItemBodyParts}})
+succeed({Props, {move, Item, from, OldOwner, to, {Self, _BodyPartType}}})
   when Self == self() ->
+    log(debug, [<<"Getting ">>, Item, <<" from ">>, OldOwner, <<"\n">>]),
+    %BodyPartType = proplists:get_value(body_part, Props),
+
+    % Temp comment: the item will set the body part property to {BodyPartPid, BodyPartType}
+    %erlmud_object:attempt(Item, {set_child_property, self(), body_part, {self(), BodyPartType}}),
     [{item, Item} | Props];
-succeed({Props, {move, Item, from, Self, to, _NewOwner}})
+succeed({Props, {move, Item, from, Self, to, NewOwner}})
   when Self == self() ->
-    lists:keydelete(Item, 2, Props);
-succeed({Props, {move, Item, from, Self, to, _NewOwner, _ItemBodyParts}})
-  when Self == self() ->
-    lists:keydelete(Item, 2, Props);
+    clear_child_body_part(Props, Item, NewOwner);
+%% TODO I'm not sure if this gets used: _ItemBodyParts indicates this is an intermediate event
+%% that should turn into a {BodyPart, BodyPartType} event
+%succeed({Props, {move, Item, from, Self, to, NewOwner, _ItemBodyParts}})
+  %when Self == self() ->
+    %clear_child_body_part(Props, Item, NewOwner);
 succeed({Props, _}) ->
     Props.
 
@@ -66,11 +89,18 @@ can(add, Props, ItemBodyParts) ->
 can(remove, Props, Item) ->
     can_remove(Props, Item).
 
+can_add(Props, ItemBodyParts) ->
+    can_add([fun has_matching_body_part/2,
+             fun has_space/2],
+            Props,
+            ItemBodyParts,
+            true).
+
 can_add([], _, _, Result) ->
     log(debug, [<<"can_add([], _, _, ">>, Result ,<<")">>]),
     Result;
 can_add(_, _, _, {false, Reason}) ->
-    log(debug, [<<"can_add([_ | _], _, _, {false, ">>, list_to_binary(Reason),<<"})">>]),
+    log(debug, [<<"can_add([_ | _], _, _, {false, ", Reason/binary, "})">>]),
     {false, Reason};
 can_add([Fun | Funs], Props, ItemBodyParts, true) ->
     log(debug, [<<"can_add([">>, Fun, <<" | ">>,
@@ -80,10 +110,6 @@ can_add([Fun | Funs], Props, ItemBodyParts, true) ->
 
 can_remove(_Props, _Item) ->
     true.
-
-can_add(Props, ItemBodyParts) ->
-    can_add([fun has_matching_body_part/2,
-             fun has_space/2], Props, ItemBodyParts, true).
 
 has_matching_body_part(Props, ItemBodyParts) ->
     BodyPart = proplists:get_value(body_part, Props, any),
@@ -96,7 +122,7 @@ has_matching_body_part(Props, ItemBodyParts) ->
         {_, true} ->
             true;
         {_, _} ->
-            {false, "Item is not compatible with body part"}
+            {false, <<"Item is not compatible with body part">>}
     end.
 
 has_space(Props, _) ->
@@ -109,8 +135,14 @@ has_space(Props, _) ->
         MaxItems when NumItems < MaxItems ->
             true;
         _ ->
-            {false, "Body part is full"}
+            {false, <<"Body part is full">>}
     end.
+
+clear_child_body_part(Props, Item, Target) ->
+    log(debug, [<<"Giving ">>, Item, <<" to ">>, Target, <<"\n\tProps: ">>, Props, <<"\n">>]),
+    BodyPartType = proplists:get_value(body_part, Props, undefined),
+    erlmud_object:attempt(Item, {clear_child_property, Target, body_part, {self(), BodyPartType}}),
+    lists:keydelete(Item, 2, Props).
 
 log(Level, IoData) ->
     erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).

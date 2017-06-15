@@ -1,23 +1,16 @@
 
 function createClassCheckboxes(){
   //alert("Creating class checkboxes");
-  var allDivs = nodeListToArray(document.getElementsByTagName("div"));
-  var allSpans = nodeListToArray(document.getElementsByTagName("span"));
-  var classes_ = concat(classes(allDivs), classes(allSpans));
-  var checkboxes = map(checkbox, classes_);
-  map(insert, checkboxes);
+  let allDivs = Array.from(document.getElementsByTagName("div"));
+  let allSpans = Array.from(document.getElementsByTagName("span"));
+  let classes_ = classes(allDivs).concat(classes(allSpans));
+  let checkboxes = map(checkbox, classes_);
+  checkboxes.forEach(insert);
 }
 
 function insert(elem){
-  var firstElem = document.body.firstElementChild;
-  //document.body.insertBefore(elem, firstElem);
+  let firstElem = document.body.firstElementChild;
   firstElem.appendChild(elem);
-}
-
-function nodeListToArray(nodelist){
-  var arr = [];
-  for(var i = 0, n; n = nodelist[i]; ++i) arr.push(n);
-  return arr
 }
 
 function class_(elem){
@@ -25,7 +18,7 @@ function class_(elem){
 }
 
 function classes(elems){
-  return unique(filter(not_empty, map(class_, elems)));
+  return Array.from(new Set(elems.map(class_).filter(not_empty)))
 }
 
 function not_empty(str){
@@ -33,16 +26,16 @@ function not_empty(str){
 }
 
 function checkbox(className){
-  var div = document.createElement("div");
-  var cb = document.createElement("input");
+  let div = document.createElement("div");
+  let cb = document.createElement("input");
   cb.type = "checkbox";
   cb.id = className + "_checkbox";
   cb.checked = true;
   cb.onchange = function(event){
-    var elems = nodeListToArray(document.getElementsByClassName(className));
-    map(toggleVisibility, elems);
+    let elems = Array.from(document.getElementsByClassName(className));
+    elems.forEach(toggleVisibility);
   }
-  var label = document.createElement("label");
+  let label = document.createElement("label");
   label.innerHTML = className;
   div.appendChild(cb);
   div.appendChild(label);

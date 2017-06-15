@@ -26,9 +26,10 @@
 log(Level, Terms) when is_atom(Level) ->
     case whereis(?MODULE) of
         undefined ->
-            io:format("No ~p logger process found~nLevel: ~p~nTerms: ~p~n",
-                      [?MODULE, Level, Terms]);
+            %io:format("No ~p logger process found~nLevel: ~p~nTerms: ~p~n",
+                      %[?MODULE, Level, Terms]);
             %exit("no logger process found");
+            ok;
         _ ->
             ok
     end,
@@ -83,6 +84,7 @@ handle_cast({log, Level, Pid, Terms}, State) ->
     IoData = [[io(maybe_name(Term)), " "] || Term <- flatten(Terms)],
     %Props = erlmud_object:props(Pid),
     Props = props(Pid),
+    io:format("Props for Pid ~p:~n~p~n", [Pid, Props]),
     PropsWithNames = [{K, io(maybe_name(V))} || {K, V} <- Props],
     ok = file:write(State#state.html_file,
                     spans(["log", Level, io(erlmud_index:get(Pid))],
@@ -98,7 +100,7 @@ handle_cast({log, From, To, Stage, Action, _Params, _Room, _Next, _Done, _Subs},
     FromName = erlmud_index:get(From),
     try
         FromProps = erlmud_object:props(From),
-        FromPropsWithNames = [{K, maybe_name(V)} || {K, V} <- FromProps]
+        _FromPropsWithNames = [{K, maybe_name(V)} || {K, V} <- FromProps]
     catch
         Error ->
             ct:pal("FromProps Error: ~p~n", [Error])
@@ -152,8 +154,8 @@ handle_info(Info, State) ->
     {noreply, State}.
 
 terminate(Reason, #state{html_file = HtmlFile}) ->
-    ct:pal("Terminating erlmud_event_log: ~p~n", [Reason]),
-    io:format("Terminating erlmud_event_log: ~p~n", [Reason]),
+    %ct:pal("Terminating erlmud_event_log: ~p~n", [Reason]),
+    %io:format("Terminating erlmud_event_log: ~p~n", [Reason]),
     io:format(HtmlFile,
               "<script language=\"JavaScript\">"
               "createClassCheckboxes();"

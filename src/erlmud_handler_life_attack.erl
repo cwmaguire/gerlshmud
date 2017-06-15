@@ -19,99 +19,50 @@
 -export([succeed/1]).
 -export([fail/1]).
 
-is_dead_action(revive) ->
-    true;
-is_dead_action(_) ->
-    false.
+-include("include/erlmud.hrl").
 
-attempt({Owner, Props, Msg = {killed, _Attack, _Source, Owner}}) ->
+%% We have been killed
+attempt({#parents{owner = Owner}, Props, Msg = {_Source, killed, Owner, with, _AttackVector}}) ->
     log([<<"attempt: ">>, Msg, <<", props: ">>, Props]),
     {succeed, _Subscribe = true, Props};
-attempt({Owner, Props, _Msg = {die, Owner}}) ->
+
+%% We have died
+attempt({#parents{owner = Owner}, Props, _Msg = {Owner, die}}) ->
     {succeed, _Subscribe = true, Props};
-attempt({Owner, Props, _Msg = {Action, _Attack, Owner, _Target, _}})
-    when Action == calc_hit; Action == calc_damage ->
+
+%% Something is attack us and we are dead
+attempt({#parents{owner = Owner}, Props, _Msg = {_Attacker, calc, _Hit, on, Owner, with, _AttackVector}}) ->
     case proplists:get_value(is_alive, Props, false) of
         false ->
             {{fail, target_is_dead}, _Subscribe = false, Props};
         _ ->
             {succeed, false, Props}
     end;
-attempt({Owner, Props, _Msg = {Action, _Attack, _Attacker, Owner, _}})
-    when Action == calc_hit; Action == calc_damage ->
+attempt({#parents{owner = Owner}, Props, _Msg = {_Attacker, calc, _Damager, to, Owner, with, _AttackVector}}) ->
     case proplists:get_value(is_alive, Props, false) of
         false ->
             {{fail, target_is_dead}, _Subscribe = false, Props};
         _ ->
             {succeed, false, Props}
     end;
-attempt({Owner, Props, _Msg = {calc_next_attack_wait, _Attack, _Attacker, Owner, _, _}}) ->
-    case proplists:get_value(is_alive, Props, false) of
-        false ->
-            {{fail, target_is_dead}, _Subscribe = false, Props};
-        _ ->
-            {succeed, false, Props}
-    end;
-attempt({Owner, Props, _Msg = {calc_next_attack_wait, _Attack, Owner, _Target, _, _}}) ->
-    case proplists:get_value(is_alive, Props, false) of
-        false ->
-            {{fail, target_is_dead}, _Subscribe = false, Props};
-        _ ->
-            {succeed, false, Props}
-    end;
-attempt({Owner, Props, _Msg = {attack, _Attack, _Attacker, Owner}}) ->
-    case proplists:get_value(is_alive, Props, false) of
-        false ->
-            %log("~p cannot attack ~p when ~p is dead~n", [Attacker, Owner, Owner]),
-            {{fail, target_is_dead}, _Subscribe = false, Props};
-        _ ->
-            {succeed, false, Props}
-    end;
-attempt({Owner, Props, _Msg = {attack, _Attack, Owner, _Target}}) ->
-    case proplists:get_value(is_alive, Props, false) of
-        false ->
-            {{fail, attacker_is_dead}, _Subscribe = false, Props};
-        _ ->
-            {succeed, false, Props}
-    end;
-attempt({Owner, Props, Msg}) when Owner == element(2, Msg) ->
-    Action = element(1, Msg),
-    IsAlive = proplists:get_value(is_alive, Props, false),
-    IsDeadAction = is_dead_action(Action),
-    case IsAlive orelse IsDeadAction of
-        true ->
-            {succeed, _Subscribe = false, Props};
-        false ->
-            AliveOrDead = case IsAlive of true -> "alive"; false -> "dead" end,
-            FailMsg = iolist_to_binary(
-                        io_lib:format("~p cannot ~p when ~p~n", [Owner, Action, AliveOrDead])),
-            {{fail, FailMsg}, _Subscribe = false, Props}
-    end;
-attempt({Owner, Props, {calc_hit, Attack, Attacker, Owner, _}}) ->
-    case proplists:get_value(is_alive, Props) of
-        false ->
-            {{resend, Attacker, {killed, Attack, Attacker, Owner}}, false, Props};
-        _ ->
-            {succeed, false, Props}
-    end;
+
+%% TODO fail everything when dead, e.g. move, wield, attack, etc.
+
+
 attempt(_) ->
     undefined.
 
-succeed({Props, {killed, _Attack, _Source, Owner}}) ->
+succeed({Props, {_Source, killed, Owner, with, _AttackVector}}) ->
     %log("Character ~p killed by ~p, sending die: ~p~nprops: ~p~n",
         %[Owner, Source, Owner, Props]),
-    erlmud_object:attempt(self(), {die, Owner}),
+    erlmud_object:attempt(self(), {Owner, die}),
     Props;
-succeed({Props, {die, Target}}) ->
-    Owner = proplists:get_value(owner, Props),
-    case Target of
-        X when X == Owner ->
-            CorpseCleanupMilis = application:get_env(erlmud, corpse_cleanup_milis, 10 * 60 * 1000),
-            erlmud_object:attempt_after(CorpseCleanupMilis, self(), {cleanup, Owner}),
-            lists:keystore(is_alive, 1, Props, {is_alive, false});
-        _ ->
-            Props
-    end;
+
+succeed({Props, {Owner, die}}) ->
+    CorpseCleanupMilis = application:get_env(erlmud, corpse_cleanup_milis, 10 * 60 * 1000),
+    erlmud_object:attempt_after(CorpseCleanupMilis, self(), {cleanup, Owner}),
+    lists:keystore(is_alive, 1, Props, {is_alive, false});
+
 succeed({Props, _Msg}) ->
     %log("saw ~p succeed with props ~p~n", [Msg, Props]),
     throw(should_never_happen),

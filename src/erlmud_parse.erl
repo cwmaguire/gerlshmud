@@ -15,11 +15,6 @@
 
 -export([parse/2]).
 
-%-record(state, {}).
-
-%% TODO turn this into a gen server and populate exits based
-%% on real exits (and also allow creating new exits while playing)
-
 parse(Player, <<"n">>) ->
     log([<<"Moving n">>]),
     {move, Player, n};

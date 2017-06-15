@@ -18,31 +18,140 @@
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({Owner, Props, {CalcType, Attack, Source, Target, Value}})
-  when CalcType == calc_hit; CalcType == calc_damage ->
-    Character = proplists:get_value(character, Props),
-    case {Owner, Character} of
-        {Owner, Character} when Owner == Source; Character == Source ->
-            log(debug, [self(), <<": either Source (">>, Source, <<") ">>,
-                        <<"is our Owner (">>, Owner, <<") ">>,
-                        <<"or our character (">>, Character, <<")">>]),
-            modify_msg(CalcType, Attack, Source, Target, source, Value, Props);
-        {Owner, Character} when Owner == Target; Character == Target ->
-            log(debug, [self(), <<": either Target (">>, Target, <<") ">>,
-                        <<"is our Owner (">>, Owner, <<") ">>,
-                        <<"or our character (">>, Character, <<")">>]),
-            modify_msg(CalcType, Attack, Source, Target, target, Value, Props);
+-include("include/erlmud.hrl").
+
+%% @doc modify an attack with this attribute's modifiers
+%%
+%% This is to model things like strength, charisma, dexterity,
+%% race, etc.
+%%
+%% This attribute can be for a character, a body part or an item.
+%%
+
+%% Attack
+attempt({#parents{character = Character,
+                  top_item = TopItem = #top_item{item = Item}},
+         Props,
+         {Character, calc, Hit, on, Target, with, Item}}) ->
+    case is_interested(TopItem, Props) of
+        true ->
+            case proplists:get_value(attack_hit_modifier, Props) of
+                undefined ->
+                    {succeed, false, Props};
+                Amount ->
+                    {succeed,
+                     {Character, calc, Hit + Amount, on, Target, with, Item},
+                     false,
+                     Props}
+            end;
         _ ->
-           log(debug, [<<"attribute attack ">>, CalcType,
-                       <<" attempt failed since neither owner (">>, Owner,
-                       <<") nor character (">>,
-                       proplists:get_value(character, Props),
-                       <<") are equal to ">>, Source, <<" or ">>, Target]),
-           undefined
+            {succeed, false, Props}
+    end;
+attempt({#parents{character = Character,
+                  top_item = TopItem = #top_item{item = Item}},
+         Props,
+         {Character, damage, Damage, to, Target, with, Item}}) ->
+    case is_interested(TopItem, Props) of
+        true ->
+            case proplists:get_value(attack_damage_modifier, Props) of
+                undefined ->
+                    {succeed, false, Props};
+                Amount ->
+                    {succeed,
+                     {Character, calc, Damage + Amount, on, Target, with, Item},
+                     false,
+                     Props}
+            end;
+        _ ->
+            {succeed, false, Props}
+    end;
+
+%% Defend with item
+attempt({#parents{character = Character,
+                  top_item = TopItem = #top_item{item = Item}},
+         Props,
+         {Attacker, calc, Hit, on, Character, with, Item}}) ->
+    case is_interested(TopItem, Props) of
+        true ->
+            case proplists:get_value(defence_hit_modifier, Props) of
+                undefined ->
+                    {succeed, false, Props};
+                Amount ->
+                    {succeed,
+                     {Attacker, calc, Hit - Amount, on, Character, with, Item},
+                     false,
+                     Props}
+            end;
+        _ ->
+            {succeed, false, Props}
+    end;
+attempt({#parents{character = Character,
+                  top_item = TopItem = #top_item{item = Item}},
+         Props,
+         {Target, damage, Damage, to, Character, with, Item}}) ->
+    case is_interested(TopItem, Props) of
+        true ->
+            case proplists:get_value(defence_damage_modifier, Props) of
+                undefined ->
+                    {succeed, false, Props};
+                Amount ->
+                    {succeed,
+                     {Target, calc, Damage - Amount, on, Character, with, Item},
+                     false,
+                     Props}
+            end;
+        _ ->
+            {succeed, false, Props}
+    end;
+
+%% Defend without item
+attempt({#parents{character = Character},
+         Props,
+         {Attacker, calc, Hit, on, Character, with, Item}}) ->
+    case is_interested(not_an_item, Props) of
+        true ->
+            case proplists:get_value(defence_hit_modifier, Props) of
+                undefined ->
+                    {succeed, false, Props};
+                Amount ->
+                    {succeed,
+                     {Attacker, calc, Hit - Amount, on, Character, with, Item},
+                     false,
+                     Props}
+            end;
+        _ ->
+            {succeed, false, Props}
+    end;
+attempt({#parents{character = Character},
+         Props,
+         {Target, damage, Damage, to, Character, with, Item}}) ->
+    case is_interested(not_an_item, Props) of
+        true ->
+            case proplists:get_value(defence_damage_modifier, Props) of
+                undefined ->
+                    {succeed, false, Props};
+                Amount ->
+                    {succeed,
+                     {Target, calc, Damage - Amount, on, Character, with, Item},
+                     false,
+                     Props}
+            end;
+        _ ->
+            {succeed, false, Props}
     end;
 attempt({_, _, _Msg}) ->
-    %log(debug, [<<"erlmud_handler_attribute_attack did not handle ">>, Msg]),
     undefined.
+
+is_interested(#top_item{is_wielded = true,
+                        is_active = true},
+              _Props) ->
+    true;
+is_interested(#top_item{}, Props) ->
+    proplists:get_value(must_be_wielded, Props, false);
+is_interested(_, _) ->
+    %% Everything that isn't bound to an item is always active for now
+    %% e.g. character attribute
+    true.
 
 succeed({Props, _}) ->
     Props.
@@ -50,29 +159,5 @@ succeed({Props, _}) ->
 fail({Props, _, _}) ->
     Props.
 
-modify_msg(CalcType, Attack, Source, Target, SourceOrTarget, Value, Props) ->
-    Modifier = modifier(CalcType, SourceOrTarget, Props),
-    log(debug, [self(), <<": Modifier is: ">>, Modifier]),
-    UpdatedValue = Value + Modifier,
-    UpdatedMsg = {CalcType, Attack, Source, Target, UpdatedValue},
-    {succeed, UpdatedMsg, false, Props}.
-
-modifier(CalcType, SourceOrTarget, Props) ->
-    {AttackModifierProp, DefenceModifierProp} =
-        case CalcType of
-            calc_hit ->
-                {attack_hit_modifier, defence_hit_modifier};
-            calc_damage ->
-                {attack_damage_modifier, defence_damage_modifier}
-        end,
-    Modifier = case SourceOrTarget of
-                   source ->
-                       proplists:get_value(AttackModifierProp, Props, 0);
-                   target ->
-                       proplists:get_value(DefenceModifierProp, Props, 0)
-               end,
-    log(debug, [self(), <<": Modifier is: ">>, Modifier]),
-    Modifier.
-
-log(Level, IoData) ->
-    erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).
+%log(Level, IoData) ->
+    %erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).
