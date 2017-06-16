@@ -192,6 +192,7 @@ Jun 29, 2016 - moved object type-specific code to event handler modules
 Jun 29, 2016 - ping items asynchronously for valid body parts
 Jul  3, 2016 - add broadcast message (send multiple messages at once)
 Jul  9, 2016 - attributes and items can modify attack hits and damage
+Jun 15, 2017 - uses resources to handle simultaneous attacks
 
 How to run the tests: (Which is all I've been doing lately)
 
