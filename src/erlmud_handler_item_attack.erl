@@ -236,7 +236,6 @@ succeed({Props, {die, Character}}) ->
     Props2 = lists:keystore(target, 1, Props, {target, undefined}),
     _Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, false});
 
-
 succeed({Props, _}) ->
     Props.
 
