@@ -346,17 +346,26 @@
                            ?ITEM_HANDLERS]}
                  ]).
 
--define(WORLD_8, [{room, [{is_room, true},
-                          {character, giant},
-                          {character, player},
-                          {item, shield},
-                          {item, force_field},
-                          {name, <<"room">>},
-                          {desc, <<"an empty space">>},
-                          ?ROOM_HANDLERS]},
+-define(WORLD_8, [{room1, [{is_room, true},
+                           {character, giant},
+                           {character, player},
+                           {item, shield},
+                           {item, force_field},
+                           {name, <<"room">>},
+                           {desc, <<"an empty space">>},
+                           {exit, exit_1_2},
+                           ?ROOM_HANDLERS]},
+
+                  {room2, [{exit, exit_1_2},
+                           ?ROOM_HANDLERS]},
+
+                  {exit_1_2, [{{room, r1}, room1},
+                              {{room, r2}, room2},
+                              ?EXIT_HANDLERS]},
 
                   {player, [{name, <<"Bob">>},
-                            {owner, room},
+                            {owner, room1},
+                            {room, room1},
                             {hitpoints, p_hp},
                             {life, p_life},
                             {attribute, strength0},
@@ -367,7 +376,6 @@
                             {body_part, hand1},
                             {race, race0},
                             ?CHARACTER_HANDLERS]},
-
 
                   {p_hp, [{hitpoints, 10},
                           {owner, player},
@@ -447,7 +455,7 @@
                              {max_items, 2},
                              ?BODY_PART_HANDLERS]},
 
-                  {giant, [{owner, room},
+                  {giant, [{owner, room1},
                            {name, <<"Pete">>},
                            {hitpoints, g_hp},
                            {life, g_life},
@@ -532,6 +540,7 @@
 
 -define(WORLD_10, [{room, [{character, player},
                            {item, rifle},
+                           {exit, exit_1_2},
                            ?ROOM_HANDLERS]},
 
                    {player, [{owner, room},

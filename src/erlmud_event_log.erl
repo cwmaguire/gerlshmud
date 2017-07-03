@@ -84,7 +84,7 @@ handle_cast({log, Level, Pid, Terms}, State) ->
     IoData = [[io(maybe_name(Term)), " "] || Term <- flatten(Terms)],
     %Props = erlmud_object:props(Pid),
     Props = props(Pid),
-    io:format("Props for Pid ~p:~n~p~n", [Pid, Props]),
+    %io:format("Props for Pid ~p:~n~p~n", [Pid, Props]),
     PropsWithNames = [{K, io(maybe_name(V))} || {K, V} <- Props],
     ok = file:write(State#state.html_file,
                     spans(["log", Level, io(erlmud_index:get(Pid))],
@@ -153,7 +153,7 @@ handle_info(Info, State) ->
     ct:pal("~p:handle_info(~p, State)~n", [?MODULE, Info]),
     {noreply, State}.
 
-terminate(Reason, #state{html_file = HtmlFile}) ->
+terminate(_Reason, #state{html_file = HtmlFile}) ->
     %ct:pal("Terminating erlmud_event_log: ~p~n", [Reason]),
     %io:format("Terminating erlmud_event_log: ~p~n", [Reason]),
     io:format(HtmlFile,

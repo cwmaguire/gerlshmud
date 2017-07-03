@@ -20,18 +20,13 @@
 -export([succeed/1]).
 -export([fail/1]).
 
-% if something reserves us and we have the same owner
+% If something reserves us and we have the same owner (character).
 attempt({#parents{owner = Owner}, Props, {Owner, reserve, _Amount, 'of', Self, for, _Proc}})
   when Self == self() ->
     {succeed, true, Props};
-attempt({#parents{}, Props, {Character, unreserve, Self, for, _Proc}})
+attempt({#parents{owner = Owner}, Props, {Owner, unreserve, Self, for, _Proc}})
   when Self == self() ->
-    case proplists:get_value(character, Props) of
-        Character ->
-            {succeed, true, Props};
-        _ ->
-            {succeed, false, Props}
-    end;
+    {succeed, true, Props};
 attempt({#parents{}, Props, {Self, update_tick}}) when Self == self() ->
     {succeed, false, Props};
 
@@ -52,9 +47,8 @@ succeed({Props, {_Character, reserve, Amount, 'of', Self, for, Proc}})
     update_tick(Props2);
 succeed({Props, {_Character, unreserve, Self, for, Proc}})
   when Self == self() ->
-    log(debug, [<<"Unreserving ">>, Self, <<" for ">>, Proc, <<"\n">>]),
     Reservations = proplists:get_value(reservations, Props, []),
-    Props2 = [{reservations, lists:delete(Proc, Reservations)} | proplists:delete(reservations, Props)],
+    Props2 = lists:keystore(reservations, 1, Props, {reservations, lists:keydelete(Proc, 1, Reservations)}),
     update_tick(Props2);
 succeed({Props, _}) ->
     Props.

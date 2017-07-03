@@ -40,8 +40,8 @@ attempt({#parents{owner = Owner},
     end;
 attempt({#parents{owner = Owner},
          Props,
-         {Owner, unreserve, ResourceType, for, AttackVector}}) ->
-    case proplists:get_value(resource_type, Props) of
+         {Owner, unreserve, ResourceType, for, AttackVector}}) when is_atom(ResourceType) ->
+    case proplists:get_value(type, Props) of
         ResourceType ->
             NewMessage = {Owner, unreserve, self(), for, AttackVector},
             Result = {resend, Owner, NewMessage},

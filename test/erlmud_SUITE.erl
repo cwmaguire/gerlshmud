@@ -8,6 +8,7 @@
 % TODO test cancelling an attack by moving
 % TODO test updating a skill when a target is killed with a weapon (or when damage is dealt, or both)
 
+%all() -> [stop_attack_on_move].
 all() ->
     [player_move,
      player_move_fail,
@@ -20,6 +21,7 @@ all() ->
      attack_with_modifiers,
      one_sided_fight,
      counterattack_behaviour,
+     stop_attack_on_move,
      player_wield,
      player_wield_first_available,
      player_wield_missing_body_part,
@@ -133,7 +135,12 @@ character_owner_add_remove(Config) ->
     attempt(Config, Player, {Player, get, <<"rifle">>}),
     ?WAIT100,
     true = has(Rifle, player),
-    Player = val(character, Rifle),
+    WaitFun = 
+        fun() ->
+            val(character, Rifle)
+        end,
+    true = wait_loop(WaitFun, Player, 30),
+    %Player = val(character, Rifle),
     Player = val(character, Suppressor),
     Player = val(character, Grip),
     Player = val(character, Clip),
@@ -231,7 +238,7 @@ counterattack_behaviour(Config) ->
 
 attack_with_modifiers(Config) ->
     start(?WORLD_8),
-    Room = erlmud_index:get(room),
+    Room = erlmud_index:get(room1),
     Player = erlmud_index:get(player),
     %% TODO make sure that the giant is counterattacking
     _Giant = erlmud_index:get(giant),
@@ -259,7 +266,76 @@ attack_with_modifiers(Config) ->
             end
         end,
     true = wait_loop(WaitFun, true, 30),
-    false = val(is_alive, g_life),
+    WaitFun2 = 
+        fun() ->
+            val('is_alive', g_hp)
+        end,
+    false = wait_loop(WaitFun2, false, 30),
+    ok.
+
+stop_attack_on_move(Config) ->
+    start(?WORLD_8),
+    Room1 = erlmud_index:get(room1),
+    Room2 = erlmud_index:get(room2),
+    Player = erlmud_index:get(player),
+
+    % TODO make sure the attack stops when the player leaves
+    %  - leave
+    %  - check that attack is stopped
+
+    _Giant = erlmud_index:get(giant),
+
+    %% Keep the attack going, but so that we can prove that it happened
+    GiantHPAmt = 10000000,
+    GiantHP =  erlmud_index:get(g_hp),
+    erlmud_object:set(GiantHP, {hitpoints, GiantHPAmt}),
+
+    ?WAIT100,
+    attempt(Config, Player, {move, <<"force field">>, from, Room1, to, Player}),
+    attempt(Config, Player, {move, <<"shield">>, from, Room1, to, Player}),
+    ?WAIT100,
+    attempt(Config, Player, {move, <<"force field">>, from, Player, to, first_available_body_part}),
+    attempt(Config, Player, {move, <<"shield">>, from, Player, to, first_available_body_part}),
+    ?WAIT100,
+    attempt(Config, Player, {Player, attack, <<"pete">>}),
+    ?WAIT100,
+
+    WaitFun1 =
+        fun() ->
+            case val(hitpoints, g_hp) of
+                LessThanFull when is_integer(LessThanFull),
+                                  LessThanFull < GiantHPAmt ->
+                    true;
+                _ ->
+                    false
+            end
+        end,
+    true = wait_loop(WaitFun1, true, 30),
+
+    %% Now that the giant has taken some damage, move the player
+    %% and make sure the attack stops.
+
+    attempt(Config, Player, {move, Player, r2}),
+    WaitFun2 =
+        fun() ->
+            case val(room, player) of
+                Room2 ->
+                    true;
+                _ ->
+                    false
+            end
+        end,
+    true = wait_loop(WaitFun2, true, 30),
+
+    % Make sure the attack has stopped by checking that there
+    % are no reservations for the item
+
+    WaitFun3 =
+        fun() ->
+            val(reservations, p_stamina)
+        end,
+    true = wait_loop(WaitFun3, [], 30),
+
     ok.
 
 wait_loop(Fun, ExpectedResult, _Count = 0) ->
