@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
-rm -rf logs/*cmaguire*
-rm -rf logs/*lulu*
-rm -rf logs/ct_run.*
-rm -rf logs/erlmud.log
-rm -rf logs/log.html
+rm -rf logs/*
 ERLMUD_LOG_PATH=$(pwd)/logs make ct | tee  out
-cat logs/log_head logs/log.html logs/log_tail > logs/erlmud_log.html
+cp log_wrappers/*.{js,css} logs/
+cat log_wrappers/log_head logs/log.html log_wrapperss/log_tail > logs/erlmud_log.html
