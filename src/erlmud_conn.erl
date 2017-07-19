@@ -66,7 +66,7 @@ password(_Event = Password, StateData = #state{login = Login,
 
             %All players can be live processes at MUD startup; processes are almost free
 
-            RoomPid = erlmud_index:get(room),
+            RoomPid = erlmud_index:get(room_5_5),
             PlayerPid = erlmud_index:get(player),
             ConnProps = [{owner, PlayerPid},
                          {room, RoomPid},
