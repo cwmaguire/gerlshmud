@@ -10,7 +10,8 @@
     runtime_tools,
     %sasl,
     cowboy,
-    jsx
+    jsx,
+    lager
   ]},
   {mod, {erlmud_app, []}},
   {env, [{coprse_cleanup_milis, 120000}, %% 2 minutes

@@ -128,7 +128,8 @@ handle_cast(Msg, State) ->
     handle_cast_(Msg, State).
 
 handle_cast_({populate, ProcIds}, State = #state{props = Props}) ->
-    ct:pal("populate on ~p", [self()]),
+    %ct:pal("populate on ~p", [self()]),
+    lager:info("Populate on ~p", [self()]),
     log([<<"populate on ">>, self()]),
     {noreply, State#state{props = populate_(Props, ProcIds)}};
 handle_cast_({set, Prop = {K, _}}, State = #state{props = Props}) ->
@@ -293,7 +294,7 @@ handle({broadcast, Msg}, _Msg, _Procs, Props) ->
     [broadcast(V, Msg) || V <- procs(NotParents)].
 
 broadcast(Pid, Msg) ->
-    ct:pal("Broadcasting ~p to ~p", [Msg, Pid]),
+    %ct:pal("Broadcasting ~p to ~p", [Msg, Pid]),
     log([self(), <<" broadcasting ">>, Msg, <<" to ">>, Pid]),
     attempt(Pid, Msg).
 
