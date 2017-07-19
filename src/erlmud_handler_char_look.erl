@@ -20,8 +20,9 @@
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({#parents{}, Props, {look, Source, TargetName}}) when Source =/= self(),
-                                                  is_binary(TargetName) ->
+attempt({#parents{}, Props, {look, Source, TargetName}})
+  when Source =/= self(),
+       is_binary(TargetName) ->
     log(debug, [<<"Checking if name ">>, TargetName, <<" matches">>]),
     SelfName = proplists:get_value(name, Props, <<>>),
     case re:run(SelfName, TargetName, [{capture, none}, caseless]) of
@@ -47,7 +48,7 @@ attempt({#parents{owner = Room},
     {{resend, SelfSource, NewMessage}, _ShouldSubscribe = false, Props};
 attempt({#parents{owner = OwnerRoom},
          Props,
-        _DescFromParent = {describe, _Source, OwnerRoom, _RoomContext}}) ->
+         _DescFromParent = {describe, _Source, OwnerRoom, _RoomContext}}) ->
     {succeed, true, Props};
 attempt(_) ->
     undefined.

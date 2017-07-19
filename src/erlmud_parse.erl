@@ -17,19 +17,19 @@
 
 parse(Player, <<"n">>) ->
     log([<<"Moving n">>]),
-    {move, Player, n};
+    {Player, move, n};
 parse(Player, <<"get ", Item/binary>>) ->
     log([<<"Getting ">>, Item]),
-    {get, Player, Item};
+    {Player, get, Item};
 parse(Player, <<"drop ", Item/binary>>) ->
     log([<<"Dropping ">>, Item]),
-    {drop, Player, Item};
+    {Player, drop, Item};
 parse(Player, <<"look">>) ->
     log([<<"Looking ">>]),
-    {look, Player};
+    {Player, look};
 parse(Player, <<"look ", Object/binary>>) ->
     log([<<"Looking ">>, Object]),
-    {look, Player, Object};
+    {Player, look, Object};
 parse(_, _) ->
     {error, <<"Huh?">>}.
 
