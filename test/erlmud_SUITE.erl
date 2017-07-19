@@ -1,14 +1,14 @@
 -module(erlmud_SUITE).
 -compile(export_all).
 
+-include("erlmud.hrl").
+-include("erlmud_handlers.hrl").
 -include("erlmud_test_worlds.hrl").
 
 -define(WAIT100, receive after 100 -> ok end).
 
-% TODO test cancelling an attack by moving
 % TODO test updating a skill when a target is killed with a weapon (or when damage is dealt, or both)
 
-%all() -> [stop_attack_on_move].
 all() ->
     [player_move,
      player_move_fail,
@@ -507,9 +507,6 @@ look_player_clothed(Config) ->
                     <<"Pete -> weighs 400.0kg">>,
                     <<"Pete -> 4.0m tall">>,
                     <<"Pete -> male">>]),
-
-
-
     ExpectedDescriptions = lists:sort(ClothedDescriptions).
 
 look_room(_Config) ->
