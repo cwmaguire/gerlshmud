@@ -13,5 +13,7 @@ ERLC_OPTS = -Werror \
 						+warn_shadow_vars \
 	          +warn_obsolete_guard \
 						+native
+						#+native ##\
+
 
 include erlang.mk
