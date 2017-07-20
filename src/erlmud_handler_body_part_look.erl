@@ -20,20 +20,20 @@
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({#parents{owner = Owner}, Props, {describe, _Source, Owner, deep, _Context}}) ->
+attempt({#parents{owner = Owner}, Props, {_Source, describe, self, with, {Owner, deep, _Context}}}) ->
     {succeed, true, Props};
-attempt({#parents{}, Props, {describe, _Source, _Target, _Context}}) ->
+attempt({#parents{}, Props, {_Source, describe, self, with, {_Target, _Context}}}) ->
     {succeed, false, Props};
 attempt(_) ->
     undefined.
 
-succeed({Props, {describe, Source, Target, _Deep, AncestorsContext}}) ->
+succeed({Props, {Source, describe, Target, with, {_Deep, AncestorsContext}}}) ->
     _ = case is_owner(Target, Props) of
             true ->
                 describe(Source, Props, AncestorsContext),
                 Name = proplists:get_value(name, Props, undefined),
                 BodyPartContext = <<Name/binary, " -> ">>,
-                NewMessage = {describe, Source, self(), deep, <<AncestorsContext/binary, BodyPartContext/binary>>},
+                NewMessage = {Source, describe, self(), with, {deep, <<AncestorsContext/binary, BodyPartContext/binary>>}},
                 erlmud_object:attempt(Source, NewMessage);
             _ ->
                 ok

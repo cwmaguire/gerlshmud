@@ -21,18 +21,19 @@
 
 attempt({#parents{owner = Owner},
          Props,
-         {enter_world, Owner, _Room, Self}}) when Self == self() ->
+         {Owner, enter_world, in, _Room, with, Self}}) when Self == self() ->
     {succeed, true, Props};
 attempt(_) ->
     undefined.
 
-succeed({Props, {enter_world, Player, _Room, _Conn}}) ->
+succeed({Props, {Player, enter_world, in, _Room, with, _Conn}}) ->
     log(debug, [<<"Player ">>, self(), <<" successfully entered the world\n">>]),
     [{owner, Player} | lists:keydelete(owner, 1, Props)];
 succeed({Props, _Other}) ->
     Props.
 
-fail({Props, Reason, {enter_world, _Player}}) ->
+%% TODO test that failing to enter the world disconnects the player
+fail({Props, Reason, {_Player, enter_world}}) ->
     Conn = proplists:get_value(conn, Props),
     Conn ! {disconnect, Reason},
     Props;

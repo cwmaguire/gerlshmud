@@ -24,17 +24,17 @@
 
 attempt({#parents{owner = Owner},
          Props,
-         {describe, _Source, Owner, deep, _Context}}) ->
+         {_Source, describe, self, with, {Owner, deep, _Context}}}) ->
     {succeed, true, Props};
 attempt({#parents{owner = Owner},
          Props,
-         {describe, _Source, Owner, shallow, _Context}}) ->
+         {_Source, describe, self, with, {Owner, shallow, _Context}}}) ->
     ShouldSubscribe = _AttributeIsRace = race == proplists:get_value(type, Props),
     {succeed, ShouldSubscribe, Props};
 attempt(_) ->
     undefined.
 
-succeed({Props, {describe, Source, _Owner, _Depth, Context}}) ->
+succeed({Props, {Source, describe, self, with, {_Owner, _Depth, Context}}}) ->
     describe(Source, Props, Context),
     Props;
 succeed({Props, Msg}) ->

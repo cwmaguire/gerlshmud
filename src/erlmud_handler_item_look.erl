@@ -20,14 +20,14 @@
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({#parents{}, Props, {look, Source, TargetName}})
+attempt({#parents{}, Props, {Source, look, TargetName}})
   when Source =/= self(),
        is_binary(TargetName) ->
     log([<<"Checking if name ">>, TargetName, <<" matches">>]),
     SelfName = proplists:get_value(name, Props, <<>>),
     case re:run(SelfName, TargetName, [{capture, none}, caseless]) of
         match ->
-            NewMessage = {describe, Source, self()},
+            NewMessage = {Source, describe, self()},
             {{resend, Source, NewMessage}, _ShouldSubscribe = true, Props};
         _ ->
             ct:pal("Name ~p did not match this item's name ~p~n", [TargetName, SelfName]),
@@ -38,30 +38,27 @@ attempt({#parents{}, Props, {look, Source, TargetName}})
                  <<".\n">>]),
             {succeed, false, Props}
     end;
-attempt({#parents{}, Props, {describe, _Source, Self}}) when Self == self() ->
+attempt({#parents{}, Props, {_Source, describe, Self}}) when Self == self() ->
     {succeed, true, Props};
 attempt({#parents{owner = Owner},
          Props,
-         {describe, _Source, Owner, _Context}}) ->
+         {_Source, describe, Owner, with, _Context}}) ->
     {succeed, true, Props};
 attempt({#parents{owner = Owner},
          Props,
-         {describe, _Source, Owner, deep, _Context}}) ->
+         {_Source, describe, Owner, with, {deep, _Context}}}) ->
     {succeed, true, Props};
 attempt({#parents{owner = Owner},
          Props,
-         {describe, _Source, Owner, _Depth, _Context}}) ->
+         {_Source, describe, Owner, with, {_Depth, _Context}}}) ->
     {succeed, false, Props};
 attempt(_) ->
     undefined.
 
-succeed({Props, {describe, Source, Self}}) when Self == self() ->
+succeed({Props, {Source, describe, Self}}) when Self == self() ->
     describe(Source, Props),
     Props;
-succeed({Props, {describe, Source, Self, Context}}) when Self == self() ->
-    describe(Source, Props, Context),
-    Props;
-succeed({Props, {describe, Source, Target, Context}}) ->
+succeed({Props, {Source, describe, Target, with, {deep, Context}}}) ->
     _ = case is_owner(Target, Props) of
             true ->
                 describe(Source, Props, Context);
@@ -69,7 +66,10 @@ succeed({Props, {describe, Source, Target, Context}}) ->
                 ok
         end,
     Props;
-succeed({Props, {describe, Source, Target, deep, Context}}) ->
+succeed({Props, {Source, describe, Self, with, Context}}) when Self == self() ->
+    describe(Source, Props, Context),
+    Props;
+succeed({Props, {Source, describe, Target, with, Context}}) ->
     _ = case is_owner(Target, Props) of
             true ->
                 describe(Source, Props, Context);

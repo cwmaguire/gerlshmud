@@ -18,22 +18,25 @@
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({_Owner, Props, {move, Self, Direction}}) ->
-    case proplists:get_value(owner, Props) of
-        undefined ->
-            {{fail, <<"Character doesn't have room">>}, false, Props};
-        Room ->
-            {{resend, Self, {move, Self, Room, Direction}}, false, Props}
-    end;
-attempt({_Owner, Props, {drop, Self, Pid}}) when Self == self(), is_pid(Pid) ->
+% ???
+% Room isn't going to move and it isn't going to have itself as its own
+% owner. I suspect this was copy-pasta from the player inject-self handler.
+%attempt({_Owner, Props, {Self, move, Direction}}) ->
+    %case proplists:get_value(owner, Props) of
+        %undefined ->
+            %{{fail, <<"Character doesn't have room">>}, false, Props};
+        %Room ->
+            %{{resend, Self, {Self, move, Room, Direction}}, false, Props}
+    %end;
+attempt({_Owner, Props, {Self, drop, Pid}}) when Self == self(), is_pid(Pid) ->
     case erlmud_object:has_pid(Props, Pid) of
         true ->
             {owner, Room} = lists:keyfind(owner, 1, Props),
-            {{resend, Self, {drop, Self, Pid, Room}}, true, Props};
+            {{resend, Self, {Self, drop, Pid, Room}}, true, Props};
         _ ->
             {succeed, _Interested = false, Props}
     end;
-attempt({_Owner, Props, {get, Obj, Pid}}) when is_pid(Pid) ->
+attempt({_Owner, Props, {Obj, get, Pid}}) when is_pid(Pid) ->
     case erlmud_object:has_pid(Props, Pid) of
         true ->
             log([Obj, <<" resending {get, ">>, Obj, <<", ">>, Pid, <<"} as {get, ">>, Obj, <<", ">>, Pid, <<", ">>, self(), <<"}">>]),

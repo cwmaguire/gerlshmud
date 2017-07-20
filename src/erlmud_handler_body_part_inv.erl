@@ -24,21 +24,21 @@
 
 attempt({#parents{owner = Owner},
          Props,
-         {move, Item, from, Self, to, Owner}})
+         {Item, move, from, Self, to, Owner}})
   when Self == self(),
        is_pid(Item) ->
     {succeed, has_item(Item, Props), Props};
 attempt({#parents{owner = Owner},
          Props,
-         {move, Item, from, Owner, to, Self}})
+         {Item, move, from, Owner, to, Self}})
   when Self == self(),
        is_pid(Item) ->
-    NewMessage = {move, Item, from, Owner, to, Self, item_body_parts},
+    NewMessage = {Item, move, from, Owner, to, Self, item_body_parts},
     Result = {resend, Owner, NewMessage},
     {Result, _Subscribe = true, Props};
 attempt({#parents{owner = Owner},
          Props,
-         {move, Item, from, Owner, to, Self, ItemBodyParts}})
+         {Item, move, from, Owner, to, Self, ItemBodyParts}})
   when Self == self(),
        is_pid(Item),
        is_list(ItemBodyParts) ->
@@ -47,19 +47,19 @@ attempt({#parents{owner = Owner},
             {{fail, Reason}, _Subscribe = false, Props};
         _ ->
             BodyPartType = proplists:get_value(body_part, Props, undefined),
-            NewMessage = {move, Item, from, Owner, to, {Self, BodyPartType}},
+            NewMessage = {Item, move, from, Owner, to, {Self, BodyPartType}},
             Result = {resend, Owner, NewMessage},
             {Result, _Subscribe = true, Props}
     end;
 attempt({#parents{owner = Owner},
          Props,
-         {move, _Item, from, Owner, to, {Self, _BodyPartType}}})
+         {_Item, move, from, Owner, to, {Self, _BodyPartType}}})
   when Self == self() ->
     {succeed, true, Props};
 attempt(_) ->
     undefined.
 
-succeed({Props, {move, Item, from, OldOwner, to, {Self, _BodyPartType}}})
+succeed({Props, {Item, move, from, OldOwner, to, {Self, _BodyPartType}}})
   when Self == self() ->
     log(debug, [<<"Getting ">>, Item, <<" from ">>, OldOwner, <<"\n">>]),
     %BodyPartType = proplists:get_value(body_part, Props),
@@ -67,7 +67,7 @@ succeed({Props, {move, Item, from, OldOwner, to, {Self, _BodyPartType}}})
     % Temp comment: the item will set the body part property to {BodyPartPid, BodyPartType}
     %erlmud_object:attempt(Item, {set_child_property, self(), body_part, {self(), BodyPartType}}),
     [{item, Item} | Props];
-succeed({Props, {move, Item, from, Self, to, NewOwner}})
+succeed({Props, {Item, move, from, Self, to, NewOwner}})
   when Self == self() ->
     clear_child_body_part(Props, Item, NewOwner);
 %% TODO I'm not sure if this gets used: _ItemBodyParts indicates this is an intermediate event

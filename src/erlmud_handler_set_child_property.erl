@@ -37,20 +37,20 @@
 
 attempt({#parents{owner = Owner},
          Props,
-         {set_child_property, Owner, Key, Value}}) ->
-    NewMessage = {set_child_property, self(), Key, Value},
+         {Owner, set_child_property, Key, Value}}) ->
+    NewMessage = {self(), set_child_property, Key, Value},
     Props2 = lists:keystore(Key, 1, Props, {Key, Value}),
     {{broadcast, NewMessage}, false, Props2};
 attempt({#parents{owner = Owner},
          Props,
-         {set_child_properties, Owner, ParentProps}}) ->
-    NewMessage = {set_child_properties, self(), ParentProps},
+         {Owner, set_child_properties, ParentProps}}) ->
+    NewMessage = {self(), set_child_properties, ParentProps},
     Props2 = lists:foldl(fun apply_parent_prop/2, Props, ParentProps),
     {{broadcast, NewMessage}, false, Props2};
 attempt({#parents{owner = Owner},
          Props,
-         {clear_child_property, Owner, Key = top_item, TopItem}}) ->
-    NewMessage = {clear_child_property, self(), Key, TopItem},
+         {Owner, clear_child_property, Key = top_item, 'if', TopItem}}) ->
+    NewMessage = {self(), clear_child_property, Key, 'if', TopItem},
     %% Only clear the top item if our #top_item{} has the same top_item Pid.
     %% Otherwise another item may have already set our top_item to itself
     Props2 = case proplists:get_value(Key, Props) of
@@ -62,8 +62,8 @@ attempt({#parents{owner = Owner},
     {{broadcast, NewMessage}, false, Props2};
 attempt({#parents{owner = Owner},
          Props,
-         {clear_child_property, Owner, Key, Value}}) ->
-    NewMessage = {clear_child_property, self(), Key, Value},
+         {Owner, clear_child_property, Key, 'if', Value}}) ->
+    NewMessage = {clear_child_property, self(), Key, 'if', Value},
     Props2 = case proplists:get_value(Key, Props) of
                  Value ->
                      lists:keydelete(Key, 1, Props);
@@ -71,7 +71,7 @@ attempt({#parents{owner = Owner},
                      Props
              end,
     {{broadcast, NewMessage}, false, Props2};
-attempt({_, Props, {set_child_property, _, _}}) ->
+attempt({_, Props, {_, set_child_property, _, _}}) ->
     {{fail, not_a_child}, _Subscribe = false, Props};
 attempt(_) ->
     undefined.

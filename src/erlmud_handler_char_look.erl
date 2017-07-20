@@ -20,7 +20,7 @@
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({#parents{}, Props, {look, Source, TargetName}})
+attempt({#parents{}, Props, {Source, look, TargetName}})
   when Source =/= self(),
        is_binary(TargetName) ->
     log(debug, [<<"Checking if name ">>, TargetName, <<" matches">>]),
@@ -28,7 +28,7 @@ attempt({#parents{}, Props, {look, Source, TargetName}})
     case re:run(SelfName, TargetName, [{capture, none}, caseless]) of
         match ->
             Context = <<SelfName/binary, " -> ">>,
-            NewMessage = {describe, Source, self(), deep, Context},
+            NewMessage = {Source, describe, self(), with, {deep, Context}},
             {{resend, Source, NewMessage}, _ShouldSubscribe = true, Props};
         _ ->
             ct:pal("Name ~p did not match this character's name ~p~n", [TargetName, SelfName]),
@@ -42,21 +42,21 @@ attempt({#parents{}, Props, {look, Source, TargetName}})
     end;
 attempt({#parents{owner = Room},
          Props,
-        _JustPlainLook = {look, SelfSource}})
+        _JustPlainLook = {SelfSource, look}})
   when SelfSource == self() ->
-    NewMessage = {look, SelfSource, Room},
+    NewMessage = {SelfSource, look, Room},
     {{resend, SelfSource, NewMessage}, _ShouldSubscribe = false, Props};
 attempt({#parents{owner = OwnerRoom},
          Props,
-         _DescFromParent = {describe, _Source, OwnerRoom, _RoomContext}}) ->
+         _DescFromParent = {_Source, describe, OwnerRoom, with, _RoomContext}}) ->
     {succeed, true, Props};
 attempt(_) ->
     undefined.
 
-succeed({Props, {describe, Source, Self, Context}}) when Self == self() ->
+succeed({Props, {Source, describe, Self, with, Context}}) when Self == self() ->
     describe(Source, Props, deep, Context),
     Props;
-succeed({Props, {describe, Source, Target, Context}}) ->
+succeed({Props, {Source, describe, Target, with, Context}}) ->
     _ = case is_owner(Target, Props) of
             true ->
                 describe(Source, Props, shallow, Context);

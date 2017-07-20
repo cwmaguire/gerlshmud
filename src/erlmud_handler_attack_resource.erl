@@ -52,7 +52,7 @@ succeed({Props, {Character, attack, _Target, with, Owner}}) ->
     [reserve(Character, Resource, Amount, Owner) || {resource, Resource, Amount} <- Props],
     Props;
 
-succeed({Props, {move, Character, _From, _To, _Exit}}) ->
+succeed({Props, {Character, move, _From, _To, _Exit}}) ->
     Owner = proplists:get_value(owner, Props),
     [unreserve(Character, Resource, Owner) || {resource, Resource} <- Props],
     Props;

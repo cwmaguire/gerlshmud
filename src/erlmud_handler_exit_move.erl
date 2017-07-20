@@ -19,7 +19,7 @@
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({_Owner, Props, {move, Obj, FromRoom, Exit}}) when is_atom(Exit) ->
+attempt({_Owner, Props, {Obj, move, FromRoom, via, Exit}}) when is_atom(Exit) ->
     %% I am an exit process linking two rooms. I have two,
     %% named "exits" pointing to those rooms.
     %% Find an exit that leads _to_ the "FromRoom", that is, it would
@@ -31,7 +31,7 @@ attempt({_Owner, Props, {move, Obj, FromRoom, Exit}}) when is_atom(Exit) ->
     log([<<"Process ">>, Obj, <<"wants to leave room ">>, FromRoom, <<" via exit ">>, Exit, <<"\n">>]),
     Rooms = [Room || Room = {_, FromRoom_} <- Props, FromRoom_ == FromRoom],
     move(Props, Obj, Rooms, Exit);
-attempt({_Owner, Props, {move, Mover, Source, Target, Self}}) when Self == self() ->
+attempt({_Owner, Props, {Mover, move, from, Source, to, Target, via, Self}}) when Self == self() ->
     log([<<"Process ">>, Mover, <<" wants to leave room ">>, Source, <<" for ">>, Target, <<"\n">>]),
     case blocked_reason(Props) of
         {blocked_because, Reason} ->

@@ -23,12 +23,12 @@
 
 attempt({#parents{owner = Owner},
          Props,
-         {look, _Source, Owner, _Context}}) ->
+         {_Source, look, Owner, with, _Context}}) ->
     {succeed, true, Props};
 attempt(_) ->
     undefined.
 
-succeed({Props, {look, Source, Target, Context}}) ->
+succeed({Props, {Source, look, Target, look, Context}}) ->
     _ = case is_owner(Target, Props) of
             true ->
                 describe(Source, Props, Context);

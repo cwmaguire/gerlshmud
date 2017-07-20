@@ -33,11 +33,11 @@ attempt({_Owner, Props, {Object, Action, ItemName}})
         _ ->
             {succeed, _Subscribe = false, Props}
     end;
-attempt({_Owner, Props, {move, ItemName, from, Source, to, Target}})
+attempt({_Owner, Props, {ItemName, move, from, Source, to, Target}})
   when is_binary(ItemName) ->
     case is_name(Props, ItemName) of
         true ->
-            NewMessage = {move, self(), from, Source, to, Target},
+            NewMessage = {self(), move, from, Source, to, Target},
             %% send to self() since we _know_ that's a PID.
             %% Source might be a binary name
             Result = {resend, self(), NewMessage},

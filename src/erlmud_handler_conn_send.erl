@@ -19,13 +19,13 @@
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({#parents{owner = Owner}, Props, {send, Owner, _Message}}) ->
+attempt({#parents{owner = Owner}, Props, {connection, send, Owner, _Message}}) ->
     {succeed, true, Props};
 attempt(_) ->
     undefined.
 
 
-succeed({Props, {send, Player, Message}}) ->
+succeed({Props, {connection, send, Player, Message}}) ->
     log(debug, [<<"saw send ">>, Player, <<" message: ">>, Message, <<" succeed\n">>]),
     {Conn} = proplists:get_value(conn, Props),
     erlmud_conn:handle(Conn, {send, Message}),

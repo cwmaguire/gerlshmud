@@ -22,24 +22,24 @@
 
 %% Track the current owner. When the 'add' succeeds the current owner can remove
 %% it from its properties.
-attempt({#parents{owner = Owner}, Props, {move, Self, from, Owner, to, Target, item_body_parts}})
+attempt({#parents{owner = Owner}, Props, {Self, move, from, Owner, to, {Target, item_body_parts}}})
   when Self == self(),
        Owner /= Target ->
     BodyParts = proplists:get_value(body_parts, Props, []),
-    NewMessage = {move, Self, from, Owner, to, Target, BodyParts},
+    NewMessage = {Self, move, from, Owner, to, {Target, BodyParts}},
     Result = {resend, Owner, NewMessage},
     {Result, _Subscribe = false, Props};
-attempt({#parents{owner = Owner}, Props, {move, Self, from, Owner, to, Target}})
+attempt({#parents{owner = Owner}, Props, {Self, move, from, Owner, to, Target}})
   when Self == self(),
        Owner /= Target,
        is_pid(Target) ->
     {succeed, true, Props};
-attempt({#parents{owner = Owner}, Props, {move, Self, from, Owner, to, {Target, _BodyPart}}})
+attempt({#parents{owner = Owner}, Props, {Self, move, from, Owner, to, {Target, _BodyPart}}})
   when Self == self(),
        Owner /= Target,
        is_pid(Target) ->
     {succeed, true, Props};
-attempt({#parents{}, Props, {move, Item, from, Self, to, Target}})
+attempt({#parents{}, Props, {Item, move, from, Self, to, Target}})
   when Self == self(),
        is_pid(Item),
        is_pid(Target) ->
@@ -48,7 +48,7 @@ attempt(_) ->
     undefined.
 
 %% Move to body part
-succeed({Props, {move, Self, from, _OldOwner, to, {NewOwner, BodyPartType}}})
+succeed({Props, {Self, move, from, _OldOwner, to, {NewOwner, BodyPartType}}})
   when Self == self() ->
     %% If we wield something, it becomes active automatically
     IsWielded = is_wielded({NewOwner, BodyPartType}, Props),
@@ -67,22 +67,22 @@ succeed({Props, {move, Self, from, _OldOwner, to, {NewOwner, BodyPartType}}})
 %% Move to non-body part
 %% New is_wielded, top_item and body_part properties will come from
 %% the new owner, if applicable, in a separate event.
-succeed({Props, {move, Self, from, _OldOwner, to, NewOwner}})
+succeed({Props, {Self, move, from, _OldOwner, to, NewOwner}})
   when Self == self() ->
     lists:keystore(owner, 1, Props, {owner, NewOwner});
 
 %% gaining an item
-succeed({Props, {move, Item, from, Source, to, Self}}) when Self == self() ->
+succeed({Props, {Item, move, from, Source, to, Self}}) when Self == self() ->
     log(debug, [<<"Getting ">>, Item, <<" from ">>, Source, <<"\n">>]),
     set_child_properties(Item, Props),
     [{item, Item} | Props];
 
 %% Losing an item
-succeed({Props, {move, Item, from, Self, to, Target}}) when Self == self() ->
+succeed({Props, {Item, move, from, Self, to, Target}}) when Self == self() ->
     clear_child_top_item(Props, Item, Target);
 
 %% Losing an item to a body part
-succeed({Props, {move, Item, from, Self, to, Target, _ItemBodyParts}}) when Self == self() ->
+succeed({Props, {Item, move, from, Self, to, Target, _ItemBodyParts}}) when Self == self() ->
     clear_child_top_item(Props, Item, Target);
 
 succeed({Props, _}) ->
