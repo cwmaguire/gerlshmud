@@ -22,24 +22,28 @@
 
 %% Track the current owner. When the 'add' succeeds the current owner can remove
 %% it from its properties.
-attempt({#parents{owner = Owner}, Props, {Self, move, from, Owner, to, {Target, item_body_parts}}})
+attempt({#parents{owner = Owner}, Props,
+         {Self, move, from, Owner, to, Target, limited, to, item_body_parts}})
   when Self == self(),
        Owner /= Target ->
     BodyParts = proplists:get_value(body_parts, Props, []),
-    NewMessage = {Self, move, from, Owner, to, {Target, BodyParts}},
+    NewMessage = {Self, move, from, Owner, to, Target, limited, to, BodyParts},
     Result = {resend, Owner, NewMessage},
     {Result, _Subscribe = false, Props};
-attempt({#parents{owner = Owner}, Props, {Self, move, from, Owner, to, Target}})
+attempt({#parents{owner = Owner}, Props,
+         {Self, move, from, Owner, to, Target}})
   when Self == self(),
        Owner /= Target,
        is_pid(Target) ->
     {succeed, true, Props};
-attempt({#parents{owner = Owner}, Props, {Self, move, from, Owner, to, {Target, _BodyPart}}})
+attempt({#parents{owner = Owner}, Props,
+         {Self, move, from, Owner, to, Target, on, body_part, type, _BodyPartType}})
   when Self == self(),
        Owner /= Target,
        is_pid(Target) ->
     {succeed, true, Props};
-attempt({#parents{}, Props, {Item, move, from, Self, to, Target}})
+attempt({#parents{}, Props,
+         {Item, move, from, Self, to, Target}})
   when Self == self(),
        is_pid(Item),
        is_pid(Target) ->
@@ -48,7 +52,7 @@ attempt(_) ->
     undefined.
 
 %% Move to body part
-succeed({Props, {Self, move, from, _OldOwner, to, {NewOwner, BodyPartType}}})
+succeed({Props, {Self, move, from, _OldOwner, to, NewOwner, on, body_part, type, BodyPartType}})
   when Self == self() ->
     %% If we wield something, it becomes active automatically
     IsWielded = is_wielded({NewOwner, BodyPartType}, Props),
@@ -82,7 +86,7 @@ succeed({Props, {Item, move, from, Self, to, Target}}) when Self == self() ->
     clear_child_top_item(Props, Item, Target);
 
 %% Losing an item to a body part
-succeed({Props, {Item, move, from, Self, to, Target, _ItemBodyParts}}) when Self == self() ->
+succeed({Props, {Item, move, from, Self, to, Target, on, body_part, type, _BodyPartType}}) when Self == self() ->
     clear_child_top_item(Props, Item, Target);
 
 succeed({Props, _}) ->

@@ -51,25 +51,26 @@ attempt({#parents{owner = Owner},
          Props,
          {Item, move, from, Owner, to, first_available_body_part}})
   when is_pid(Item) ->
-    NewMessage = {Item, move, from, Owner,
-                  to, first_available_body_part,
-                  item_body_parts},
+    NewMessage = {Item, move, from, Owner, to, first_available_body_part, limited, to, item_body_parts},
     Result = {resend, Owner, NewMessage},
     {Result, _Subscribe = true, Props};
-attempt({#parents{owner = Owner},
-         Props,
-         {Item, move, from, Owner, to, first_available_body_part, {ItemBodyParts}}})
-  when is_pid(Item),
-       is_list(ItemBodyParts) ->
+%
+% This was already mostly done in erlmud_handler_body_part_inv
+%attempt({#parents{owner = Owner},
+         %Props,
+         %{Item, move, from, Owner, to, first_available_body_part, limited, to, ItemBodyParts}})
+  %when is_pid(Item),
+       %is_list(ItemBodyParts) ->
     %% Not sure if I should just move this clause over to erlmud_handler_body_part_inv
-    case erlmud_handler_body_part_inv:can_add(Props, ItemBodyParts) of
-        true ->
-            NewMessage = {Item, move, from, Owner, to, self(), {ItemBodyParts}},
-            Result = {resend, Owner, NewMessage},
-            {Result, _Subscribe = true, Props};
-        _ ->
-            {succeed, _Subscribe = false, Props}
-    end;
+    %case erlmud_handler_body_part_inv:can_add(Props, ItemBodyParts) of
+        %true ->
+            %BodyPartType = proplists:get_value(body_part, Props, undefined),
+            %NewMessage = {Item, move, from, Owner, to, self(), on, body_part, type, BodyPartType},
+            %Result = {resend, Owner, NewMessage},
+            %{Result, _Subscribe = true, Props};
+        %_ ->
+            %{succeed, _Subscribe = false, Props}
+    %end;
 attempt({#parents{owner = Owner},
          Props,
          {Item, move, from, current_body_part, to, Owner}}) ->

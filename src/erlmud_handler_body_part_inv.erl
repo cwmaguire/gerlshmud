@@ -33,13 +33,14 @@ attempt({#parents{owner = Owner},
          {Item, move, from, Owner, to, Self}})
   when Self == self(),
        is_pid(Item) ->
-    NewMessage = {Item, move, from, Owner, to, {Self, item_body_parts}},
+    NewMessage = {Item, move, from, Owner, to, Self, limited, to, item_body_parts},
     Result = {resend, Owner, NewMessage},
     {Result, _Subscribe = true, Props};
 attempt({#parents{owner = Owner},
          Props,
-         {Item, move, from, Owner, to, Self, ItemBodyParts}})
-  when Self == self(),
+         {Item, move, from, Owner, to, Target, limited, to, ItemBodyParts}})
+  when Target == self() orelse
+       Target == first_available_body_part,
        is_pid(Item),
        is_list(ItemBodyParts) ->
     case can(add, Props, ItemBodyParts) of
@@ -47,19 +48,19 @@ attempt({#parents{owner = Owner},
             {{fail, Reason}, _Subscribe = false, Props};
         _ ->
             BodyPartType = proplists:get_value(body_part, Props, undefined),
-            NewMessage = {Item, move, from, Owner, to, {Self, BodyPartType}},
+            NewMessage = {Item, move, from, Owner, to, self(), on, body_part, type, BodyPartType},
             Result = {resend, Owner, NewMessage},
             {Result, _Subscribe = true, Props}
     end;
 attempt({#parents{owner = Owner},
          Props,
-         {_Item, move, from, Owner, to, {Self, _BodyPartType}}})
+         {_Item, move, from, Owner, to, Self, on, body_part, type, _BodyPartType}})
   when Self == self() ->
     {succeed, true, Props};
 attempt(_) ->
     undefined.
 
-succeed({Props, {Item, move, from, OldOwner, to, {Self, _BodyPartType}}})
+succeed({Props, {Item, move, from, OldOwner, to, Self, on, body_part, type, _BodyPartType}})
   when Self == self() ->
     log(debug, [<<"Getting ">>, Item, <<" from ">>, OldOwner, <<"\n">>]),
     %BodyPartType = proplists:get_value(body_part, Props),

@@ -45,14 +45,15 @@ attempt({_Owner, Props, {Item, move, from, Self, to, Room}})
        is_pid(Item),
        is_pid(Room) ->
     {succeed, true, Props};
-attempt({_Owner, Props, {Item, move, from, Self, to, BodyPart, _ItemBodyParts}})
+attempt({_Owner, Props, {Item, move, from, Self, to, BodyPart, on, body_part, type, _BodyPartType}})
   when Self == self() andalso
        is_pid(Item),
        is_pid(BodyPart) ->
     {succeed, true, Props};
-attempt({_Owner, Props, {_Item, move, from, Self, to, {_BodyPart, _BodyPartType}}})
-  when Self == self() ->
-    {succeed, true, Props};
+%attempt({_Owner, Props, {_Item, move, from, Self, to, _BodyPart, on, body_part, type, _BodyPartType}})
+  %when Self == self() ->
+    %{succeed, true, Props};
+%% I suspect the name _Room means that it is expected that the source will be a room; is this so?
 attempt({_Owner, Props, {Item, move, from, _Room, to, Self}})
   when Self == self() andalso
        is_pid(Item) ->
@@ -64,7 +65,7 @@ succeed({Props, {Item, move, from, Source, to, Self}}) when Self == self() ->
     log(debug, [<<"Getting ">>, Item, <<" from ">>, Source, <<"\n">>]),
     erlmud_object:attempt(Item, {self(), set_child_property, character, self()}),
     [{item, Item} | Props];
-succeed({Props, {Item, move, from, Self, to, {_BodyPart, _BodyPartType}}}) when Self == self() ->
+succeed({Props, {Item, move, from, Self, to, _BodyPart, on, body_part, type, _BodyPartType}}) when Self == self() ->
     lists:keydelete(Item, 2, Props);
 succeed({Props, {Item, move, from, Self, to, Target}}) when Self == self() ->
     clear_child_character(Props, Item, Target);
