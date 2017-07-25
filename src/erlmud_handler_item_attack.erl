@@ -231,7 +231,7 @@ succeed({Props, {Character, stop_attack}}) ->
     Props2 = lists:keystore(target, 1, Props, {target, undefined}),
     _Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, false});
 
-succeed({Props, {die, Character}}) ->
+succeed({Props, {Character, die}}) ->
     unreserve(Character, Props),
     Props2 = lists:keystore(target, 1, Props, {target, undefined}),
     _Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, false});

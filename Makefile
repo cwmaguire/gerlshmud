@@ -20,7 +20,7 @@ ERLC_OPTS = -Werror \
 TEST_ERLC_OPTS = +debug_info \
 								 +warn_export_vars \
                  +warn_shadow_vars \
-								 +warn_obsolete_guard# \
-								 #+'{parse_transform, lager_transform}'
+								 +warn_obsolete_guard \
+								 +'{parse_transform, lager_transform}'
 
 include erlang.mk

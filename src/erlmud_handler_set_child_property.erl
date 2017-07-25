@@ -63,7 +63,7 @@ attempt({#parents{owner = Owner},
 attempt({#parents{owner = Owner},
          Props,
          {Owner, clear_child_property, Key, 'if', Value}}) ->
-    NewMessage = {clear_child_property, self(), Key, 'if', Value},
+    NewMessage = {self(), clear_child_property, Key, 'if', Value},
     Props2 = case proplists:get_value(Key, Props) of
                  Value ->
                      lists:keydelete(Key, 1, Props);

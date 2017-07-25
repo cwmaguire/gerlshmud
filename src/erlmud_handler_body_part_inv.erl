@@ -33,7 +33,7 @@ attempt({#parents{owner = Owner},
          {Item, move, from, Owner, to, Self}})
   when Self == self(),
        is_pid(Item) ->
-    NewMessage = {Item, move, from, Owner, to, Self, item_body_parts},
+    NewMessage = {Item, move, from, Owner, to, {Self, item_body_parts}},
     Result = {resend, Owner, NewMessage},
     {Result, _Subscribe = true, Props};
 attempt({#parents{owner = Owner},
@@ -65,7 +65,7 @@ succeed({Props, {Item, move, from, OldOwner, to, {Self, _BodyPartType}}})
     %BodyPartType = proplists:get_value(body_part, Props),
 
     % Temp comment: the item will set the body part property to {BodyPartPid, BodyPartType}
-    %erlmud_object:attempt(Item, {set_child_property, self(), body_part, {self(), BodyPartType}}),
+    %erlmud_object:attempt(Item, {self(), set_child_property, body_part, {self(), BodyPartType}}),
     [{item, Item} | Props];
 succeed({Props, {Item, move, from, Self, to, NewOwner}})
   when Self == self() ->

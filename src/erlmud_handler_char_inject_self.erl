@@ -22,7 +22,7 @@
 
 attempt({#parents{}, Props, {Source, Action, TargetName}})
   when is_binary(TargetName) andalso
-      Action == look; Action == attack ->
+      (Action == look orelse Action == attack) ->
     case is_name(Props, TargetName) of
         true ->
             NewMessage = {Source, Action, self()},

@@ -102,7 +102,7 @@ set_child_properties(Child, Props) ->
                   {top_item, TopItem},
                   {is_active, erlmud_object:value(is_active, Props, boolean)},
                   {is_wielded, is_wielded(Props)}],
-    erlmud_object:attempt(Child, {set_child_properties, self(), ChildProps}).
+    erlmud_object:attempt(Child, {self(), set_child_properties, ChildProps}).
 
 top_item(Props) ->
     DefaultTopItem = #top_item{item = self()},
@@ -113,7 +113,7 @@ body_part(Props) ->
 
 clear_child_top_item(Props, Item, Target) ->
     log(debug, [<<"Giving ">>, Item, <<" to ">>, Target, <<"\n\tProps: ">>, Props, <<"\n">>]),
-    erlmud_object:attempt(Item, {clear_child_property, Target, top_item, top_item(Props)}),
+    erlmud_object:attempt(Item, {Target, clear_child_property, top_item, 'if', top_item(Props)}),
     lists:keydelete(Item, 2, Props).
 
 is_wielded(Props) ->
