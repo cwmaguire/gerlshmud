@@ -9,8 +9,9 @@
 
 % TODO test updating a skill when a target is killed with a weapon (or when damage is dealt, or both)
 
-all() ->
-    [player_wield].
+%all() ->
+    %[attack_with_modifiers].
+
 %all() ->
     %[player_move,
      %player_move_fail,
@@ -21,19 +22,30 @@ all() ->
      %player_attack,
      %player_resource_wait,
      %attack_with_modifiers,
-     %one_sided_fight,
-     %counterattack_behaviour,
-     %stop_attack_on_move,
-     %player_wield,
-     %player_wield_first_available,
-     %player_wield_missing_body_part,
-     %player_wield_wrong_body_part,
-     %player_wield_body_part_is_full,
-     %player_remove,
-     %look_player,
-     %look_room,
-     %look_item,
-     %set_character].
+     %one_sided_fight].
+all() ->
+    [player_move,
+     player_move_fail,
+     player_move_exit_locked,
+     player_get_item,
+     player_drop_item,
+     character_owner_add_remove,
+     player_attack,
+     player_resource_wait,
+     attack_with_modifiers,
+     one_sided_fight,
+     counterattack_behaviour,
+     stop_attack_on_move,
+     player_wield,
+     player_wield_first_available,
+     player_wield_missing_body_part,
+     player_wield_wrong_body_part,
+     player_wield_body_part_is_full,
+     player_remove,
+     look_player,
+     look_room,
+     look_item,
+     set_character].
 
 init_per_testcase(_, Config) ->
     {ok, _Started} = application:ensure_all_started(erlmud),
@@ -75,9 +87,9 @@ get_props(Pid) when is_pid(Pid) ->
     Props.
 
 player_move(Config) ->
-    erlmud_dbg:add(erlmud_SUITE, start_obj),
-    erlmud_dbg:add(erlmud_object, populate),
-    erlmud_dbg:add(erlmud_object, handle_cast_),
+    %erlmud_dbg:add(erlmud_SUITE, start_obj),
+    %erlmud_dbg:add(erlmud_object, populate),
+    %erlmud_dbg:add(erlmud_object, handle_cast_),
     start(?WORLD_1),
     Player = erlmud_index:get(player),
     RoomNorth =  erlmud_index:get(room_nw),
@@ -140,11 +152,12 @@ character_owner_add_remove(Config) ->
     attempt(Config, Player, {Player, get, <<"rifle">>}),
     ?WAIT100,
     true = has(Rifle, player),
-    WaitFun = 
-        fun() ->
-            val(character, Rifle)
-        end,
-    true = wait_loop(WaitFun, Player, 30),
+    %WaitFun = 
+        %fun() ->
+            %val(character, Rifle)
+        %end,
+    %true = wait_loop(WaitFun, Player, 30),
+    wait_value(Rifle, character, Player, 30),
     %Player = val(character, Rifle),
     Player = val(character, Suppressor),
     Player = val(character, Grip),
@@ -176,7 +189,8 @@ player_resource_wait(Config) ->
     erlmud_object:set(Stamina, {current, 5}),
     erlmud_object:set(Stamina, {tick_time, 10000}),
     attempt(Config, Player, {Player, attack, <<"zombie">>}),
-    ?WAIT100,
+    ct:pal("Waiting for player_resource_wait"),
+    wait_value(z_hp, hitpoints, 5, 5),
     5 = val(hitpoints, z_hp),
     true = val(is_alive, z_life),
     true = val(is_attacking, p_fist),
@@ -242,6 +256,7 @@ counterattack_behaviour(Config) ->
     ok.
 
 attack_with_modifiers(Config) ->
+    erlmud_dbg:add(erlmud_handler_item_attack),
     start(?WORLD_8),
     Room = erlmud_index:get(room1),
     Player = erlmud_index:get(player),
@@ -335,13 +350,21 @@ stop_attack_on_move(Config) ->
     % Make sure the attack has stopped by checking that there
     % are no reservations for the item
 
-    WaitFun3 =
-        fun() ->
-            val(reservations, p_stamina)
-        end,
-    true = wait_loop(WaitFun3, [], 30),
+    wait_value(p_stamina, reservations, [], 30),
+    %WaitFun3 =
+        %fun() ->
+            %val(reservations, p_stamina)
+        %end,
+    %true = wait_loop(WaitFun3, [], 30),
 
     ok.
+
+wait_value(ObjectId, Key, ExpectedValue, Count) ->
+    WaitFun =
+        fun() ->
+            val(Key, ObjectId)
+        end,
+    true = wait_loop(WaitFun, ExpectedValue, Count).
 
 wait_loop(Fun, ExpectedResult, _Count = 0) ->
     ct:pal("Mismatched function result:~n\tFunction: ~p~n\tResult: ~p",

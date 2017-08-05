@@ -96,7 +96,7 @@ attempt({#parents{character = Character},
     end;
 attempt({#parents{character = Character},
          Props,
-         {Attacker, damage, Damage, to, Character, with, AttackVector}}) ->
+         {Attacker, calc, Damage, to, Character, with, AttackVector}}) ->
     case should_defend(Props) of
         true ->
             case proplists:get_value(defence_damage_modifier, Props) of
