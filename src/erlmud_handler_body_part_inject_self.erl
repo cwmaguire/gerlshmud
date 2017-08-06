@@ -47,14 +47,25 @@ attempt({#parents{owner = Owner},
         _ ->
             {succeed, _Subscribe = false, Props}
     end;
-attempt({#parents{owner = Owner},
-         Props,
-         {Item, move, from, Owner, to, first_available_body_part}})
-  when is_pid(Item) ->
-    NewMessage = {Item, move, from, Owner, to, first_available_body_part, limited, to, item_body_parts},
-    Result = {resend, Owner, NewMessage},
-    {Result, _Subscribe = true, Props};
-%
+%% The reason for "limited, to, item_body_parts" is that there are two conditions that have
+%% to be met for an item to be added to a body part:
+%% - the body part must have available space (e.g. an empty hand can hold a gun)
+%% - the item must fit on that body part (e.g. an axe isn't going to be a hat)
+%% This requires both the body part and the item each contribute to the message
+%% before we can check if they are met. We add two placeholder flags to the message:
+%% - 'first_available_body_part' if we don't know which part it will be yet
+%% - 'limited', 'to', 'item_body_parts' if we don't know what body part types are valid
+%%   for the body part.
+
+%% I've already got this in erlmud_handler_body_part_inv
+%attempt({#parents{owner = Owner},
+         %Props,
+         %{Item, move, from, Owner, to, first_available_body_part}})
+  %when is_pid(Item) ->
+    %NewMessage = {Item, move, from, Owner, to, first_available_body_part, limited, to, item_body_parts},
+    %Result = {resend, Owner, NewMessage},
+    %{Result, _Subscribe = true, Props};
+
 % This was already mostly done in erlmud_handler_body_part_inv
 %attempt({#parents{owner = Owner},
          %Props,

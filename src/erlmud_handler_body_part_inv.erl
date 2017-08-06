@@ -33,14 +33,15 @@ attempt({#parents{owner = Owner},
          {Item, move, from, Owner, to, Self}})
   when Self == self(),
        is_pid(Item) ->
-    NewMessage = {Item, move, from, Owner, to, Self, limited, to, item_body_parts},
+    NewMessage = {Item, move, from, Owner, to, self(), limited, to, item_body_parts},
     Result = {resend, Owner, NewMessage},
     {Result, _Subscribe = true, Props};
+% We know both the target body part and the valid body parts for the item so
+% we can see if this body part has space and if this body part matches the item.
 attempt({#parents{owner = Owner},
          Props,
-         {Item, move, from, Owner, to, Target, limited, to, ItemBodyParts}})
-  when Target == self() orelse
-       Target == first_available_body_part,
+         {Item, move, from, Owner, to, Self, limited, to, ItemBodyParts}})
+  when Self == self(),
        is_pid(Item),
        is_list(ItemBodyParts) ->
     case can(add, Props, ItemBodyParts) of
@@ -51,6 +52,36 @@ attempt({#parents{owner = Owner},
             NewMessage = {Item, move, from, Owner, to, self(), on, body_part, type, BodyPartType},
             Result = {resend, Owner, NewMessage},
             {Result, _Subscribe = true, Props}
+    end;
+%% The reason for "limited, to, item_body_parts" is that there are two conditions that have
+%% to be met for an item to be added to a body part:
+%% - the body part must have available space (e.g. an empty hand can hold a gun)
+%% - the item must fit on that body part (e.g. an axe isn't going to be a hat)
+%% This requires both the body part and the item each contribute to the message
+%% before we can check if they are met. We add two placeholder flags to the message:
+%% - 'first_available_body_part' if we don't know which part it will be yet
+%% - 'limited', 'to', 'item_body_parts' if we don't know what body part types are valid
+%%   for the body part.
+attempt({#parents{owner = Owner},
+         Props,
+         {Item, move, from, Owner, to, first_available_body_part}})
+  when is_pid(Item) ->
+    NewMessage = {Item, move, from, Owner, to, first_available_body_part, limited, to, item_body_parts},
+    Result = {resend, Owner, NewMessage},
+    {Result, _Subscribe = true, Props};
+attempt({#parents{owner = Owner},
+         Props,
+         {Item, move, from, Owner, to, first_available_body_part, limited, to, ItemBodyParts}})
+  when is_pid(Item),
+       is_list(ItemBodyParts) ->
+    case can(add, Props, ItemBodyParts) of
+        true ->
+            BodyPartType = proplists:get_value(body_part, Props, undefined),
+            NewMessage = {Item, move, from, Owner, to, self(), on, body_part, type, BodyPartType},
+            Result = {resend, Owner, NewMessage},
+            {Result, _Subscribe = true, Props};
+        _ ->
+            {succeed, _Subscribe = false, Props}
     end;
 attempt({#parents{owner = Owner},
          Props,

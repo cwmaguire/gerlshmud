@@ -22,6 +22,18 @@
 
 %% Track the current owner. When the 'add' succeeds the current owner can remove
 %% it from its properties.
+%%
+%% The reason for "limited, to, item_body_parts" is that there are two conditions that have
+%% to be met for an item to be added to a body part:
+%% - the body part must have available space (e.g. an empty hand can hold a gun)
+%% - the item must fit on that body part (e.g. an axe isn't going to be a hat)
+%% This requires both the body part and the item to each contribute to the message
+%% before we can check if they are met. We add two placeholder flags to the message:
+%% - 'first_available_body_part' if we don't know which part it will be yet
+%% - 'limited', 'to', 'item_body_parts' if we don't know what body part types are valid
+%%   for the body part.
+%% This clause fills in the 'item_body_parts' place-holder with the list of body
+%% parts this item will fit on.
 attempt({#parents{owner = Owner}, Props,
          {Self, move, from, Owner, to, Target, limited, to, item_body_parts}})
   when Self == self(),
