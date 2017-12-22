@@ -90,7 +90,7 @@ handle_cast({log, Level, Pid, Terms}, State) ->
                     spans(["log", Level, io(erlmud_index:get(Pid))],
                           [div_("log_time", io(os:timestamp())),
                            div_("log_message", IoData),
-                           div_("log_props", io(PropsWithNames))]))
+                           div_("log_props", io([Pid, PropsWithNames]))]))
     catch
         Error ->
             ct:pal("~p caught error:~n\t~p~n", [?MODULE, Error])
