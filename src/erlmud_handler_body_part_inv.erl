@@ -27,7 +27,7 @@ attempt({#parents{owner = Owner},
          {Item, move, from, Self, to, Owner}})
   when Self == self(),
        is_pid(Item) ->
-    {succeed, has_item(Item, Props), Props};
+    {succeed, has_item_with_ref(Item, Props), Props};
 attempt({#parents{owner = Owner},
          Props,
          {Item, move, from, Owner, to, Self}})
@@ -91,14 +91,15 @@ attempt({#parents{owner = Owner},
 attempt(_) ->
     undefined.
 
-succeed({Props, {Item, move, from, OldOwner, to, Self, on, body_part, type, _BodyPartType}})
+succeed({Props, {Item, move, from, OldOwner, to, Self, on, body_part, type, BodyPartType}})
   when Self == self() ->
     log(debug, [<<"Getting ">>, Item, <<" from ">>, OldOwner, <<"\n">>]),
-    %BodyPartType = proplists:get_value(body_part, Props),
-
-    % Temp comment: the item will set the body part property to {BodyPartPid, BodyPartType}
-    %erlmud_object:attempt(Item, {self(), set_child_property, body_part, {self(), BodyPartType}}),
-    [{item, Item} | Props];
+    ItemRef = make_ref(),
+    erlmud_object:attempt(Item, {self(), set_child_property, body_part,
+                                 #body_part{body_part = self(),
+                                            type = BodyPartType,
+                                            ref = ItemRef}}),
+    [{item, {Item, ItemRef}} | Props];
 succeed({Props, {Item, move, from, Self, to, NewOwner}})
   when Self == self() ->
     clear_child_body_part(Props, Item, NewOwner);
@@ -113,8 +114,13 @@ succeed({Props, _}) ->
 fail({Props, _, _}) ->
     Props.
 
-has_item(Item, Props) ->
-    {item, Item} == lists:keyfind(Item, 2, Props).
+has_item_with_ref(Item, Props) ->
+    case [Item_ || {item, {Item_, _Ref}} <- Props, Item_ == Item] of
+        [_ | _] ->
+            true;
+        _ ->
+            false
+    end.
 
 can(add, Props, ItemBodyParts) ->
     can_add(Props, ItemBodyParts);
@@ -173,8 +179,24 @@ has_space(Props, _) ->
 clear_child_body_part(Props, Item, Target) ->
     log(debug, [<<"Giving ">>, Item, <<" to ">>, Target, <<"\n\tProps: ">>, Props, <<"\n">>]),
     BodyPartType = proplists:get_value(body_part, Props, undefined),
-    erlmud_object:attempt(Item, {clear_child_property, Target, body_part, {self(), BodyPartType}}),
-    lists:keydelete(Item, 2, Props).
+    ItemRef = item_ref(Item, Props),
+    erlmud_object:attempt(Item, {Target,
+                                 clear_child_property,
+                                 body_part,
+                                 'if',
+                                 #body_part{body_part = self(),
+                                            type = BodyPartType,
+                                            ref = ItemRef}}),
+    lists:keydelete({Item, ItemRef}, 2, Props).
+
+item_ref(Item, Props) ->
+    Items = proplists:get_all_values(item, Props),
+    case [Ref || {Item_, Ref} <- Items, Item == Item_] of
+        [] ->
+            undefined;
+        [Ref] ->
+            Ref
+    end.
 
 log(Level, IoData) ->
     erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).

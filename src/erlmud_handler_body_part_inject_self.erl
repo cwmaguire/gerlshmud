@@ -87,8 +87,8 @@ attempt({#parents{owner = Owner},
          {Item, move, from, current_body_part, to, Owner}}) ->
     %% We can't have the room inject itself because a room might
     %% be owned by  a room, character, another item, etc.
-    case {item, Item} == lists:keyfind(Item, 2, Props) of
-        true ->
+    case [Item_ || {item, {Item_, _Ref}} <- Props, Item_ == Item] of
+        [_ | _] ->
             NewMessage = {Item, move, from, self(), to, Owner},
             Result = {resend, Owner, NewMessage},
             {Result, _Subscribe = true, Props};

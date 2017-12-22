@@ -67,14 +67,11 @@ end_per_testcase(_, _Config) ->
 val(Key, Obj) ->
     Props = case get_props(Obj) of
                 undefined ->
-                    ct:pal("erlmud_SUITE:val/2: props for ~p undefined", [Obj]),
                     [];
                 Props_ ->
                     Props_
             end,
-    Val = proplists:get_value(Key, Props),
-    ct:pal("erlmud_SUITE:val/2: ~p for ~p is ~p~n", [Key, Obj, Val]),
-    Val.
+    proplists:get_value(Key, Props).
 
 all(Key, Obj) ->
     proplists:get_all_values(Key, get_props(Obj)).
@@ -482,9 +479,9 @@ player_remove(Config) ->
     attempt(Config, Player, {<<"helmet">>, move, from, Player, to, <<"head">>}),
     ?WAIT100,
     undefined = val(item, player),
-    Helmet = val(item, head1),
-    {Head, head} = val(body_part, Helmet),
-    {Head, head} = val(body_part, DexBuff),
+    {Helmet, _Ref} = val(item, head1),
+    {body_part, Head, head, _Ref0} = val(body_part, Helmet),
+    {body_part, Head, head, _Ref1} = val(body_part, DexBuff),
     attempt(Config, Player, {<<"helmet">>, move, from, <<"head">>, to, Player}),
     ?WAIT100,
     %% TODO this doesn't make any sense for the player to have a single item
@@ -495,9 +492,9 @@ player_remove(Config) ->
     attempt(Config, Player, {<<"helmet">>, move, from, Player, to, <<"head">>}),
     ?WAIT100,
     undefined = val(item, player),
-    Helmet = val(item, head1),
-    {Head, head} = val(body_part, Helmet),
-    {Head, head} = val(body_part, DexBuff),
+    {Helmet, _Ref2} = val(item, head1),
+    {body_part, Head, head, _Ref3} = val(body_part, Helmet),
+    {body_part, Head, head, _Ref4} = val(body_part, DexBuff),
     attempt(Config, Player, {<<"helmet">>, move, from, current_body_part, to, Player}),
     ?WAIT100,
     Helmet = val(item, player),

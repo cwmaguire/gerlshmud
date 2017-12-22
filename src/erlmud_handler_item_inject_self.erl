@@ -55,4 +55,5 @@ fail({Props, _, _}) ->
     Props.
 
 is_name(Props, Name) ->
-    match == re:run(proplists:get_value(name, Props, ""), Name, [{capture, none}]).
+    ItemName = proplists:get_value(name, Props, ""),
+    match == re:run(ItemName, Name, [{capture, none}]).

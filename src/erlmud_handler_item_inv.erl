@@ -71,18 +71,28 @@ succeed({Props, {Self, move, from, _OldOwner, to, NewOwner, on, body_part, type,
     IsAutoActive = proplists:get_value(is_auto_active, Props, false),
     IsActive = proplists:get_value(is_active, Props, false) orelse
                (IsWielded andalso IsAutoActive),
+    NewTopItemRef = make_ref(),
     Props2 = lists:foldl(fun apply_prop/2,
                         Props,
                         [{owner, NewOwner},
                          {body_part, {NewOwner, BodyPartType}},
                          {is_wielded, IsWielded},
-                         {is_active, IsActive}]),
+                         {is_active, IsActive},
+                         {top_item_ref, NewTopItemRef}]),
     set_child_properties(Props2),
     Props2;
 
 %% Move to non-body part
 %% New is_wielded, top_item and body_part properties will come from
 %% the new owner, if applicable, in a separate event.
+%% The new owner could be another parent item, a room, a character, etc.
+%% The case of being added to a different item is the clause below this one.
+%% TODO I think I need to store what an item was wielded by, then I can clear
+%% it out if it still has that wielding body part: this could still break down
+%% if the user transfers back and forth between two body parts: the first clear
+%% might happen after the item has come back to the first body part. I might
+%% need to add a ref as well. Except body parts are handled differently, so it
+%% would have to be wielded by a body part, then not wielded, then wielded again.
 succeed({Props, {Self, move, from, _OldOwner, to, NewOwner}})
   when Self == self() ->
     lists:keystore(owner, 1, Props, {owner, NewOwner});
@@ -111,26 +121,33 @@ set_child_properties(Props) ->
     set_child_properties(self(), Props).
 
 set_child_properties(Child, Props) ->
-    TopItem = #top_item{item = self(),
-                        is_active = erlmud_object:value(is_active, Props, boolean),
-                        is_wielded = is_wielded(Props)},
-    ChildProps = [{body_part, body_part(Props)},
-                  {top_item, TopItem},
-                  {is_active, erlmud_object:value(is_active, Props, boolean)},
-                  {is_wielded, is_wielded(Props)}],
+    TopItem =
+        case proplists:get_value(top_item, Props) of
+            TopItem_ = #top_item{} ->
+                TopItem_;
+            undefined ->
+                #top_item{item = self(),
+                          is_active = erlmud_object:value(is_active, Props, boolean),
+                          is_wielded = is_wielded(Props),
+                          ref = proplists:get_value(top_item_ref, Props)}
+        end,
+    ChildProps = [{top_item, TopItem}],
     erlmud_object:attempt(Child, {self(), set_child_properties, ChildProps}).
-
-top_item(Props) ->
-    DefaultTopItem = #top_item{item = self()},
-    proplists:get_value(top_item, Props, DefaultTopItem).
-
-body_part(Props) ->
-    proplists:get_value(body_part, Props).
 
 clear_child_top_item(Props, Item, Target) ->
     log(debug, [<<"Giving ">>, Item, <<" to ">>, Target, <<"\n\tProps: ">>, Props, <<"\n">>]),
-    erlmud_object:attempt(Item, {Target, clear_child_property, top_item, 'if', top_item(Props)}),
+    TopItem = top_item(Props),
+    Message = {Target, clear_child_property, top_item, 'if', TopItem},
+    erlmud_object:attempt(Item, Message),
     lists:keydelete(Item, 2, Props).
+
+top_item(Props) ->
+    TopItemRef = proplists:get_value(top_item_ref, Props),
+    % Only clear the top item if the ref still matches, otherwise
+    % a new top item has been set (even by this process if the item
+    % leaves and comes back and the events get out of order)
+    DefaultTopItem = #top_item{item = self(), ref = TopItemRef},
+    proplists:get_value(top_item, Props, DefaultTopItem).
 
 is_wielded(Props) ->
     BodyPart = proplists:get_value(body_part, Props),

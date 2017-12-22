@@ -49,13 +49,18 @@ attempt({#parents{owner = Owner},
     {{broadcast, NewMessage}, false, Props2};
 attempt({#parents{owner = Owner},
          Props,
-         {Owner, clear_child_property, Key = top_item, 'if', TopItem}}) ->
-    NewMessage = {self(), clear_child_property, Key, 'if', TopItem},
-    %% Only clear the top item if our #top_item{} has the same top_item Pid.
-    %% Otherwise another item may have already set our top_item to itself
-    Props2 = case proplists:get_value(Key, Props) of
-                 #top_item{item = Item} when Item == TopItem ->
-                     lists:keydelete(Key, 1, Props);
+         {Owner, clear_child_property, _Key = top_item,
+          'if', TopItem = #top_item{item = Item, ref = Ref}}}) ->
+    NewMessage = {self(), clear_child_property, top_item, 'if', TopItem},
+    %% Only clear the top item if our #top_item{} has the same ref.
+    %% Otherwise another item (or this same item) may have already
+    %% set our top_item to itself
+    %% e.g. self() goes from Parent->NotParent->Parent
+    %% In which case will unset and reset itself as the top item, but maybe
+    %% not always in the right order (because of graph traversal)
+    Props2 = case proplists:get_value(top_item, Props) of
+                 #top_item{item = Item, ref = Ref} ->
+                     lists:keydelete(top_item, 1, Props);
                  _ ->
                      Props
              end,

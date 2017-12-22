@@ -7,4 +7,9 @@
 
 -record(top_item, {item :: pid(),
                    is_active :: boolean(),
-                   is_wielded :: boolean()}).
+                   is_wielded :: boolean(),
+                   ref :: reference()}).
+
+-record(body_part, {body_part :: pid(),
+                    type :: atom(),
+                    ref :: reference()}).
