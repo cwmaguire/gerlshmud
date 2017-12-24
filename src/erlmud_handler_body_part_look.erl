@@ -20,7 +20,7 @@
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({#parents{owner = Owner}, Props, {_Source, describe, self, with, {Owner, deep, _Context}}}) ->
+attempt({#parents{owner = Owner}, Props, {_Source, describe, Owner, with, {deep, _Context}}}) ->
     {succeed, true, Props};
 attempt({#parents{}, Props, {_Source, describe, self, with, {_Target, _Context}}}) ->
     {succeed, false, Props};

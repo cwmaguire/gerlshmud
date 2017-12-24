@@ -24,7 +24,7 @@
 
 attempt({#parents{owner = Owner},
          Props,
-         {_Source, describe, self, with, {Owner, deep, _Context}}}) ->
+         {_Source, describe, Owner, with, {deep, _Context}}}) ->
     {succeed, true, Props};
 attempt({#parents{owner = Owner},
          Props,
@@ -34,7 +34,7 @@ attempt({#parents{owner = Owner},
 attempt(_) ->
     undefined.
 
-succeed({Props, {Source, describe, self, with, {_Owner, _Depth, Context}}}) ->
+succeed({Props, {Source, describe, _Owner, with, {_Depth, Context}}}) ->
     describe(Source, Props, Context),
     Props;
 succeed({Props, Msg}) ->
