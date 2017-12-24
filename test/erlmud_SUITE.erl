@@ -10,7 +10,7 @@
 % TODO test updating a skill when a target is killed with a weapon (or when damage is dealt, or both)
 
 all() ->
-    [player_remove].
+    [look_player].
 %all() ->
     %[player_remove,
      %look_room,
@@ -396,8 +396,8 @@ player_wield(Config) ->
         end,
     true = wait_loop(WaitFun, undefined, 30),
     %undefined = val(item, Player),
-    Helmet = val(item, head1),
-    {Head, head} = val(body_part, Helmet).
+    {Helmet, _BodyPartRef} = val(item, head1),
+    {body_part, Head, head, _BodyPartRef} = val(body_part, Helmet).
 
 player_wield_first_available(Config) ->
     start(?WORLD_4),
@@ -407,8 +407,8 @@ player_wield_first_available(Config) ->
     attempt(Config, Player, {<<"helmet">>, move, from, Player, to, first_available_body_part}),
     ?WAIT100,
     undefined = val(item, Player),
-    Helmet = val(item, head1),
-    {Head, head} = val(body_part, Helmet).
+    {Helmet, _BodyPartRef} = val(item, head1),
+    {body_part, Head, head, _BodyPartRef} = val(body_part, Helmet).
 
 player_wield_missing_body_part(Config) ->
     start(?WORLD_4),
@@ -421,8 +421,8 @@ player_wield_missing_body_part(Config) ->
     Helmet = val(item, player),
     attempt(Config, Player, {<<"helmet">>, move, from, Player, to, <<"head">>}),
     ?WAIT100,
-    Helmet = val(item, head1),
-    {Head, head} = val(body_part, Helmet),
+    {Helmet, _BodyPartRef} = val(item, head1),
+    {body_part, Head, head, _BodyPartRef} = val(body_part, Helmet),
     undefined = val(item, player).
 
 player_wield_wrong_body_part(Config) ->
@@ -436,8 +436,8 @@ player_wield_wrong_body_part(Config) ->
     Helmet = val(item, player),
     attempt(Config, Player, {<<"helmet">>, move, from, Player, to, <<"head">>}),
     ?WAIT100,
-    Helmet = val(item, head1),
-    {Head, head} = val(body_part, Helmet),
+    {Helmet, _BodyPartRef} = val(item, head1),
+    {body_part, Head, head, _BodyPartRef} = val(body_part, Helmet),
     undefined = val(item, player).
 
 player_wield_body_part_is_full(Config) ->
@@ -455,20 +455,20 @@ player_wield_body_part_is_full(Config) ->
     attempt(Config, Player, {<<"ring1">>, move, from, Player, to, <<"finger1">>}),
     ?WAIT100,
     [Ring2] = all(item, player),
-    [Ring1] = all(item, finger1),
-    {Finger1, finger} = val(body_part, Ring1),
+    [{Ring1, _BodyPartRef1}] = all(item, finger1),
+    {body_part, Finger1, finger, _BodyPartRef2} = val(body_part, Ring1),
     [] = all(item, finger2),
     attempt(Config, Player, {<<"ring2">>, move, from, Player, to, <<"finger1">>}),
     ?WAIT100,
     [Ring2] = all(item, player),
-    [Ring1] = all(item, finger1),
+    [{Ring1, _BodyPartRef3}] = all(item, finger1),
     [] = all(item, finger2),
     attempt(Config, Player, {<<"ring2">>, move, from, Player, to, first_available_body_part}),
     ?WAIT100,
     [] = all(item, player),
-    [Ring1] = all(item, finger1),
-    [Ring2] = all(item, finger2),
-    {Finger2, finger} = val(body_part, Ring2).
+    [{Ring1, _BodyPartRef4}] = all(item, finger1),
+    [{Ring2, _BodyPartRef5}] = all(item, finger2),
+    {body_part, Finger2, finger, _BodyPartRef6} = val(body_part, Ring2).
 
 player_remove(Config) ->
     start(?WORLD_4),
