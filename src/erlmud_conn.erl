@@ -51,43 +51,19 @@ login(Event, StateData) ->
 password(_Event = Password, StateData = #state{login = Login,
                                                attempts = Attempts,
                                                socket = _Socket}) ->
-    %ct:pal("~p:password ... check is_valid_creds(~p, ~p)~n", [?MODULE, Login, Password]),
     case is_valid_creds(Login, Password) of
         {true, _Player} ->
-            %ct:pal("erlmud_conn:password -> player validated~n", []),
-            %% start player
-            %%   The player will need to know what room they're in; either the
-            %%   last room they were in or a starting room.
-            %% start connection object
-            %RoomPid = erlmud_index:get(room),
-            %PlayerProps = [{room, RoomPid}],
-            %PlayerPid = erlmud_object_sup:start_child(erlmud_object_sup,
-                                                      %[undefined, erlmud_player, PlayerProps]),
-
-            %All players can be live processes at MUD startup; processes are almost free
-
-            RoomPid = erlmud_index:get(room_5_5),
+            % All players are live processes at MUD startup; processes are almost free
             PlayerPid = erlmud_index:get(player),
             ConnProps = [{owner, PlayerPid},
-                         {room, RoomPid},
                          {conn, {self()}},
                          {handlers, [erlmud_handler_conn_enter_world,
                                      erlmud_handler_conn_send]}],
 
-            % The conn object can add the player to the room and if that fails
-            % then the conn object can tell the conn to disconnect.
-            {ok, ConnObjPid} = supervisor:start_child(erlmud_object_sup,
-                                                      [undefined, ConnProps]),
-            %ct:pal("erlmud_conn:password -> started ConnObj ~p with props ~p~n", [ConnObjPid, ConnProps]),
-
-            %Message = {move, PlayerPid, _From = undefined, RoomPid, _Exit = undefined},
-            Message = {enter_world, PlayerPid, RoomPid, ConnObjPid},
+            {ok, ConnObjPid} = supervisor:start_child(erlmud_object_sup, [_Id = undefined, ConnProps]),
+            Message = {PlayerPid, enter_world, with, ConnObjPid},
             ConnObjPid ! {ConnObjPid, Message},
-            %erlmud_object:attempt(ConnObjPid, {move, PlayerPid, _From = undefined, RoomPid, _Target = undefined}),
 
-            %erlmud_object:add(PlayerPid, erlmud_room, RoomPid),
-            %erlmud_object:add(PlayerPid, erlmud_conn_obj, ConnPid),
-            %erlmud_object:add(RoomPid, erlmud_character, PlayerPid),
             {next_state, live, StateData#state{login = undefined, player = PlayerPid, conn_obj = ConnObjPid}};
         false ->
             get_failed_auth_state(StateData#state{login = undefined, attempts = Attempts + 1})

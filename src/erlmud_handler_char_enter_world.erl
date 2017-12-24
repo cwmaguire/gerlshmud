@@ -17,16 +17,16 @@
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({_, Props, {Self, enter_world, in, _Room, with, _Conn}})
+attempt({_, Props, {Self, enter_world, with, _Conn}})
   when Self == self() ->
     {succeed, true, Props};
 attempt(_) ->
     undefined.
 
-succeed({Props, {_Player, enter_world, in, Room, with, Conn}}) ->
+succeed({Props, {_Player, enter_world, with, Conn}}) ->
     log(debug, [<<"Player ">>, self(),
-                <<" successfully entered the world in room ">>, Room, <<"\n">>]),
-    lists:foldl(fun keyreplace/2, Props, [{conn_object, Conn}, {room, Room}, {owner, Room}]);
+                <<" successfully entered the world\n">>]),
+    lists:foldl(fun keyreplace/2, Props, [{conn_object, Conn}]);
 succeed({Props, _Other}) ->
     Props.
 

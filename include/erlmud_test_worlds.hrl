@@ -187,6 +187,9 @@
                             {attribute, weight0},
                             {attribute, gender0},
                             {attribute, race0},
+                            {owner, room},
+                            %% TODO is the room property used anywhere?
+                            {room, room},
                             ?CHARACTER_HANDLERS]},
 
                   {height0, [{owner, player},
