@@ -436,8 +436,8 @@ player_wield_wrong_body_part(Config) ->
     Helmet = val(item, player),
     attempt(Config, Player, {<<"helmet">>, move, from, Player, to, <<"head">>}),
     ?WAIT100,
-    {Helmet, _BodyPartRef} = val(item, head1),
-    {body_part, Head, head, _BodyPartRef} = val(body_part, Helmet),
+    {Helmet, _BodyPartRef1} = val(item, head1),
+    {body_part, Head, head, _BodyPartRef2} = val(body_part, Helmet),
     undefined = val(item, player).
 
 player_wield_body_part_is_full(Config) ->
