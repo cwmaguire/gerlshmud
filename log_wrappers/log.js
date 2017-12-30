@@ -1,11 +1,16 @@
+var isCheckboxesCreated = false;
 
 function createClassCheckboxes(){
+  if(isCheckboxesCreated){
+    return;
+  }
   //alert("Creating class checkboxes");
   let allDivs = Array.from(document.getElementsByTagName("div"));
   let allSpans = Array.from(document.getElementsByTagName("span"));
   let classes_ = classes(allDivs).concat(classes(allSpans));
   let checkboxes = map(checkbox, classes_);
   checkboxes.forEach(insert);
+  isCheckboxesCreated = true;
 }
 
 function insert(elem){
