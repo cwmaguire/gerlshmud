@@ -30,7 +30,7 @@ succeed({Props, {Player, look, Self}}) when Self == self() ->
     RoomContext = <<Name/binary, " -> ">>,
     %% Resend as Player looking at this Room with Context
     %% which is a key to objects in this room to describe themselves
-    NewMessage = {Player, describe, self(), RoomContext},
+    NewMessage = {Player, describe, self(), with, RoomContext},
     erlmud_object:attempt(Player, NewMessage),
     Props;
 succeed({Props, _}) ->
@@ -44,7 +44,7 @@ describe(Source, Props) ->
     erlmud_object:attempt(Source, {send, Source, Description}).
 
 description(Props) when is_list(Props) ->
-    DescTemplate = application:get_env(erlmud, room_desc_template, []),
+    DescTemplate = erlmud_config:desc_template(room),
     log([<<"description template: ">>, DescTemplate]),
     Description = [[description_part(Props, Part)] || Part <- DescTemplate],
     log([<<"Description: ">>, Description]),

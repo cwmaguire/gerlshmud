@@ -10,47 +10,28 @@
 % TODO test updating a skill when a target is killed with a weapon (or when damage is dealt, or both)
 
 all() ->
-    [look_player].
-%all() ->
-    %[player_remove,
-     %look_room,
-     %look_player,
-     %look_item].
-
-%all() ->
-    %[player_move,
-     %player_move_fail,
-     %player_move_exit_locked,
-     %player_get_item,
-     %player_drop_item,
-     %character_owner_add_remove,
-     %player_attack,
-     %player_resource_wait,
-     %attack_with_modifiers,
-     %one_sided_fight].
-%all() ->
-    %[player_move,
-     %player_move_fail,
-     %player_move_exit_locked,
-     %player_get_item,
-     %player_drop_item,
-     %character_owner_add_remove,
-     %player_attack,
-     %player_resource_wait,
-     %attack_with_modifiers,
-     %one_sided_fight,
-     %counterattack_behaviour,
-     %stop_attack_on_move,
-     %player_wield,
-     %player_wield_first_available,
-     %player_wield_missing_body_part,
-     %player_wield_wrong_body_part,
-     %player_wield_body_part_is_full,
-     %player_remove,
-     %look_player,
-     %look_room,
-     %look_item,
-     %set_character].
+    [player_move,
+     player_move_fail,
+     player_move_exit_locked,
+     player_get_item,
+     player_drop_item,
+     character_owner_add_remove,
+     player_attack,
+     player_resource_wait,
+     attack_with_modifiers,
+     one_sided_fight,
+     counterattack_behaviour,
+     stop_attack_on_move,
+     player_wield,
+     player_wield_first_available,
+     player_wield_missing_body_part,
+     player_wield_wrong_body_part,
+     player_wield_body_part_is_full,
+     player_remove,
+     look_player,
+     look_room,
+     look_item,
+     set_character].
 
 init_per_testcase(_, Config) ->
     {ok, _Started} = application:ensure_all_started(erlmud),
@@ -510,15 +491,15 @@ look_player(_Config) ->
     erlmud_test_socket:send(<<"look pete">>),
     ?WAIT100,
     NakedDescriptions = erlmud_test_socket:messages(),
-    ExpectedDescriptions = lists:sort([<<"Pete -> weighs 400.0kg">>,
-                                       <<"Pete -> male">>,
-                                       <<"Pete -> giant">>,
+    ExpectedDescriptions = lists:sort([<<"Pete -> 400.0kg">>,
+                                       <<"Pete -> gender: male">>,
+                                       <<"Pete -> race: giant">>,
                                        <<"Pete -> 4.0m tall">>,
-                                       <<"Pete -> hands">>,
-                                       <<"Pete -> legs">>,
-                                       <<"Pete -> pants_: pants">>,
-                                       <<"Pete -> sword_: sword">>,
-                                       <<"Pete -> scroll_: scroll">>]),
+                                       <<"Pete -> body part hands">>,
+                                       <<"Pete -> body part legs">>,
+                                       <<"Pete -> item pants_: pants">>,
+                                       <<"Pete -> item sword_: sword">>,
+                                       <<"Pete -> item scroll_: scroll">>]),
     ExpectedDescriptions = lists:sort(NakedDescriptions).
 
 look_player_clothed(Config) ->
@@ -553,11 +534,11 @@ look_room(_Config) ->
     ?WAIT100,
     Descriptions = lists:sort(erlmud_test_socket:messages()),
     ct:pal("Descriptions: ~p~n", [Descriptions]),
-    Expected = lists:sort([<<"room -> Bob -> human">>,
-                           <<"room -> Pete -> giant">>,
-                           <<"room -> bread_: a loaf of bread">>,
+    Expected = lists:sort([<<"room -> character Bob">>,
+                           <<"room -> character Pete">>,
+                           <<"room -> item bread_: a loaf of bread">>,
                            <<"room: an empty space">>]),
-    Descriptions = Expected.
+    Expected = Descriptions.
 
 look_item(_Config) ->
     start(?WORLD_7),
@@ -568,7 +549,7 @@ look_item(_Config) ->
     ?WAIT100,
     Descriptions = lists:sort(erlmud_test_socket:messages()),
     ct:pal("Descriptions: ~p~n", [Descriptions]),
-    Expected = lists:sort([<<"bread_: a loaf of bread">>]),
+    Expected = lists:sort([<<"item bread_: a loaf of bread">>]),
     Expected = Descriptions.
 
 set_character(Config) ->

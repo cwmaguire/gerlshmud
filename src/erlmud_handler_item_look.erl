@@ -40,39 +40,27 @@ attempt({#parents{}, Props, {Source, look, TargetName}})
     end;
 attempt({#parents{}, Props, {_Source, describe, Self}}) when Self == self() ->
     {succeed, true, Props};
+attempt({#parents{},
+         Props,
+         {_Source, describe, Self, with, _Context}}) when Self == self() ->
+    {succeed, true, Props};
 attempt({#parents{owner = Owner},
          Props,
          {_Source, describe, Owner, with, _Context}}) ->
     {succeed, true, Props};
-attempt({#parents{owner = Owner},
-         Props,
-         {_Source, describe, Owner, with, {deep, _Context}}}) ->
-    {succeed, true, Props};
-attempt({#parents{owner = Owner},
-         Props,
-         {_Source, describe, Owner, with, {_Depth, _Context}}}) ->
-    {succeed, false, Props};
 attempt(_) ->
     undefined.
 
 succeed({Props, {Source, describe, Self}}) when Self == self() ->
     describe(Source, Props),
     Props;
-succeed({Props, {Source, describe, Target, with, {deep, Context}}}) ->
-    _ = case is_owner(Target, Props) of
-            true ->
-                describe(Source, Props, Context);
-            _ ->
-                ok
-        end,
-    Props;
 succeed({Props, {Source, describe, Self, with, Context}}) when Self == self() ->
-    describe(Source, Props, Context),
+    describe(Source, Props, Context, deep),
     Props;
 succeed({Props, {Source, describe, Target, with, Context}}) ->
     _ = case is_owner(Target, Props) of
             true ->
-                describe(Source, Props, Context);
+                describe(Source, Props, Context, shallow);
             _ ->
                 ok
         end,
@@ -92,12 +80,20 @@ describe(Source, Props) ->
     Description = description(Props),
     erlmud_object:attempt(Source, {send, Source, [Description]}).
 
-describe(Source, Props, Context) ->
+describe(Source, Props, Context, deep) ->
+    send_description(Source, Props, Context),
+    Name = proplists:get_value(name, Props),
+    NewContext = <<Context/binary, Name/binary, " -> ">>,
+    erlmud_object:attempt(Source, {Source, describe, self(), with, NewContext});
+describe(Source, Props, Context, shallow) ->
+    send_description(Source, Props, Context).
+
+send_description(Source, Props, Context) ->
     Description = description(Props),
     erlmud_object:attempt(Source, {send, Source, [<<Context/binary>>, Description]}).
 
 description(Props) when is_list(Props) ->
-    DescTemplate = application:get_env(erlmud, item_desc_template, []),
+    DescTemplate = erlmud_config:desc_template(item),
     log([<<"item desc template: ">>, DescTemplate]),
     [[description_part(Props, Part)] || Part <- DescTemplate].
 
