@@ -28,7 +28,7 @@ attempt({#parents{}, Props, {Source, look, TargetName}})
     case re:run(SelfName, TargetName, [{capture, none}, caseless]) of
         match ->
             Context = <<SelfName/binary, " -> ">>,
-            NewMessage = {Source, describe, self(), with, Context},
+            NewMessage = {Source, look, self()},
             {{resend, Source, NewMessage}, _ShouldSubscribe = ignored, Props};
         _ ->
             ct:pal("Name ~p did not match this character's name ~p~n", [TargetName, SelfName]),
@@ -44,7 +44,11 @@ attempt({#parents{owner = Room},
         _JustPlainLook = {SelfSource, look}})
   when SelfSource == self() ->
     NewMessage = {SelfSource, look, Room},
-    {{resend, SelfSource, NewMessage}, _ShouldSubscribe = false, Props};
+    {{resend, SelfSource, NewMessage}, _ShouldSubscribe = ignored, Props};
+attempt({#parents{},
+         Props,
+         {_Source, look, Self}}) when Self == self() ->
+    {succeed, true, Props};
 attempt({#parents{owner = OwnerRoom},
          Props,
          _DescFromParent = {_Source, describe, OwnerRoom, with, _RoomContext}}) ->
@@ -52,8 +56,8 @@ attempt({#parents{owner = OwnerRoom},
 attempt(_) ->
     undefined.
 
-succeed({Props, {Source, describe, Self, with, Context}}) when Self == self() ->
-    describe(Source, Props, Context, deep),
+succeed({Props, {Source, look, Self}}) when Self == self() ->
+    describe(Source, Props, <<>>, deep),
     Props;
 succeed({Props, {Source, describe, Target, with, Context}}) ->
     _ = case is_owner(Target, Props) of

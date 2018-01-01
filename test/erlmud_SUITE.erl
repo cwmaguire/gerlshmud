@@ -9,7 +9,7 @@
 
 % TODO test updating a skill when a target is killed with a weapon (or when damage is dealt, or both)
 
-%all() -> [look_item].
+%all() -> [look_player].
 all() ->
     [player_move,
      player_move_fail,
@@ -492,7 +492,8 @@ look_player(_Config) ->
     erlmud_test_socket:send(<<"look pete">>),
     ?WAIT100,
     NakedDescriptions = erlmud_test_socket:messages(),
-    ExpectedDescriptions = lists:sort([<<"Pete -> 400.0kg">>,
+    ExpectedDescriptions = lists:sort([<<"character Pete">>,
+                                       <<"Pete -> 400.0kg">>,
                                        <<"Pete -> gender: male">>,
                                        <<"Pete -> race: giant">>,
                                        <<"Pete -> 4.0m tall">>,
