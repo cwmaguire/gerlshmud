@@ -27,8 +27,8 @@ attempt({#parents{}, Props, {Source, look, TargetName}})
     SelfName = proplists:get_value(name, Props, <<>>),
     case re:run(SelfName, TargetName, [{capture, none}, caseless]) of
         match ->
-            NewMessage = {Source, describe, self()},
-            {{resend, Source, NewMessage}, _ShouldSubscribe = true, Props};
+            NewMessage = {Source, look, self()},
+            {{resend, Source, NewMessage}, _ShouldSubscribe = ignored, Props};
         _ ->
             ct:pal("Name ~p did not match this item's name ~p~n", [TargetName, SelfName]),
             log([<<"Name ">>,
@@ -38,7 +38,7 @@ attempt({#parents{}, Props, {Source, look, TargetName}})
                  <<".\n">>]),
             {succeed, false, Props}
     end;
-attempt({#parents{}, Props, {_Source, describe, Self}}) when Self == self() ->
+attempt({#parents{}, Props, {_Source, look, Self}}) when Self == self() ->
     {succeed, true, Props};
 attempt({#parents{},
          Props,
@@ -51,11 +51,8 @@ attempt({#parents{owner = Owner},
 attempt(_) ->
     undefined.
 
-succeed({Props, {Source, describe, Self}}) when Self == self() ->
-    describe(Source, Props),
-    Props;
-succeed({Props, {Source, describe, Self, with, Context}}) when Self == self() ->
-    describe(Source, Props, Context, deep),
+succeed({Props, {Source, look, Self}}) when Self == self() ->
+    describe(Source, Props, <<>>, deep),
     Props;
 succeed({Props, {Source, describe, Target, with, Context}}) ->
     _ = case is_owner(Target, Props) of
@@ -75,10 +72,6 @@ is_owner(MaybeOwner, Props) when is_pid(MaybeOwner) ->
     MaybeOwner == proplists:get_value(owner, Props);
 is_owner(_, _) ->
     false.
-
-describe(Source, Props) ->
-    Description = description(Props),
-    erlmud_object:attempt(Source, {send, Source, [Description]}).
 
 describe(Source, Props, Context, deep) ->
     send_description(Source, Props, Context),

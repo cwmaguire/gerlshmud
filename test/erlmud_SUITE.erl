@@ -9,6 +9,7 @@
 
 % TODO test updating a skill when a target is killed with a weapon (or when damage is dealt, or both)
 
+%all() -> [look_item].
 all() ->
     [player_move,
      player_move_fail,

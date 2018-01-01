@@ -29,7 +29,7 @@ attempt({#parents{}, Props, {Source, look, TargetName}})
         match ->
             Context = <<SelfName/binary, " -> ">>,
             NewMessage = {Source, describe, self(), with, Context},
-            {{resend, Source, NewMessage}, _ShouldSubscribe = true, Props};
+            {{resend, Source, NewMessage}, _ShouldSubscribe = ignored, Props};
         _ ->
             ct:pal("Name ~p did not match this character's name ~p~n", [TargetName, SelfName]),
             log([<<"Name ">>,
