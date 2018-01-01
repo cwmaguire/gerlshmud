@@ -37,33 +37,38 @@
 
 attempt({#parents{owner = Owner},
          Props,
-         {set_child_property, Owner, Key, Value}}) ->
-    NewMessage = {set_child_property, self(), Key, Value},
+         {Owner, set_child_property, Key, Value}}) ->
+    NewMessage = {self(), set_child_property, Key, Value},
     Props2 = lists:keystore(Key, 1, Props, {Key, Value}),
     {{broadcast, NewMessage}, false, Props2};
 attempt({#parents{owner = Owner},
          Props,
-         {set_child_properties, Owner, ParentProps}}) ->
-    NewMessage = {set_child_properties, self(), ParentProps},
+         {Owner, set_child_properties, ParentProps}}) ->
+    NewMessage = {self(), set_child_properties, ParentProps},
     Props2 = lists:foldl(fun apply_parent_prop/2, Props, ParentProps),
     {{broadcast, NewMessage}, false, Props2};
 attempt({#parents{owner = Owner},
          Props,
-         {clear_child_property, Owner, Key = top_item, TopItem}}) ->
-    NewMessage = {clear_child_property, self(), Key, TopItem},
-    %% Only clear the top item if our #top_item{} has the same top_item Pid.
-    %% Otherwise another item may have already set our top_item to itself
-    Props2 = case proplists:get_value(Key, Props) of
-                 #top_item{item = Item} when Item == TopItem ->
-                     lists:keydelete(Key, 1, Props);
+         {Owner, clear_child_property, _Key = top_item,
+          'if', TopItem = #top_item{item = Item, ref = Ref}}}) ->
+    NewMessage = {self(), clear_child_property, top_item, 'if', TopItem},
+    %% Only clear the top item if our #top_item{} has the same ref.
+    %% Otherwise another item (or this same item) may have already
+    %% set our top_item to itself
+    %% e.g. self() goes from Parent->NotParent->Parent
+    %% In which case will unset and reset itself as the top item, but maybe
+    %% not always in the right order (because of graph traversal)
+    Props2 = case proplists:get_value(top_item, Props) of
+                 #top_item{item = Item, ref = Ref} ->
+                     lists:keydelete(top_item, 1, Props);
                  _ ->
                      Props
              end,
     {{broadcast, NewMessage}, false, Props2};
 attempt({#parents{owner = Owner},
          Props,
-         {clear_child_property, Owner, Key, Value}}) ->
-    NewMessage = {clear_child_property, self(), Key, Value},
+         {Owner, clear_child_property, Key, 'if', Value}}) ->
+    NewMessage = {self(), clear_child_property, Key, 'if', Value},
     Props2 = case proplists:get_value(Key, Props) of
                  Value ->
                      lists:keydelete(Key, 1, Props);
@@ -71,7 +76,7 @@ attempt({#parents{owner = Owner},
                      Props
              end,
     {{broadcast, NewMessage}, false, Props2};
-attempt({_, Props, {set_child_property, _, _}}) ->
+attempt({_, Props, {_, set_child_property, _, _}}) ->
     {{fail, not_a_child}, _Subscribe = false, Props};
 attempt(_) ->
     undefined.

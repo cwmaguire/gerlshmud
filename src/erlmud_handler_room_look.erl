@@ -18,19 +18,19 @@
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({_Owner, Props, {look, _Source, Self}}) when Self == self() ->
+attempt({_Owner, Props, {_Source, look, Self}}) when Self == self() ->
     {succeed, true, Props};
 attempt(_) ->
     undefined.
 
-succeed({Props, {look, Player, Self}}) when Self == self() ->
+succeed({Props, {Player, look, Self}}) when Self == self() ->
     log([<<"Process ">>, Player, <<" looked at me">>]),
     describe(Player, Props),
     Name = proplists:get_value(name, Props, <<"room with no name">>),
     RoomContext = <<Name/binary, " -> ">>,
     %% Resend as Player looking at this Room with Context
     %% which is a key to objects in this room to describe themselves
-    NewMessage = {describe, Player, self(), RoomContext},
+    NewMessage = {Player, describe, self(), with, RoomContext},
     erlmud_object:attempt(Player, NewMessage),
     Props;
 succeed({Props, _}) ->
@@ -44,7 +44,7 @@ describe(Source, Props) ->
     erlmud_object:attempt(Source, {send, Source, Description}).
 
 description(Props) when is_list(Props) ->
-    DescTemplate = application:get_env(erlmud, room_desc_template, []),
+    DescTemplate = erlmud_config:desc_template(room),
     log([<<"description template: ">>, DescTemplate]),
     Description = [[description_part(Props, Part)] || Part <- DescTemplate],
     log([<<"Description: ">>, Description]),

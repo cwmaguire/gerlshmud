@@ -20,15 +20,15 @@
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({#parents{}, Props, {look, Source, TargetName}})
+attempt({#parents{}, Props, {Source, look, TargetName}})
   when Source =/= self(),
        is_binary(TargetName) ->
     log([<<"Checking if name ">>, TargetName, <<" matches">>]),
     SelfName = proplists:get_value(name, Props, <<>>),
     case re:run(SelfName, TargetName, [{capture, none}, caseless]) of
         match ->
-            NewMessage = {describe, Source, self()},
-            {{resend, Source, NewMessage}, _ShouldSubscribe = true, Props};
+            NewMessage = {Source, look, self()},
+            {{resend, Source, NewMessage}, _ShouldSubscribe = ignored, Props};
         _ ->
             ct:pal("Name ~p did not match this item's name ~p~n", [TargetName, SelfName]),
             log([<<"Name ">>,
@@ -38,41 +38,26 @@ attempt({#parents{}, Props, {look, Source, TargetName}})
                  <<".\n">>]),
             {succeed, false, Props}
     end;
-attempt({#parents{}, Props, {describe, _Source, Self}}) when Self == self() ->
+attempt({#parents{}, Props, {_Source, look, Self}}) when Self == self() ->
+    {succeed, true, Props};
+attempt({#parents{},
+         Props,
+         {_Source, describe, Self, with, _Context}}) when Self == self() ->
     {succeed, true, Props};
 attempt({#parents{owner = Owner},
          Props,
-         {describe, _Source, Owner, _Context}}) ->
+         {_Source, describe, Owner, with, _Context}}) ->
     {succeed, true, Props};
-attempt({#parents{owner = Owner},
-         Props,
-         {describe, _Source, Owner, deep, _Context}}) ->
-    {succeed, true, Props};
-attempt({#parents{owner = Owner},
-         Props,
-         {describe, _Source, Owner, _Depth, _Context}}) ->
-    {succeed, false, Props};
 attempt(_) ->
     undefined.
 
-succeed({Props, {describe, Source, Self}}) when Self == self() ->
-    describe(Source, Props),
+succeed({Props, {Source, look, Self}}) when Self == self() ->
+    describe(Source, Props, <<>>, deep),
     Props;
-succeed({Props, {describe, Source, Self, Context}}) when Self == self() ->
-    describe(Source, Props, Context),
-    Props;
-succeed({Props, {describe, Source, Target, Context}}) ->
+succeed({Props, {Source, describe, Target, with, Context}}) ->
     _ = case is_owner(Target, Props) of
             true ->
-                describe(Source, Props, Context);
-            _ ->
-                ok
-        end,
-    Props;
-succeed({Props, {describe, Source, Target, deep, Context}}) ->
-    _ = case is_owner(Target, Props) of
-            true ->
-                describe(Source, Props, Context);
+                describe(Source, Props, Context, shallow);
             _ ->
                 ok
         end,
@@ -88,16 +73,20 @@ is_owner(MaybeOwner, Props) when is_pid(MaybeOwner) ->
 is_owner(_, _) ->
     false.
 
-describe(Source, Props) ->
-    Description = description(Props),
-    erlmud_object:attempt(Source, {send, Source, [Description]}).
+describe(Source, Props, Context, deep) ->
+    send_description(Source, Props, Context),
+    Name = proplists:get_value(name, Props),
+    NewContext = <<Context/binary, Name/binary, " -> ">>,
+    erlmud_object:attempt(Source, {Source, describe, self(), with, NewContext});
+describe(Source, Props, Context, shallow) ->
+    send_description(Source, Props, Context).
 
-describe(Source, Props, Context) ->
+send_description(Source, Props, Context) ->
     Description = description(Props),
     erlmud_object:attempt(Source, {send, Source, [<<Context/binary>>, Description]}).
 
 description(Props) when is_list(Props) ->
-    DescTemplate = application:get_env(erlmud, item_desc_template, []),
+    DescTemplate = erlmud_config:desc_template(item),
     log([<<"item desc template: ">>, DescTemplate]),
     [[description_part(Props, Part)] || Part <- DescTemplate].
 

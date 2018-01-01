@@ -20,21 +20,20 @@
 -export([succeed/1]).
 -export([fail/1]).
 
-%attempt({_Owner, Props, {Action, Obj, ItemName, BodyPart}})
-attempt({#parents{}, Props, {Attacker, attack, TargetName}})
-  when is_binary(TargetName) ->
+attempt({#parents{}, Props, {Source, Action, TargetName}})
+  when is_binary(TargetName) andalso
+      (Action == look orelse Action == attack) ->
     case is_name(Props, TargetName) of
         true ->
-            NewMessage = {Attacker, attack, self()},
-            Result = {resend, Attacker, NewMessage},
+            NewMessage = {Source, Action, self()},
+            Result = {resend, Source, NewMessage},
             {Result, true, Props};
         _ ->
             _Name = proplists:get_value(name, Props),
-            %log(debug, [<<"Name ">>, Name, <<" did not match target name: ">>, TargetName]),
             {succeed, _Subscribe = false, Props}
     end;
-attempt({Owner, Props, {look, Self}}) when Self == self() ->
-    NewMessage = {look, Self, Owner},
+attempt({Owner, Props, {Self, look}}) when Self == self() ->
+    NewMessage = {Self, look, Owner},
     {{resend, Self, NewMessage}, _ShouldSubscribe = false, Props};
 attempt(_) ->
     undefined.

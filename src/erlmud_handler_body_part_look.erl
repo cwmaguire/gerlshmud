@@ -20,21 +20,19 @@
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({#parents{owner = Owner}, Props, {describe, _Source, Owner, deep, _Context}}) ->
+attempt({#parents{}, Props, {_Source, describe, Self, with, _Context}}) when Self == self() ->
     {succeed, true, Props};
-attempt({#parents{}, Props, {describe, _Source, _Target, _Context}}) ->
-    {succeed, false, Props};
+attempt({#parents{owner = Owner}, Props, {_Source, describe, Owner, with, _Context}}) ->
+    {succeed, true, Props};
 attempt(_) ->
     undefined.
 
-succeed({Props, {describe, Source, Target, _Deep, AncestorsContext}}) ->
+succeed({Props, {Source, describe, Self, with, Context}}) when Self == self() ->
+    describe(Source, Props, Context, deep);
+succeed({Props, {Source, describe, Target, with, Context}}) ->
     _ = case is_owner(Target, Props) of
             true ->
-                describe(Source, Props, AncestorsContext),
-                Name = proplists:get_value(name, Props, undefined),
-                BodyPartContext = <<Name/binary, " -> ">>,
-                NewMessage = {describe, Source, self(), deep, <<AncestorsContext/binary, BodyPartContext/binary>>},
-                erlmud_object:attempt(Source, NewMessage);
+                describe(Source, Props, Context, shallow);
             _ ->
                 ok
         end,
@@ -50,12 +48,20 @@ is_owner(MaybeOwner, Props) when is_pid(MaybeOwner) ->
 is_owner(_, _) ->
     false.
 
-describe(Source, Props, Context) ->
+describe(Source, Props, Context, deep) ->
+    send_description(Source, Props, Context),
+    Name = proplists:get_value(name, Props),
+    NewContext = <<Context/binary, Name/binary, " -> ">>,
+    erlmud_object:attempt(Source, {Source, describe, self(), with, NewContext});
+describe(Source, Props, Context, shallow) ->
+    send_description(Source, Props, Context).
+
+send_description(Source, Props, Context) ->
     Description = description(Props),
     erlmud_object:attempt(Source, {send, Source, [<<Context/binary>>, Description]}).
 
 description(Props) when is_list(Props) ->
-    DescTemplate = application:get_env(erlmud, body_part_desc_template, []),
+    DescTemplate = erlmud_config:desc_template(body_part),
     log(debug, [<<"body part desc template: ">>, DescTemplate]),
     [[description_part(Props, Part)] || Part <- DescTemplate].
 

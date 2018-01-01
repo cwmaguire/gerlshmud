@@ -82,15 +82,13 @@ handle_cast({old_log, Pid, Msg, Params}, State) ->
 handle_cast({log, Level, Pid, Terms}, State) ->
     try
     IoData = [[io(maybe_name(Term)), " "] || Term <- flatten(Terms)],
-    %Props = erlmud_object:props(Pid),
     Props = props(Pid),
-    %io:format("Props for Pid ~p:~n~p~n", [Pid, Props]),
     PropsWithNames = [{K, io(maybe_name(V))} || {K, V} <- Props],
     ok = file:write(State#state.html_file,
                     spans(["log", Level, io(erlmud_index:get(Pid))],
                           [div_("log_time", io(os:timestamp())),
                            div_("log_message", IoData),
-                           div_("log_props", io(PropsWithNames))]))
+                           div_("log_props", io([Pid, PropsWithNames]))]))
     catch
         Error ->
             ct:pal("~p caught error:~n\t~p~n", [?MODULE, Error])

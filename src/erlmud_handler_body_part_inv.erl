@@ -24,21 +24,23 @@
 
 attempt({#parents{owner = Owner},
          Props,
-         {move, Item, from, Self, to, Owner}})
+         {Item, move, from, Self, to, Owner}})
   when Self == self(),
        is_pid(Item) ->
-    {succeed, has_item(Item, Props), Props};
+    {succeed, has_item_with_ref(Item, Props), Props};
 attempt({#parents{owner = Owner},
          Props,
-         {move, Item, from, Owner, to, Self}})
+         {Item, move, from, Owner, to, Self}})
   when Self == self(),
        is_pid(Item) ->
-    NewMessage = {move, Item, from, Owner, to, Self, item_body_parts},
+    NewMessage = {Item, move, from, Owner, to, self(), limited, to, item_body_parts},
     Result = {resend, Owner, NewMessage},
     {Result, _Subscribe = true, Props};
+% We know both the target body part and the valid body parts for the item so
+% we can see if this body part has space and if this body part matches the item.
 attempt({#parents{owner = Owner},
          Props,
-         {move, Item, from, Owner, to, Self, ItemBodyParts}})
+         {Item, move, from, Owner, to, Self, limited, to, ItemBodyParts}})
   when Self == self(),
        is_pid(Item),
        is_list(ItemBodyParts) ->
@@ -47,27 +49,58 @@ attempt({#parents{owner = Owner},
             {{fail, Reason}, _Subscribe = false, Props};
         _ ->
             BodyPartType = proplists:get_value(body_part, Props, undefined),
-            NewMessage = {move, Item, from, Owner, to, {Self, BodyPartType}},
+            NewMessage = {Item, move, from, Owner, to, self(), on, body_part, type, BodyPartType},
             Result = {resend, Owner, NewMessage},
             {Result, _Subscribe = true, Props}
     end;
+%% The reason for "limited, to, item_body_parts" is that there are two conditions that have
+%% to be met for an item to be added to a body part:
+%% - the body part must have available space (e.g. an empty hand can hold a gun)
+%% - the item must fit on that body part (e.g. an axe isn't going to be a hat)
+%% This requires both the body part and the item each contribute to the message
+%% before we can check if they are met. We add two placeholder flags to the message:
+%% - 'first_available_body_part' if we don't know which part it will be yet
+%% - 'limited', 'to', 'item_body_parts' if we don't know what body part types are valid
+%%   for the body part.
 attempt({#parents{owner = Owner},
          Props,
-         {move, _Item, from, Owner, to, {Self, _BodyPartType}}})
+         {Item, move, from, Owner, to, first_available_body_part}})
+  when is_pid(Item) ->
+    NewMessage = {Item, move, from, Owner, to, first_available_body_part, limited, to, item_body_parts},
+    Result = {resend, Owner, NewMessage},
+    {Result, _Subscribe = true, Props};
+attempt({#parents{owner = Owner},
+         Props,
+         {Item, move, from, Owner, to, first_available_body_part, limited, to, ItemBodyParts}})
+  when is_pid(Item),
+       is_list(ItemBodyParts) ->
+    case can(add, Props, ItemBodyParts) of
+        true ->
+            BodyPartType = proplists:get_value(body_part, Props, undefined),
+            NewMessage = {Item, move, from, Owner, to, self(), on, body_part, type, BodyPartType},
+            Result = {resend, Owner, NewMessage},
+            {Result, _Subscribe = true, Props};
+        _ ->
+            {succeed, _Subscribe = false, Props}
+    end;
+attempt({#parents{owner = Owner},
+         Props,
+         {_Item, move, from, Owner, to, Self, on, body_part, type, _BodyPartType}})
   when Self == self() ->
     {succeed, true, Props};
 attempt(_) ->
     undefined.
 
-succeed({Props, {move, Item, from, OldOwner, to, {Self, _BodyPartType}}})
+succeed({Props, {Item, move, from, OldOwner, to, Self, on, body_part, type, BodyPartType}})
   when Self == self() ->
     log(debug, [<<"Getting ">>, Item, <<" from ">>, OldOwner, <<"\n">>]),
-    %BodyPartType = proplists:get_value(body_part, Props),
-
-    % Temp comment: the item will set the body part property to {BodyPartPid, BodyPartType}
-    %erlmud_object:attempt(Item, {set_child_property, self(), body_part, {self(), BodyPartType}}),
-    [{item, Item} | Props];
-succeed({Props, {move, Item, from, Self, to, NewOwner}})
+    ItemRef = make_ref(),
+    erlmud_object:attempt(Item, {self(), set_child_property, body_part,
+                                 #body_part{body_part = self(),
+                                            type = BodyPartType,
+                                            ref = ItemRef}}),
+    [{item, {Item, ItemRef}} | Props];
+succeed({Props, {Item, move, from, Self, to, NewOwner}})
   when Self == self() ->
     clear_child_body_part(Props, Item, NewOwner);
 %% TODO I'm not sure if this gets used: _ItemBodyParts indicates this is an intermediate event
@@ -81,8 +114,13 @@ succeed({Props, _}) ->
 fail({Props, _, _}) ->
     Props.
 
-has_item(Item, Props) ->
-    {item, Item} == lists:keyfind(Item, 2, Props).
+has_item_with_ref(Item, Props) ->
+    case [Item_ || {item, {Item_, _Ref}} <- Props, Item_ == Item] of
+        [_ | _] ->
+            true;
+        _ ->
+            false
+    end.
 
 can(add, Props, ItemBodyParts) ->
     can_add(Props, ItemBodyParts);
@@ -141,8 +179,24 @@ has_space(Props, _) ->
 clear_child_body_part(Props, Item, Target) ->
     log(debug, [<<"Giving ">>, Item, <<" to ">>, Target, <<"\n\tProps: ">>, Props, <<"\n">>]),
     BodyPartType = proplists:get_value(body_part, Props, undefined),
-    erlmud_object:attempt(Item, {clear_child_property, Target, body_part, {self(), BodyPartType}}),
-    lists:keydelete(Item, 2, Props).
+    ItemRef = item_ref(Item, Props),
+    erlmud_object:attempt(Item, {Target,
+                                 clear_child_property,
+                                 body_part,
+                                 'if',
+                                 #body_part{body_part = self(),
+                                            type = BodyPartType,
+                                            ref = ItemRef}}),
+    lists:keydelete({Item, ItemRef}, 2, Props).
+
+item_ref(Item, Props) ->
+    Items = proplists:get_all_values(item, Props),
+    case [Ref || {Item_, Ref} <- Items, Item == Item_] of
+        [] ->
+            undefined;
+        [Ref] ->
+            Ref
+    end.
 
 log(Level, IoData) ->
     erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).

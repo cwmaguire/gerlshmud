@@ -20,21 +20,21 @@
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({#parents{}, Props, {move, Self, Direction}}) when Self == self() ->
+attempt({#parents{}, Props, {Self, move, Direction}}) when Self == self() ->
     case proplists:get_value(owner, Props) of
         undefined ->
             {{fail, <<"Character doesn't have room">>}, false, Props};
         Room ->
-            {{resend, Self, {move, Self, Room, Direction}}, false, Props}
+            {{resend, Self, {Self, move, Direction, from, Room}}, false, Props}
     end;
-attempt({#parents{}, Props, {move, Self, _From, _Dir}}) when Self == self() ->
+attempt({#parents{}, Props, {Self, move, _Dir, from, _From}}) when Self == self() ->
     {succeed, true, Props};
-attempt({#parents{}, Props, {move, Self, _From, _To, _Exit}}) when Self == self() ->
+attempt({#parents{}, Props, {Self, move, from, _From, to, _To, via, _Exit}}) when Self == self() ->
     {succeed, true, Props};
 attempt(_) ->
     undefined.
 
-succeed({Props, {move, Self, Source, Target, _Exit}}) when Self == self() ->
+succeed({Props, {Self, move, from, Source, to, Target, via, _Exit}}) when Self == self() ->
     log(debug, [<<"moved from ">>, Source, <<" to ">>, Target, <<"\n">>]),
     log(debug, [<<"setting ">>, Self, <<"'s room to ">>, Target, <<"\n">>]),
     NewProps = set(room, Target, set(owner, Target, Props)),
@@ -46,7 +46,7 @@ succeed({Props, {move, Self, Source, Target, _Exit}}) when Self == self() ->
             ok
     end,
     NewProps;
-succeed({Props, {move, Self, Source, Direction}}) when Self == self(), is_atom(Direction) ->
+succeed({Props, {Self, move, Direction, from, Source}}) when Self == self(), is_atom(Direction) ->
     %TODO I think this is actually a failure: if we found an exit that lead _from_ Source
     %in the direction Direction then this attempt would have been resent as:
     % {move, Self, Source, Target, ExitPid}

@@ -96,7 +96,7 @@ attempt({#parents{character = Character},
     end;
 attempt({#parents{character = Character},
          Props,
-         {Attacker, damage, Damage, to, Character, with, AttackVector}}) ->
+         {Attacker, calc, Damage, to, Character, with, AttackVector}}) ->
     case should_defend(Props) of
         true ->
             case proplists:get_value(defence_damage_modifier, Props) of
@@ -231,7 +231,7 @@ succeed({Props, {Character, stop_attack}}) ->
     Props2 = lists:keystore(target, 1, Props, {target, undefined}),
     _Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, false});
 
-succeed({Props, {die, Character}}) ->
+succeed({Props, {Character, die}}) ->
     unreserve(Character, Props),
     Props2 = lists:keystore(target, 1, Props, {target, undefined}),
     _Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, false});

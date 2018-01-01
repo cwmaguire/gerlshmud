@@ -128,7 +128,6 @@ handle_cast(Msg, State) ->
     handle_cast_(Msg, State).
 
 handle_cast_({populate, ProcIds}, State = #state{props = Props}) ->
-    ct:pal("populate on ~p", [self()]),
     log([<<"populate on ">>, self()]),
     {noreply, State#state{props = populate_(Props, ProcIds)}};
 handle_cast_({set, Prop = {K, _}}, State = #state{props = Props}) ->
@@ -293,7 +292,7 @@ handle({broadcast, Msg}, _Msg, _Procs, Props) ->
     [broadcast(V, Msg) || V <- procs(NotParents)].
 
 broadcast(Pid, Msg) ->
-    ct:pal("Broadcasting ~p to ~p", [Msg, Pid]),
+    %ct:pal("Broadcasting ~p to ~p", [Msg, Pid]),
     log([self(), <<" broadcasting ">>, Msg, <<" to ">>, Pid]),
     attempt(Pid, Msg).
 
@@ -342,7 +341,9 @@ procs(Props) ->
                     [Pid | Acc];
                    ({_, Pids = [Pid | _]}, Acc) when is_pid(Pid) ->
                     Acc ++ Pids;
-                   (_, Acc) ->
+                   ({item, {ItemPid, Ref}}, Acc) when is_pid(ItemPid), is_reference(Ref) ->
+                    [ItemPid | Acc];
+                   (_NotPidProperty, Acc) ->
                     Acc
                 end, [], Props).
 
@@ -379,6 +380,7 @@ next(Procs = #procs{next = NextSet}) ->
         [] ->
             none;
         _ ->
+            %TODO ordsets are already lists, remove this. If anything, use from_list/1
             NextProc = hd(ordsets:to_list(Next)),
             {NextProc, Procs#procs{next = ordsets:del_element(NextProc, Next)}}
     end.

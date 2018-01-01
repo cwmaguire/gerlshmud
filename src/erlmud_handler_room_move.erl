@@ -18,27 +18,27 @@
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({_Owner, Props, {move, _Obj, Source, Target, _Exit}}) when Source == self(); Target == self() ->
+attempt({_Owner, Props, {_Obj, move, from, Source, to, Target, via, _Exit}}) when Source == self(); Target == self() ->
     {succeed, true, Props};
 attempt(_) ->
     undefined.
 
-succeed({Props, {move, Obj, Self, Target, _Exit}}) when Self == self() ->
+succeed({Props, {Obj, move, from, Self, to, Target, via, _Exit}}) when Self == self() ->
     log([Obj, <<" went to ">>, Target]),
     lists:keydelete(Obj, 2, Props);
-succeed({Props, {move, Obj, Source, Self, _Exit}}) when Self == self() ->
+succeed({Props, {Obj, move, from, Source, to, Self, via, _Exit}}) when Self == self() ->
     log([Obj, <<" came from ">>, Source]),
     [{character, Obj} | Props];
-succeed({Props, {move, Obj, Source, Target}}) ->
+succeed({Props, {Obj, move, from, Source, to, Target}}) ->
     log([<<"Process ">>, Obj, <<" went from ">>, Source, <<" to ">>, Target]),
     Props;
 succeed({Props, _}) ->
     Props.
 
-fail({Props, Reason, {move, Obj, Self, Target}}) when Self == self() ->
+fail({Props, Reason, {Obj, move, from, Self, to, Target}}) when Self == self() ->
     log([Obj, <<" couldn't go from here to ">>, Target, <<" ">>, Reason]),
     Props;
-fail({Props, Reason, {move, Obj, Source, Target, Exit}}) when Source == self(); Target == self() ->
+fail({Props, Reason, {Obj, move, from, Source, to, Target, via, Exit}}) when Source == self(); Target == self() ->
     log([Obj, <<" couldn't move from ">>,
          <<" room ">>, Source, <<" to room ">>, Target,
          <<" via ">>, Exit,

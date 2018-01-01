@@ -13,30 +13,26 @@
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 -module(erlmud_world).
 
+-include("erlmud.hrl").
+-include("erlmud_handlers.hrl").
+-include("play_world.hrl").
+
 -export([init/0]).
 -export([move/1]).
 -export([m/1]).
 -export([s/0]).
 -export([t/0]).
 
--define(WORLD,
-        [{erlmud_room, room1, [{exit, exit1}]},
-         {erlmud_room, room2, [{exit, exit1}, {exit, exit2}]},
-         {erlmud_room, room3, [{exit, exit2}]},
-         {erlmud_player, player1, [{room, room1}, {item, item1}]},
-         {erlmud_exit, exit1, [{{room, s}, room2}, {{room, n}, room1}]},
-         {erlmud_exit, exit2, [{{room, s}, room3}, {{room, n}, room2}, {item, item2}]},
-         {erlmud_item, item1, [{desc, "sword"}]},
-         {erlmud_item, item2, [{desc, "shield"}]}]).
-
 init() ->
-    IdPids = [{Id, start(Id, Type, Props)} || {Type, Id, Props} <- ?WORLD],
+    %io:format(user, "WORLD = ~p~n", [?WORLD]),
+    IdPids = [{Id, start(Id, Props)} || {Id, Props} <- ?WORLD],
     io:format("Pids: ~p~n", [IdPids]),
     _Objs = [erlmud_object:populate(Pid, IdPids) || {_, Pid} <- IdPids],
     IdPids.
 
-start(Id, Type, Props) ->
-    {ok, Pid} = supervisor:start_child(erlmud_object_sup, [Id, Type, Props]),
+start(Id, Props) ->
+    %io:format("Starting process with Id ~p and props:~n~p~n", [Id, Props]),
+    {ok, Pid} = supervisor:start_child(erlmud_object_sup, [Id, Props]),
     Pid.
 
 move(IdPids) ->
@@ -60,5 +56,4 @@ t() ->
     dbg:start(),
     dbg:tracer(),
     dbg:p(all, [call]),
-    dbg:tpl(erlmud_object, [{'_',[],[{return_trace}]}]),
-    dbg:tpl(erlmud_exit, [{'_',[],[{return_trace}]}]).
+    dbg:tpl(erlmud_object, [{'_',[],[{return_trace}]}]).

@@ -10,16 +10,20 @@
     runtime_tools,
     %sasl,
     cowboy,
-    jsx
+    jsx,
+    lager
   ]},
   {mod, {erlmud_app, []}},
   {env, [{coprse_cleanup_milis, 120000}, %% 2 minutes
-         {character_desc_template, [name, <<", a ">>, gender, <<" ">>, species,
-                                    <<", ">>, height, <<"m tall and ">>,
-                                    <<"around ">>, weight, <<"kg.">>]},
-         {body_part_desc_template, [name]},
-         {item_desc_template, [name, <<": ">>, desc]},
-         {room_desc_template, [name, <<": ">>, desc]},
+         {desc_templates, [
+             {character, [<<"character ">>, name]},
+             {body_part, [<<"body part ">>, name]},
+             {item, [<<"item ">>, name, <<": ">>, desc]},
+             {room, [name, <<": ">>, desc]},
+             {gender, [<<"gender: ">>, value]},
+             {race, [<<"race: ">>, value]},
+             {height, [value, <<"m tall">>]},
+             {weight, [value, <<"kg">>]}]},
 
          {context_verbs, [{giant, [{hand, [{sword, <<"is wielding">>},
                                            {gloves, <<"is wearing">>}]},

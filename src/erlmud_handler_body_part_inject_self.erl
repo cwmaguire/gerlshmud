@@ -22,13 +22,13 @@
 
 attempt({#parents{owner = Owner},
          Props,
-         {move, Item, from, Owner, to, BodyPartName}})
+         {Item, move, from, Owner, to, BodyPartName}})
   %when is_pid(Item) andalso
        %is_binary(BodyPartName) ->
   when is_binary(BodyPartName) ->
     case is_match(Props, BodyPartName) of
         true ->
-            NewMessage = {move, Item, from, Owner, to, self()},
+            NewMessage = {Item, move, from, Owner, to, self()},
             Result = {resend, Owner, NewMessage},
             {Result, _Subscribe = true, Props};
         _ ->
@@ -36,51 +36,60 @@ attempt({#parents{owner = Owner},
     end;
 attempt({#parents{owner = Owner},
          Props,
-         {move, Item, from, BodyPartName, to, Owner}})
+         {Item, move, from, BodyPartName, to, Owner}})
   when is_pid(Item) andalso
        is_binary(BodyPartName) ->
     case is_match(Props, BodyPartName) of
         true ->
-            NewMessage = {move, Item, from, self(), to, Owner},
+            NewMessage = {Item, move, from, self(), to, Owner},
             Result = {resend, Owner, NewMessage},
             {Result, _Subscribe = true, Props};
         _ ->
             {succeed, _Subscribe = false, Props}
     end;
-attempt({#parents{owner = Owner},
-         Props,
-         {move, Item, from, Owner,
-                        to, first_available_body_part}})
-  when is_pid(Item) ->
-    NewMessage = {move, Item, from, Owner,
-                  to, first_available_body_part,
-                  item_body_parts},
-    Result = {resend, Owner, NewMessage},
-    {Result, _Subscribe = true, Props};
-attempt({#parents{owner = Owner},
-         Props,
-         {move, Item, from, Owner,
-                        to, first_available_body_part,
-                        ItemBodyParts}})
-  when is_pid(Item),
-       is_list(ItemBodyParts) ->
+%% The reason for "limited, to, item_body_parts" is that there are two conditions that have
+%% to be met for an item to be added to a body part:
+%% - the body part must have available space (e.g. an empty hand can hold a gun)
+%% - the item must fit on that body part (e.g. an axe isn't going to be a hat)
+%% This requires both the body part and the item each contribute to the message
+%% before we can check if they are met. We add two placeholder flags to the message:
+%% - 'first_available_body_part' if we don't know which part it will be yet
+%% - 'limited', 'to', 'item_body_parts' if we don't know what body part types are valid
+%%   for the body part.
+
+%% I've already got this in erlmud_handler_body_part_inv
+%attempt({#parents{owner = Owner},
+         %Props,
+         %{Item, move, from, Owner, to, first_available_body_part}})
+  %when is_pid(Item) ->
+    %NewMessage = {Item, move, from, Owner, to, first_available_body_part, limited, to, item_body_parts},
+    %Result = {resend, Owner, NewMessage},
+    %{Result, _Subscribe = true, Props};
+
+% This was already mostly done in erlmud_handler_body_part_inv
+%attempt({#parents{owner = Owner},
+         %Props,
+         %{Item, move, from, Owner, to, first_available_body_part, limited, to, ItemBodyParts}})
+  %when is_pid(Item),
+       %is_list(ItemBodyParts) ->
     %% Not sure if I should just move this clause over to erlmud_handler_body_part_inv
-    case erlmud_handler_body_part_inv:can_add(Props, ItemBodyParts) of
-        true ->
-            NewMessage = {move, Item, from, Owner, to, self(), ItemBodyParts},
-            Result = {resend, Owner, NewMessage},
-            {Result, _Subscribe = true, Props};
-        _ ->
-            {succeed, _Subscribe = false, Props}
-    end;
+    %case erlmud_handler_body_part_inv:can_add(Props, ItemBodyParts) of
+        %true ->
+            %BodyPartType = proplists:get_value(body_part, Props, undefined),
+            %NewMessage = {Item, move, from, Owner, to, self(), on, body_part, type, BodyPartType},
+            %Result = {resend, Owner, NewMessage},
+            %{Result, _Subscribe = true, Props};
+        %_ ->
+            %{succeed, _Subscribe = false, Props}
+    %end;
 attempt({#parents{owner = Owner},
          Props,
-         {move, Item, from, current_body_part, to, Owner}}) ->
+         {Item, move, from, current_body_part, to, Owner}}) ->
     %% We can't have the room inject itself because a room might
     %% be owned by  a room, character, another item, etc.
-    case {item, Item} == lists:keyfind(Item, 2, Props) of
-        true ->
-            NewMessage = {move, Item, from, self(), to, Owner},
+    case [Item_ || {item, {Item_, _Ref}} <- Props, Item_ == Item] of
+        [_ | _] ->
+            NewMessage = {Item, move, from, self(), to, Owner},
             Result = {resend, Owner, NewMessage},
             {Result, _Subscribe = true, Props};
         _ ->

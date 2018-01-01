@@ -26,6 +26,9 @@ is_dead_action(revive) ->
 is_dead_action(_) ->
     false.
 
+%% TODO I think this can be removed. A lot of this attack stuff looks pretty old.
+%% It is part of the test connection handlers though, so I'll have to dig into it.
+
 attempt({#parents{owner = Owner},
          Props,
          Msg = {killed, _Attack, _Source, Owner}}) ->
