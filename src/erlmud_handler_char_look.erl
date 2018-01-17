@@ -27,7 +27,6 @@ attempt({#parents{}, Props, {Source, look, TargetName}})
     SelfName = proplists:get_value(name, Props, <<>>),
     case re:run(SelfName, TargetName, [{capture, none}, caseless]) of
         match ->
-            Context = <<SelfName/binary, " -> ">>,
             NewMessage = {Source, look, self()},
             {{resend, Source, NewMessage}, _ShouldSubscribe = ignored, Props};
         _ ->
@@ -57,7 +56,8 @@ attempt(_) ->
     undefined.
 
 succeed({Props, {Source, look, Self}}) when Self == self() ->
-    describe(Source, Props, <<>>, deep),
+    NoContext = <<>>,
+    describe(Source, Props, NoContext, deep),
     Props;
 succeed({Props, {Source, describe, Target, with, Context}}) ->
     _ = case is_owner(Target, Props) of
