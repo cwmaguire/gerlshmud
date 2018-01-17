@@ -12,43 +12,39 @@
 %% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 -module(erlmud_conn).
--behaviour(gen_fsm).
+-behaviour(gen_statem).
 
 -export([start_link/1]).
 -export([handle/2]).
 
--export([login/2]).
--export([password/2]).
--export([live/2]).
--export([dead/2]).
+-export([login/3]).
+-export([password/3]).
+-export([live/3]).
+-export([dead/3]).
 
 -export([init/1]).
--export([handle_event/3]).
--export([handle_sync_event/4]).
--export([handle_info/3]).
--export([terminate/3]).
--export([code_change/4]).
+-export([callback_mode/0]).
 
--record(state, {socket :: pid(),
-                conn_obj :: pid(),
-                player :: pid(),
-                login :: string(),
-                attempts = 0 :: integer()}).
+-record(data, {socket :: pid(),
+               conn_obj :: pid(),
+               player :: pid(),
+               login :: string(),
+               attempts = 0 :: integer()}).
 
 %% api
 
 start_link(Socket) ->
-    gen_fsm:start_link(?MODULE, Socket, []).
+    gen_statem:start_link(?MODULE, Socket, []).
 
 handle(Pid, Msg) ->
-    gen_fsm:send_event(Pid, Msg).
+    gen_statem:cast(Pid, Msg).
 
 %% states
 
-login(Event, StateData) ->
-    {next_state, password, StateData#state{login = Event}}.
+login(cast, Event, Data) ->
+    {next_state, password, Data#data{login = Event}}.
 
-password(_Event = Password, StateData = #state{login = Login,
+password(cast, _Event = Password, Data = #data{login = Login,
                                                attempts = Attempts,
                                                socket = _Socket}) ->
     case is_valid_creds(Login, Password) of
@@ -64,56 +60,51 @@ password(_Event = Password, StateData = #state{login = Login,
             Message = {PlayerPid, enter_world, with, ConnObjPid},
             ConnObjPid ! {ConnObjPid, Message},
 
-            {next_state, live, StateData#state{login = undefined, player = PlayerPid, conn_obj = ConnObjPid}};
+            {next_state, live, Data#data{login = undefined, player = PlayerPid, conn_obj = ConnObjPid}};
         false ->
-            get_failed_auth_state(StateData#state{login = undefined, attempts = Attempts + 1})
+            get_failed_auth_state(Data#data{login = undefined, attempts = Attempts + 1})
     end.
 
-get_failed_auth_state(StateData = #state{attempts = Attempts}) when Attempts < 3 ->
-    {next_state, login, StateData};
-get_failed_auth_state(StateData) ->
-    {next_state, dead, StateData}.
+get_failed_auth_state(Data = #data{attempts = Attempts}) when Attempts < 3 ->
+    {next_state, login, Data};
+get_failed_auth_state(Data) ->
+    {next_state, dead, Data}.
 
-dead(_, StateData = #state{socket = Socket}) ->
+dead(cast, _, _Data = #data{socket = Socket}) ->
     Socket ! {send, "Connection Refused"},
-    {next_state, dead, StateData}.
+    keep_state_and_data;
 
-live({send, Message}, StateData = #state{socket = Socket}) ->
+dead({call, From}, props, _Data) ->
+    {keep_state_and_data, [{reply, From, _Props = []}]}.
+
+live(cast, {send, Message}, _Data = #data{socket = Socket}) ->
     Socket ! {send, Message},
-    {next_state, live, StateData};
-live(Event, StateData = #state{player = PlayerPid, conn_obj = ConnObjPid}) ->
-    log([<<"got event \"">>, Event, <<"\" in state 'live' with state data ">>, StateData]),
+    keep_state_and_data;
+live(cast, Event, Data = #data{player = PlayerPid, conn_obj = ConnObjPid}) ->
+    log([<<"got event \"">>, Event, <<"\" in state 'live' with state data ">>, Data]),
 
     _ = case erlmud_parse:parse(PlayerPid, Event) of
         {error, Error} ->
-            StateData#state.socket ! {send, Error};
+            Data#data.socket ! {send, Error};
         Message ->
             ConnObjPid ! {ConnObjPid, Message}
     end,
-    {next_state, live, StateData}.
+    {next_state, live, Data};
+live(Type, Event, Data) ->
+    log(live, Type, Event, Data),
+    keep_state_and_data.
 
-%% gen_fsm
+%% gen_statem
 
 init(Socket) ->
-    {ok, login, #state{socket = Socket}}.
+    {ok, login, #data{socket = Socket}}.
 
-handle_sync_event(_Event, _From, StateName, StateData) ->
-    {reply, ok, StateName, StateData}.
+callback_mode() ->
+    state_functions.
 
-handle_event(_Info, StateName, StateData) ->
-    {next_state, StateName, StateData}.
-
-handle_info({'$gen_call', {From, Ref}, props}, StateName, StateData) ->
-    From ! {Ref, _Props = []},
-    {next_state, StateName, StateData};
-handle_info(Info, StateName, StateData = #state{player = Player}) ->
-    io:format("Connection ~p for player ~p received unrecognized message:~n\t~p~n",
-              [self(), Player, Info]),
-    {next_state, StateName, StateData}.
-
-terminate(_Reason, _StateName, _StateData) -> ok.
-code_change(_OldVsn, StateName, StateData, _Extra) ->
-    {ok, StateName, StateData}.
+log(EventType, EventData, State, _Data = #data{player = Player}) ->
+    io:format("Connection ~p for player ~p received unrecognized event ~p:~p in state ~p",
+              [self(), Player, EventType, EventData, State]).
 
 %% private
 
