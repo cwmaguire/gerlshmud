@@ -466,7 +466,6 @@ player_remove(Config) ->
     {body_part, Head, head, _Ref1} = val(body_part, DexBuff),
     attempt(Config, Player, {<<"helmet">>, move, from, <<"head">>, to, Player}),
     ?WAIT100,
-    %% TODO this doesn't make any sense for the player to have a single item
     Helmet = val(item, player),
     undefined = val(body_part, Helmet),
     undefined = val(body_part, DexBuff),
