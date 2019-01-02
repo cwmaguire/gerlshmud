@@ -30,7 +30,7 @@ attempt({#parents{}, Props, {Source, look, TargetName}})
             NewMessage = {Source, look, self()},
             {{resend, Source, NewMessage}, _ShouldSubscribe = ignored, Props};
         _ ->
-            ct:pal("Name ~p did not match this item's name ~p~n", [TargetName, SelfName]),
+            io:format(user, "Name ~p did not match this item's name ~p~n", [TargetName, SelfName]),
             log([<<"Name ">>,
                  TargetName,
                  <<" did not match this item's name: ">>,

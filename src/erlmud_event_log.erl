@@ -91,7 +91,7 @@ handle_cast({log, Level, Pid, Terms}, State) ->
                            div_("log_props", io([Pid, PropsWithNames]))]))
     catch
         Error ->
-            ct:pal("~p caught error:~n\t~p~n", [?MODULE, Error])
+            io:format(user, "~p caught error:~n\t~p~n", [?MODULE, Error])
     end,
     {noreply, State};
 handle_cast({log, From, To, Stage, Action, _Params, _Room, _Next, _Done, _Subs}, State) ->
@@ -101,7 +101,7 @@ handle_cast({log, From, To, Stage, Action, _Params, _Room, _Next, _Done, _Subs},
         _FromPropsWithNames = [{K, maybe_name(V)} || {K, V} <- FromProps]
     catch
         Error ->
-            ct:pal("FromProps Error: ~p~n", [Error])
+            io:format(user, "FromProps Error: ~p~n", [Error])
     end,
 
     ToName = erlmud_index:get(To),
@@ -140,19 +140,19 @@ handle_cast({log, From, To, Stage, Action, _Params, _Room, _Next, _Done, _Subs},
     ok = file:write(State#state.html_file, [Spans])
     catch
         Error2 ->
-            ct:pal("spans(...) or file:write(...) error: ~p~n", [?MODULE, Error2])
+            io:format(user, "~p: spans(...) or file:write(...) error: ~p~n", [?MODULE, Error2])
     end,
     {noreply, State};
 handle_cast(Msg, State) ->
-    ct:pal("Unrecognized cast: ~p~n", [Msg]),
+    io:format(user, "Unrecognized cast: ~p~n", [Msg]),
     {noreply, State}.
 
 handle_info(Info, State) ->
-    ct:pal("~p:handle_info(~p, State)~n", [?MODULE, Info]),
+    io:format(user, "~p:handle_info(~p, State)~n", [?MODULE, Info]),
     {noreply, State}.
 
 terminate(_Reason, #state{html_file = HtmlFile}) ->
-    %ct:pal("Terminating erlmud_event_log: ~p~n", [Reason]),
+    %io:format(user, "Terminating erlmud_event_log: ~p~n", [Reason]),
     %io:format("Terminating erlmud_event_log: ~p~n", [Reason]),
     io:format(HtmlFile,
               "<script language=\"JavaScript\">"
@@ -162,7 +162,7 @@ terminate(_Reason, #state{html_file = HtmlFile}) ->
               []),
     ok;
 terminate(Reason, State) ->
-    ct:pal("Terminating erlmud_event_log: ~p~n", [Reason, State]).
+    io:format(user, "Terminating erlmud_event_log: ~p~n~p~n", [Reason, State]).
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
