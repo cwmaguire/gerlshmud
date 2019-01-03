@@ -10,31 +10,35 @@
 % TODO test updating a skill when a target is killed with a weapon (or when damage is dealt, or both)
 
 %all() -> [look_player].
-all() ->
-    [player_move,
-     player_move_fail,
-     player_move_exit_locked,
-     player_get_item,
-     player_drop_item,
-     character_owner_add_remove,
-     player_attack,
-     player_resource_wait,
-     attack_with_modifiers,
-     one_sided_fight,
-     counterattack_behaviour,
-     stop_attack_on_move,
-     player_wield,
-     player_wield_first_available,
-     player_wield_missing_body_part,
-     player_wield_wrong_body_part,
-     player_wield_body_part_is_full,
-     player_remove,
-     look_player,
-     look_room,
-     look_item,
-     set_character].
+all() -> [player_drop_item].
+%all() ->
+    %[player_move,
+     %player_move_fail,
+     %player_move_exit_locked,
+     %player_get_item,
+     %player_drop_item,
+     %character_owner_add_remove,
+     %player_attack,
+     %player_resource_wait,
+     %attack_with_modifiers,
+     %one_sided_fight,
+     %counterattack_behaviour,
+     %stop_attack_on_move,
+     %player_wield,
+     %player_wield_first_available,
+     %player_wield_missing_body_part,
+     %player_wield_wrong_body_part,
+     %player_wield_body_part_is_full,
+     %player_remove,
+     %look_player,
+     %look_room,
+     %look_item,
+     %set_character].
 
 init_per_testcase(_, Config) ->
+    Port = ct:get_config(port),
+    application:load(erlmud),
+    application:set_env(erlmud, port, Port),
     {ok, _Started} = application:ensure_all_started(erlmud),
     {ok, _Pid} = erlmud_test_socket:start(),
     TestObject = spawn_link(fun mock_object/0),
@@ -112,6 +116,8 @@ player_get_item(Config) ->
     start(?WORLD_2),
     Player = erlmud_index:get(player),
     Sword = erlmud_index:get(sword),
+    true = has(Sword, room),
+    false = has(Sword, player),
     attempt(Config, Player, {Player, get, <<"sword">>}),
     ?WAIT100,
     true = has(Sword, player).
@@ -123,7 +129,8 @@ player_drop_item(Config) ->
     true = has(Helmet, player),
     attempt(Config, Player, {Player, drop, <<"helmet">>}),
     ?WAIT100,
-    [] = all(item, Player).
+    [] = all(item, Player),
+    true = has(Helmet, room).
 
 character_owner_add_remove(Config) ->
     start(?WORLD_10),
