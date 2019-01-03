@@ -21,7 +21,7 @@
 %% Injects the room, which might indicate this should be in ...room_inject_self,
 %% except the character has a 'room' property, which is faster.
 %% Also, characters can only be owned by rooms. This wouldn't work
-%% for a item owned by a body part because an item might be owned by a
+%% for an item owned by a body part because an item might be owned by a
 %% character, room or other item (e.g. container).
 attempt({_Owner, Props, {Self, Action, Item}})
   when Self == self() andalso

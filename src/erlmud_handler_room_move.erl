@@ -29,9 +29,6 @@ succeed({Props, {Obj, move, from, Self, to, Target, via, _Exit}}) when Self == s
 succeed({Props, {Obj, move, from, Source, to, Self, via, _Exit}}) when Self == self() ->
     log([Obj, <<" came from ">>, Source]),
     [{character, Obj} | Props];
-succeed({Props, {Obj, move, from, Source, to, Target}}) ->
-    log([<<"Process ">>, Obj, <<" went from ">>, Source, <<" to ">>, Target]),
-    Props;
 succeed({Props, _}) ->
     Props.
 
