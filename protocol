@@ -1,105 +1,187 @@
-cmaguire-mbp.local 516 ~/dev/erlmud [master]
-$for f in src/erlmud_handler_* ; do echo -e "\n$f" ; cat $f | tr -d "\r" | egrep 'attempt\(.{2,}\).*?->'; done
-
 
 src/erlmud_handler_attack_resource.erl
 attempt({_, _, _Msg}) ->
+succeed({Props, {Character, attack, _Target, with, Owner}}) ->
+succeed({Props, {Character, move, _From, _To, _Exit}}) ->
+succeed({Props, {die, Character}}) ->
+succeed({Props, _}) ->
 
 src/erlmud_handler_attribute_attack.erl
 attempt({_, _, _Msg}) ->
+succeed({Props, _}) ->
 
 src/erlmud_handler_attribute_look.erl
+succeed({Props, {Source, describe, Self, with, Context}}) when Self == self() ->
+succeed({Props, {Source, describe, Target, with, Context}}) ->
+succeed({Props, Msg}) ->
 
 src/erlmud_handler_body_part_inject_self.erl
+succeed({Props, _}) ->
 
 src/erlmud_handler_body_part_inv.erl
+succeed({Props, _}) ->
 
 src/erlmud_handler_body_part_look.erl
 attempt({#parents{}, Props, {_Source, describe, Self, with, _Context}}) when Self == self() ->
 attempt({#parents{owner = Owner}, Props, {_Source, describe, Owner, with, _Context}}) ->
+succeed({Props, {Source, describe, Self, with, Context}}) when Self == self() ->
+succeed({Props, {Source, describe, Target, with, Context}}) ->
+succeed({Props, _}) ->
 
 src/erlmud_handler_char_attack.erl
 attempt({#parents{}, Props, {_Attacker, attack, Self}}) when Self == self() ->
 attempt({#parents{}, Props, {Self, attack, _Target, with, _AttackVector}}) when Self == self() ->
+succeed({Props, {_Self, attack, _Target, with, _AttackVector}}) ->
+succeed({Props, {Attacker, attack, _Self}}) ->
+succeed({Props, _}) ->
 
 src/erlmud_handler_char_enter_world.erl
+succeed({Props, {_Player, enter_world, with, Conn}}) ->
+succeed({Props, _Other}) ->
 
 src/erlmud_handler_char_inject_self.erl
 attempt({Owner, Props, {Self, look}}) when Self == self() ->
+succeed({Props, _}) ->
 
 src/erlmud_handler_char_inv.erl
+succeed({Props, {Item, move, from, Source, to, Self}}) when Self == self() ->
+succeed({Props, {Item, move, from, Self, to, _BodyPart, on, body_part, type, _BodyPartType}}) when Self == self() ->
+succeed({Props, {Item, move, from, Self, to, Target}}) when Self == self() ->
+%succeed({Props, {Item, move, from, Self, to, Target, _ItemBodyParts}}) when Self == self() ->
+succeed({Props, _}) ->
 
 src/erlmud_handler_char_look.erl
+succeed({Props, {Source, look, Self}}) when Self == self() ->
+succeed({Props, {Source, describe, Target, with, Context}}) ->
+succeed({Props, _}) ->
 
 src/erlmud_handler_char_move.erl
 attempt({#parents{}, Props, {Self, move, Direction}}) when Self == self() ->
 attempt({#parents{}, Props, {Self, move, _Dir, from, _From}}) when Self == self() ->
 attempt({#parents{}, Props, {Self, move, from, _From, to, _To, via, _Exit}}) when Self == self() ->
+succeed({Props, {Self, move, from, Source, to, Target, via, _Exit}}) when Self == self() ->
+succeed({Props, {Self, move, Direction, from, Source}}) when Self == self(), is_atom(Direction) ->
+succeed({Props, _}) ->
 
 src/erlmud_handler_cleanup.erl
+succeed({Props, {Self, cleanup, self}}) when Self == self() ->
+succeed({Props, _}) ->
 
 src/erlmud_handler_conn_enter_world.erl
+succeed({Props, {Player, enter_world, in, _Room, with, _Conn}}) ->
+succeed({Props, _Other}) ->
 
 src/erlmud_handler_conn_send.erl
 attempt({#parents{owner = Owner}, Props, {send, Owner, _Message}}) ->
+succeed({Props, {send, Player, Message}}) ->
+succeed({Props, _Other}) ->
 
 src/erlmud_handler_counterattack.erl
 attempt({#parents{}, Props, {_Attacker, attack, Self}}) when Self == self() ->
 attempt({#parents{}, Props, {Self, attack, _Target}}) when Self == self() ->
 attempt({#parents{}, _, _}) ->
+succeed({Props, {_Character, stop_attack}}) ->
+succeed({Props, {Attacker, attack, Target}}) ->
+succeed({Props, {_Self, counter_attack, Target}}) ->
+succeed({Props, _}) ->
 
 src/erlmud_handler_exit_move.erl
 attempt({_Owner, Props, {Obj, move, Exit, from, Room}}) when is_atom(Exit) ->
 attempt({_Owner, Props, {Mover, move, from, Source, to, Target, via, Self}}) when Self == self() ->
+succeed({Props, Message}) ->
 
 src/erlmud_handler_hitpoints_attack.erl
+succeed({Props, Msg = {Attacker, does, Damage, to, Owner, with, AttackVector}}) ->
+succeed({Props, _Msg}) ->
 
 src/erlmud_handler_item_attack.erl
 attempt({#parents{character = Character}, Props, {Character, stop_attack}}) ->
 attempt({_, _, _Msg}) ->
+succeed({Props, {_Attacker, killed, _Target, with, _AttackVector}}) ->
+succeed({Props, {Attacker, attack, Target}}) when is_pid(Target) ->
+succeed({Props, {Attacker, counter_attack, Target}}) when is_pid(Target) ->
+succeed({Props, {Character, attack, Target, with, _Self}}) ->
+succeed({Props, {Character, stop_attack}}) ->
+succeed({Props, {Character, die}}) ->
+succeed({Props, _}) ->
 
 src/erlmud_handler_item_inject_self.erl
+succeed({Props, _}) ->
 
 src/erlmud_handler_item_inv.erl
+succeed({Props, {Item, move, from, Source, to, Self}}) when Self == self() ->
+succeed({Props, {Item, move, from, Self, to, Target}}) when Self == self() ->
+succeed({Props, {Item, move, from, Self, to, Target, on, body_part, type, _BodyPartType}}) when Self == self() ->
+succeed({Props, _}) ->
 
 src/erlmud_handler_item_look.erl
 attempt({#parents{}, Props, {_Source, look, Self}}) when Self == self() ->
+succeed({Props, {Source, look, Self}}) when Self == self() ->
+succeed({Props, {Source, describe, Target, with, Context}}) ->
+succeed({Props, _}) ->
 
 src/erlmud_handler_life_attack.erl
 attempt({#parents{owner = Owner}, Props, Msg = {_Source, killed, Owner, with, _AttackVector}}) ->
 attempt({#parents{owner = Owner}, Props, _Msg = {Owner, die}}) ->
 attempt({#parents{owner = Owner}, Props, _Msg = {_Attacker, calc, _Hit, on, Owner, with, _AttackVector}}) ->
 attempt({#parents{owner = Owner}, Props, _Msg = {_Attacker, calc, _Damager, to, Owner, with, _AttackVector}}) ->
+succeed({Props, {_Source, killed, Owner, with, _AttackVector}}) ->
+succeed({Props, {Owner, die}}) ->
+succeed({Props, _Msg}) ->
 
 src/erlmud_handler_resource_inject_self.erl
+succeed({Props, _}) ->
 
 src/erlmud_handler_resource_reserve.erl
 attempt({#parents{}, Props, {Self, update_tick}}) when Self == self() ->
+succeed({Props, _}) ->
 
 src/erlmud_handler_resource_tick.erl
+succeed({Props, _}) ->
 
 src/erlmud_handler_room_inject_self.erl
+succeed({Props, _}) ->
 
 src/erlmud_handler_room_inv.erl
 attempt(_Attempt) ->
+succeed({Props, {Item, move, from, Self, to, Target}}) when Self == self() ->
+succeed({Props, {Item, move, from, Target, to, Self}}) when Self == self() ->
+succeed({Props, _}) ->
 
 src/erlmud_handler_room_look.erl
 attempt({_Owner, Props, {_Source, look, Self}}) when Self == self() ->
+succeed({Props, {Player, look, Self}}) when Self == self() ->
+succeed({Props, _}) ->
 
 src/erlmud_handler_room_move.erl
 attempt({_Owner, Props, {_Obj, move, from, Source, to, Target, via, _Exit}}) when Source == self(); Target == self() ->
+succeed({Props, {Obj, move, from, Self, to, Target, via, _Exit}}) when Self == self() ->
+succeed({Props, {Obj, move, from, Source, to, Self, via, _Exit}}) when Self == self() ->
+succeed({Props, _}) ->
 
 src/erlmud_handler_set_child_property.erl
 attempt({_, Props, {_, set_child_property, _, _}}) ->
+succeed({Props, _Msg}) ->
 
 src/erlmud_handler_spell_attack.erl
 attempt({#parents{character = Character}, Props, {Character, attack, _Target}}) ->
 attempt({#parents{}, Props, {_Character, does, _Damage, to, Target, with, Self}}) when Self == self(), is_pid(Target) ->
 attempt({#parents{character = Character}, Props, {Character, stop_attacking, _Target}}) ->
+succeed({Props, {Character, attack, Target}}) when is_pid(Target) ->
+succeed({Props, {Character, attack, Target, with, _Self}}) ->
+succeed({Props, {Character, stop_attack}}) ->
+succeed({Props, Msg}) ->
 
 src/erlmud_handler_stat_look.erl
+succeed({Props, {Source, look, Target, look, Context}}) ->
+succeed({Props, Msg}) ->
 
 src/erlmud_handler_subitem_attack.erl
 attempt({_, _, _Msg}) ->
+succeed({Props, {Character, attack, Target}}) when is_pid(Target) ->
+succeed({Props, _}) ->
 
 src/erlmud_handler_test_connection_attack.erl
+succeed({Props, {killed, _Attack, _Source, Owner}}) ->
+succeed({Props, {die, Target}}) ->
+succeed({Props, _Msg}) ->

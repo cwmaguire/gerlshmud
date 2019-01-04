@@ -1,0 +1,1 @@
+for f in src/erlmud_handler_* ; do echo -e "\n$f" ; cat $f | tr -d "\r" | egrep '(attempt|succeed)\(.{2,}\).*?->'; done > protocol
