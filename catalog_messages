@@ -1,9 +1,23 @@
+#!/bin/bash
+
+# with egrep if we use multiple patterns with multiple -e flags then it doesn't work.
+# It seems that only one -e pattern can match per line even though I've tested this and
+# it doesn't seem to be the case.
+# Here's an example using relx.config:
+#
+# Put everything on one line with tr, replacing any \r and \n with a backtick
+# then run two different regex patterns on the single line
+# I even tried making the second patter fall within the first pattern and that worked too.
+# $cat relx.config | tr -s '\r\n' '`' | egrep -o -e 'vm_args,.*?"' -e 'vm\.args'
+# vm_args, "
+# vm.args
+
 for f in src/erlmud_handler_*
 do
   echo -e "\n$f"
   cat $f | \
-  tr -s "\r\n" "\`" | \
-  tr -s " " | \
-  egrep -o -m 1 '`(attempt|succeed)\(.*?\)[^%]*?->`' | \
+  tr -s '\r\n' '`' | \
+  tr -s ' ' | \
+  egrep -o  -e '(NewMessage = \{.*?\},\`)|(attempt|succeed)\(.*?\)[^%]*?->`' | \
   tr -d "\`"
-done > protocol
+done | tee protocol
