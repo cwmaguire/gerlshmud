@@ -29,6 +29,10 @@ attempt({_Parents,
             NewMessage = {Self, enter_world, in, Room, with, Conn},
             {{resend, Self, NewMessage}, true, Props}
     end;
+attempt({_Parents,
+         Props,
+         {Self, enter_world, in, Room, with, Conn}}) when Self == self(), is_pid(Room) ->
+    {succeed, true, Props};
 attempt(_) ->
     undefined.
 
