@@ -18,6 +18,17 @@
 -export([succeed/1]).
 -export([fail/1]).
 
+% attempt({_Parents,
+%          Props,
+%          {Char, enter_world, in, Room, with, Conn}})
+%   when is_binary(Room) ->
+%     case proplists:get_value(name, Props) of
+%         Room ->
+%             NewMessage = {Char, enter_world, in, self(), with, Conn},
+%             {{resend, NewMessage, Char}, false, Props};
+%         _ ->
+%             {succeed, false, Props}
+%     end;
 attempt(_) ->
     undefined.
 
@@ -27,5 +38,5 @@ succeed({Props, _}) ->
 fail({Props, _, _}) ->
     Props.
 
-log(Terms) ->
-    erlmud_event_log:log(debug, [list_to_binary(atom_to_list(?MODULE)) | Terms]).
+%log(Terms) ->
+    %erlmud_event_log:log(debug, [list_to_binary(atom_to_list(?MODULE)) | Terms]).

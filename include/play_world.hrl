@@ -19,7 +19,6 @@
 
 -define(WORLD, [{room_5_5, [{is_room, true},
                             {character, giant},
-                            {character, player},
                             {item, shield},
                             {item, force_field},
                             {name, <<"room">>},
@@ -63,6 +62,7 @@
                           {body_part, hand0},
                           {body_part, hand1},
                           {race, race0},
+                          {room, room_5_5},
                           ?CHARACTER_HANDLERS]},
 
                 {p_hp, [{hitpoints, 10},

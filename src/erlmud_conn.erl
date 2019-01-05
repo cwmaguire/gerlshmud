@@ -57,10 +57,13 @@ password(cast, _Event = Password, Data = #data{login = Login,
                                      erlmud_handler_conn_send]}],
 
             {ok, ConnObjPid} = supervisor:start_child(erlmud_object_sup, [_Id = undefined, ConnProps]),
-            Message = {PlayerPid, enter_world, with, ConnObjPid},
+            % TODO Player is supposed to enter in a room
+            Message = {PlayerPid, enter_world, in, room, with, ConnObjPid},
             ConnObjPid ! {ConnObjPid, Message},
 
-            {next_state, live, Data#data{login = undefined, player = PlayerPid, conn_obj = ConnObjPid}};
+            {next_state, live, Data#data{login = undefined,
+                                         player = PlayerPid,
+                                         conn_obj = ConnObjPid}};
         false ->
             get_failed_auth_state(Data#data{login = undefined, attempts = Attempts + 1})
     end.
@@ -90,6 +93,9 @@ live(cast, Event, Data = #data{player = PlayerPid, conn_obj = ConnObjPid}) ->
             ConnObjPid ! {ConnObjPid, Message}
     end,
     {next_state, live, Data};
+live({call, {From, Ref}}, props, _Data) ->
+    From ! {Ref, _Props = []},
+    keep_state_and_data;
 live(Type, Event, Data) ->
     log(live, Type, Event, Data),
     keep_state_and_data.
@@ -102,10 +108,6 @@ init(Socket) ->
 callback_mode() ->
     state_functions.
 
-log(EventType, EventData, State, _Data = #data{player = Player}) ->
-    io:format("Connection ~p for player ~p received unrecognized event ~p:~p in state ~p",
-              [self(), Player, EventType, EventData, State]).
-
 %% private
 
 is_valid_creds(_String, never_fails) ->
@@ -115,3 +117,7 @@ is_valid_creds(_Login, _Password) ->
 
 log(Terms) ->
     erlmud_event_log:log(debug, [list_to_binary(atom_to_list(?MODULE)) | Terms]).
+
+log(State, EventType, EventData, _Data = #data{player = Player}) ->
+    io:format("Connection ~p for player ~p received unrecognized event ~p:~p in state ~p",
+              [self(), Player, EventType, EventData, State]).

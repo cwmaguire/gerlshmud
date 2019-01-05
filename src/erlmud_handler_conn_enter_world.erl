@@ -21,8 +21,8 @@
 
 attempt({#parents{owner = Owner},
          Props,
-         {Owner, enter_world, in, _Room, with, Self}}) when Self == self() ->
-    {succeed, true, Props};
+         {Owner, enter_world, in, Room, with, Self}}) when Self == self(), is_pid(Room) ->
+    {succeed, _Subscribe = true, Props};
 attempt(_) ->
     undefined.
 

@@ -9,31 +9,31 @@
 
 % TODO test updating a skill when a target is killed with a weapon (or when damage is dealt, or both)
 
-%all() -> [look_player].
+all() -> [look_player].
 %all() -> [player_drop_item].
-all() ->
-    [player_move,
-     player_move_fail,
-     player_move_exit_locked,
-     player_get_item,
-     player_drop_item,
-     character_owner_add_remove,
-     player_attack,
-     player_resource_wait,
-     attack_with_modifiers,
-     one_sided_fight,
-     counterattack_behaviour,
-     stop_attack_on_move,
-     player_wield,
-     player_wield_first_available,
-     player_wield_missing_body_part,
-     player_wield_wrong_body_part,
-     player_wield_body_part_is_full,
-     player_remove,
-     look_player,
-     look_room,
-     look_item,
-     set_character].
+%all() ->
+    %[player_move,
+     %player_move_fail,
+     %player_move_exit_locked,
+     %player_get_item,
+     %player_drop_item,
+     %character_owner_add_remove,
+     %player_attack,
+     %player_resource_wait,
+     %attack_with_modifiers,
+     %one_sided_fight,
+     %counterattack_behaviour,
+     %stop_attack_on_move,
+     %player_wield,
+     %player_wield_first_available,
+     %player_wield_missing_body_part,
+     %player_wield_wrong_body_part,
+     %player_wield_body_part_is_full,
+     %player_remove,
+     %look_player,
+     %look_room,
+     %look_item,
+     %set_character].
 
 init_per_testcase(_, Config) ->
     Port = ct:get_config(port),

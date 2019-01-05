@@ -20,6 +20,8 @@
 
 attempt({_Owner, Props, {_Obj, move, from, Source, to, Target, via, _Exit}}) when Source == self(); Target == self() ->
     {succeed, true, Props};
+attempt({_Owner, Props, {_Obj, enter_world, in, Self, with, _Conn}}) when Self == self() ->
+    {succeed, true, Props};
 attempt(_) ->
     undefined.
 
@@ -28,6 +30,8 @@ succeed({Props, {Obj, move, from, Self, to, Target, via, _Exit}}) when Self == s
     lists:keydelete(Obj, 2, Props);
 succeed({Props, {Obj, move, from, Source, to, Self, via, _Exit}}) when Self == self() ->
     log([Obj, <<" came from ">>, Source]),
+    [{character, Obj} | Props];
+succeed({Props, {Obj, enter_world, in, Self, with, _Conn}}) when Self == self() ->
     [{character, Obj} | Props];
 succeed({Props, _}) ->
     Props.
