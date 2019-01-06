@@ -81,7 +81,7 @@ attempt(Pid, Msg, ShouldSubscribe) ->
     send(Pid, {attempt, Msg, #procs{subs = Subs}}).
 
 attempt_after(Millis, Pid, Msg) ->
-    log([<<"attempt after ">>, Millis, <<", Pid = ">>, Pid, <<": Msg = ">>, Msg]),
+    log(debug, [<<"attempt after ">>, Millis, <<", Pid = ">>, Pid, <<": Msg = ">>, Msg]),
     erlang:send_after(Millis, Pid, {Pid, Msg}).
 
 %add(Pid, Type, AddPid) ->
@@ -128,7 +128,7 @@ handle_cast(Msg, State) ->
     handle_cast_(Msg, State).
 
 handle_cast_({populate, ProcIds}, State = #state{props = Props}) ->
-    log([<<"populate on ">>, self()]),
+    log(debug, [<<"populate on ">>, self()]),
     {noreply, State#state{props = populate_(Props, ProcIds)}};
 handle_cast_({set, Prop = {K, _}}, State = #state{props = Props}) ->
     {noreply, State#state{props = lists:keystore(K, 1, Props, Prop)}};
@@ -152,20 +152,20 @@ handle_cast_({succeed, Msg}, State) ->
      end.
 
 handle_info({'EXIT', From, Reason}, State = #state{props = Props}) ->
-    log([<<"handle_info EXIT Pid = ">>, From, <<", Reason = ">>, Reason, <<" Props: ">>, Props]),
+    log(debug, [<<"handle_info EXIT Pid = ">>, From, <<", Reason = ">>, Reason, <<" Props: ">>, Props]),
     Props2 = lists:keydelete(From, 2, Props),
-    log([<<"Props with dead pid removed: ">>, Props2]),
+    log(debug, [<<"Props with dead pid removed: ">>, Props2]),
     {noreply, State#state{props = Props2}};
 handle_info({Pid, Msg}, State) ->
-    log([Pid, <<": handle_info attempt Msg = ">>, Msg]),
+    log(debug, [Pid, <<": handle_info attempt Msg = ">>, Msg]),
     attempt(Pid, Msg),
     {noreply, State};
 handle_info(Unknown, State) ->
-    log([<<"Unknown Message: ">>, Unknown]),
+    log(debug, [<<"Unknown Message: ">>, Unknown]),
     {noreply, State}.
 
 terminate(Reason, State) ->
-    log([<<"erlmud_object ">>, self(), <<" shutting down Reason: ">>, Reason, <<" State: ">>, State]),
+    log(debug, [<<"erlmud_object ">>, self(), <<" shutting down Reason: ">>, Reason, <<" State: ">>, State]),
     erlmud_index:del(self()),
     ok.
 
@@ -206,7 +206,7 @@ attempt_(Msg,
     %% I found a case: you attempt to shoot someone and you miss: the clip can lose a round ...
     %% except the clip could just listen for the result and decrement the ammunition then.
     {Handler, Results = {Result, Msg2, ShouldSubscribe, Props2}} = ensure_message(Msg, run_handlers({Parents, Props, Msg})),
-    log([self(), <<" {owner, ">>, Parents#parents.owner, <<"} ">>,
+    log(debug, [self(), <<" {owner, ">>, Parents#parents.owner, <<"} ">>,
          Handler, <<"attempt: ">>, Msg, <<" -> ">>,
          ShouldSubscribe, <<", ">>, binary_fail_reason(Result)]),
     MergedProcs = merge(self(), is_room(Props), Results, Procs),
@@ -259,14 +259,14 @@ handle_attempt([Handler | Handlers], Attempt) ->
 ensure_message(Msg, {Handler, {A, B, C}}) ->
     {Handler, {A, Msg, B, C}};
 ensure_message(_, T = {_, {_, NewMsg, _, _}}) ->
-    log([<<"New message: ">>, NewMsg]),
+    log(debug, [<<"New message: ">>, NewMsg]),
     T.
 
 handle({resend, Target, Msg}, OrigMsg, _NoProcs, _Props) ->
-    log([<<"resending ">>, OrigMsg, <<" as ">>, Msg]),
+    log(debug, [<<"resending ">>, OrigMsg, <<" as ">>, Msg]),
     send(Target, {attempt, Msg, #procs{}});
 handle({fail, Reason}, Msg, Procs = #procs{subs = Subs}, _Props) ->
-    log([<<"failing msg: ">>, Msg,
+    log(debug, [<<"failing msg: ">>, Msg,
          <<" with reasons: ">>, binary_fail_reason(Reason),
          <<" subs: ">>, Subs]),
     [send(Sub, {fail, Reason, Msg}, Procs) || Sub <- Subs];
@@ -286,26 +286,26 @@ handle({broadcast, Msg}, _Msg, _Procs, Props) ->
                           Key /= character,
                           Key /= body_part,
                           Key /= top_item],
-    log([<<"Broadcasting: ">>, Msg]),
-    log([<<"to: ">>, procs(NotParents)]),
-    log([<<"from props: ">>, NotParents]),
+    log(debug, [<<"Broadcasting: ">>, Msg]),
+    log(debug, [<<"to: ">>, procs(NotParents)]),
+    log(debug, [<<"from props: ">>, NotParents]),
     [broadcast(V, Msg) || V <- procs(NotParents)].
 
 broadcast(Pid, Msg) ->
     %ct:pal("Broadcasting ~p to ~p", [Msg, Pid]),
-    log([self(), <<" broadcasting ">>, Msg, <<" to ">>, Pid]),
+    log(debug, [self(), <<" broadcasting ">>, Msg, <<" to ">>, Pid]),
     attempt(Pid, Msg).
 
 send(Pid, SendMsg = {fail, _Reason, Msg}, Procs) ->
-    log(Pid, fail, Msg, Procs),
+    log(debug, [Pid, fail, Msg, Procs]),
     send_(Pid, SendMsg);
 send(Pid, SendMsg = {succeed, Msg}, Procs) ->
-    log(Pid, succeed, Msg, Procs),
-    log([Pid, succeed, Msg]),
+    log(debug, [Pid, succeed, Msg, Procs]),
+    log(debug, [Pid, succeed, Msg]),
     send_(Pid, SendMsg).
 
 send(Pid, SendMsg = {attempt, Msg, Procs}) ->
-    log(Pid, attempt, Msg, Procs),
+    log(debug, [Pid, attempt, Msg, Procs]),
     send_(Pid, SendMsg);
 send(Pid, Msg) ->
     send_(Pid, Msg).
@@ -327,10 +327,10 @@ proc(MaybeId, IdPids) when is_atom(MaybeId) ->
     MaybePid = proplists:get_value(MaybeId, IdPids, MaybeId),
     case is_pid(MaybePid) of
         true ->
-            log([<<"Linking to pid: ">>, MaybePid, <<" for value ">>, MaybeId]),
+            log(debug, [<<"Linking to pid: ">>, MaybePid, <<" for value ">>, MaybeId]),
             link(MaybePid);
         false ->
-            log([<<"Property value ">>, MaybeId, <<" is an atom, but not a pid">>])
+            log(debug, [<<"Property value ">>, MaybeId, <<" is an atom, but not a pid">>])
     end,
     MaybePid;
 proc(Value, _) ->
@@ -421,15 +421,5 @@ prop(Prop, Props, Fun, Default) ->
             Default
     end.
 
-log(To, Stage, Msg, Procs) when is_tuple(Msg) ->
-    erlmud_event_log:log(To,
-                         Stage,
-                         Msg,
-                         Procs#procs.room,
-                         Procs#procs.next,
-                         Procs#procs.done,
-                         Procs#procs.subs),
-    erlang:yield().
-
-log(Terms) ->
-    erlmud_event_log:log(debug, [list_to_binary(atom_to_list(?MODULE)) | Terms]).
+log(Level, Terms) ->
+    erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | Terms]).

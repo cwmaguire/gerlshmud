@@ -4,7 +4,6 @@
 
 -export([start_link/0]).
 -export([log/2]).
--export([log/7]).
 
 %% gen_server
 
@@ -24,34 +23,17 @@
 -define(SPAN, ?SPAN("~p")).
 
 log(Level, Terms) when is_atom(Level) ->
+    Self = self(),
+    log(Self, Level, Terms).
+
+log(Pid, Level, Terms) when is_atom(Level) ->
     case whereis(?MODULE) of
         undefined ->
-            %io:format("No ~p logger process found~nLevel: ~p~nTerms: ~p~n",
-                      %[?MODULE, Level, Terms]);
-            %exit("no logger process found");
             ok;
         _ ->
             ok
     end,
-    gen_server:cast(?MODULE, {log, Level, self(), Terms});
-log(Msg, Params) ->
-    gen_server:cast(?MODULE, {old_log, self(), Msg, Params}).
-
-log(To, Stage, Msg, Room, Next, Done, Subs) ->
-    [Action | Params] = tuple_to_list(Msg),
-    case whereis(erlmud_event_log) of
-        undefined ->
-            exit("logger not registered");
-        Pid ->
-            case is_process_alive(Pid) of
-                true ->
-                    ok;
-                _ ->
-                    exit("logger is dead")
-            end
-    end,
-    gen_server:cast(erlmud_event_log,
-                    {log, self(), To, Stage, Action, Params, Room, Next, Done, Subs}).
+    gen_server:cast(?MODULE, {log, Level, Pid, Terms}).
 
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
@@ -81,66 +63,22 @@ handle_cast({old_log, Pid, Msg, Params}, State) ->
     {noreply, State};
 handle_cast({log, Level, Pid, Terms}, State) ->
     try
-    IoData = [[io(maybe_name(Term)), " "] || Term <- flatten(Terms)],
+    LevelBin = list_to_binary(atom_to_list(Level)),
+    Data = flatten(Terms),
+    ok = file:write(State#state.log_file, io_lib:format("~s~n", [Data])),
+
+    HTMLSafe = html_escape(flatten(Terms)),
     Props = props(Pid),
-    PropsWithNames = [{K, io(maybe_name(V))} || {K, V} <- Props],
+    PropsWithNames = [{K, <<": ">>, maybe_name(V)} || {K, V} <- Props],
+    PropsBin = flatten(lists:join(<<", ">>, PropsWithNames)),
     ok = file:write(State#state.html_file,
-                    spans(["log", Level, io(erlmud_index:get(Pid))],
-                          [div_("log_time", io(os:timestamp())),
-                           div_("log_message", IoData),
-                           div_("log_props", io([Pid, PropsWithNames]))]))
+                    spans([<<"log">>, LevelBin, p2b(Pid)],
+                          [div_(<<"log_time">>, ts2b(os:timestamp())),
+                           div_(<<"log_message">>, HTMLSafe),
+                           div_(<<"log_props">>, [Pid, PropsBin])]))
     catch
         Error ->
             io:format(user, "~p caught error:~n\t~p~n", [?MODULE, Error])
-    end,
-    {noreply, State};
-handle_cast({log, From, To, Stage, Action, _Params, _Room, _Next, _Done, _Subs}, State) ->
-    FromName = erlmud_index:get(From),
-    try
-        FromProps = erlmud_object:props(From),
-        _FromPropsWithNames = [{K, maybe_name(V)} || {K, V} <- FromProps]
-    catch
-        Error ->
-            io:format(user, "FromProps Error: ~p~n", [Error])
-    end,
-
-    ToName = erlmud_index:get(To),
-    %ToProps = erlmud_object:props(To),
-    %ToPropsWithNames = [{K, maybe_name(V)} || {K, V} <- ToProps],
-
-    %ParamsWithNames = [{K, maybe_name(V)} || {K, V} <- Params],
-    %[RoomName] = names([Room]),
-    %NextNames = names(Next),
-    %DoneNames = names(Done),
-    %SubNames = names(Subs),
-
-    try
-    Spans =
-                    spans([Stage, Action, FromName, ToName],
-                          [div_("columns",
-                                [%span("col_count", State#state.count)])
-                                 span("col_millies", millis_as_list()),
-                                 span("col_from", io(From))])
-                                 %span("col_from_name", FromName),
-                                 %span("col_to", To),
-                                 %span("col_to_name", ToName),
-                                 %span("col_stage", Stage),
-                                 %span("col_action", Action)
-                               % ])
-                           %div_("params", io(ParamsWithNames)),
-                           %div_("from_props", "_____")%,
-                           %div_("from_props", io(FromPropsWithNames))%,
-                           %div_("to_props", io(ToPropsWithNames)),
-                           %div_("rooms", io(RoomName)),
-                           %div_("next", io(NextNames)),
-                           %div_("done", io(DoneNames))%,
-                           %div_("subs", io(SubNames))
-                          ]),
-    %ct:pal("~p:spans(...) succeeded~n", [?MODULE]),
-    ok = file:write(State#state.html_file, [Spans])
-    catch
-        Error2 ->
-            io:format(user, "~p: spans(...) or file:write(...) error: ~p~n", [?MODULE, Error2])
     end,
     {noreply, State};
 handle_cast(Msg, State) ->
@@ -152,8 +90,6 @@ handle_info(Info, State) ->
     {noreply, State}.
 
 terminate(_Reason, #state{html_file = HtmlFile}) ->
-    %io:format(user, "Terminating erlmud_event_log: ~p~n", [Reason]),
-    %io:format("Terminating erlmud_event_log: ~p~n", [Reason]),
     io:format(HtmlFile,
               "<script language=\"JavaScript\">"
               "createClassCheckboxes();"
@@ -185,67 +121,68 @@ get_log_path() ->
             Path
     end.
 
-%names(Pids) ->
-    %[erlmud_index:get(Pid) || Pid <- Pids].
-
 maybe_name(Pid) when is_pid(Pid) ->
     {Pid, erlmud_index:get(Pid)};
 maybe_name(NotPid) ->
     NotPid.
 
-io(X) when is_binary(X) ->
-    html_escape(io_lib:format("~s", [X]));
-io(X) ->
-    Io = case is_string(X) of
-        true ->
-            X;
-        _ ->
-            io_lib:format("~p", [X])
-    end,
-    html_escape(Io).
+html_escape(List) when is_list(List) ->
+    html_escape(list_to_binary(List));
+html_escape(Bin) when is_binary(Bin) ->
+    Replacements = [{<<"<">>, <<"&lt;">>},{<<">">>, <<"&gt;">>}],
+    lists:foldl(fun html_escape/2, Bin, Replacements).
 
-is_string([]) ->
-    true;
-is_string([X | Rest]) when is_integer(X),
-                           X > 9, X < 127 ->
-    is_string(Rest);
-is_string(_) ->
-    false.
+html_escape({Pattern, Replace}, Acc) ->
+    binary:replace(Acc, Pattern, Replace, [global]).
 
-html_escape(Io) when is_list(Io) ->
-    lists:foldl(fun html_escape/2, "", lists:reverse(Io)).
-
-html_escape(L, Acc) when is_list(L) ->
-    html_escape(L) ++ Acc;
-html_escape($>, Acc) -> [$&, $g, $t, $; | Acc];
-html_escape($<, Acc) -> [$&, $l, $t, $; | Acc];
-html_escape(X, Acc) -> [X | Acc].
-
-div_(Class, Content) ->
-    ["<div class=\"", Class, "\">\n", Content, "\n</div>\n"].
+div_(Class, Content) when is_binary(Class) ->
+    ContentBin = flatten(Content),
+    %ct:pal("~p: ContentBin~n\t~p~n", [?MODULE, ContentBin]),
+    <<"<div class=\"", Class/binary, "\">\n", ContentBin/binary, "\n</div>\n">>.
 
 spans(Classes, Content) ->
-    lists:foldl(fun span/2, Content, lists:reverse(Classes)).
+    ContentBin = flatten(Content),
+    lists:foldl(fun span/2, ContentBin, lists:reverse(Classes)).
 
-span(Class, Content) when not(is_list(Class)) ->
-    span(io(Class), Content);
-span(Class, Content) ->
-    ["<span class=\"", Class, "\">\n", Content, "</span>\n"].
-
-millis_as_list() ->
-    integer_to_list(element(3, os:timestamp()) rem 1000).
+span(Class, Content) when is_binary(Class) ->
+    <<"<span class=\"", Class/binary, "\">\n", Content/binary, "</span>\n">>.
 
 flatten(L) when is_list(L) ->
-    lists:foldl(fun flatten/2, [], lists:reverse(L));
+    lists:foldl(fun flatten/2, <<>>, L);
 flatten(NotList) ->
     NotList.
 
+flatten(Bin, Acc) when is_binary(Bin) ->
+    <<Acc/binary, Bin/binary>>;
+flatten(Atom, Acc) when is_atom(Atom) ->
+    <<Acc/binary, (a2b(Atom))/binary>>;
 flatten(T, Acc) when is_tuple(T) ->
-    [H | TupleRest] = tuple_to_list(T),
-    FlattenedTupleElem1 = [<<"{">>, flatten(H)],
-    FlattenedTupleRest = lists:flatten([[<<",">>, flatten(X)] || X <- TupleRest]),
-    FlattenedTupleElem1 ++ FlattenedTupleRest ++ [<<"} ">> | Acc];
+    Bin = flatten(tuple_to_list(T)),
+    <<Acc/binary, "{", Bin/binary, "}">>;
 flatten(L, Acc) when is_list(L) ->
-    flatten(L) ++ Acc;
+    <<Acc/binary, (flatten(L))/binary>>;
+flatten(I, Acc) when is_integer(I) ->
+    <<Acc/binary, (integer_to_binary(I))/binary>>;
+flatten(Pid, Acc) when is_pid(Pid) ->
+    Atom = erlmud_index:get(Pid),
+    Name = a2b(Atom),
+    PidBin = p2b(Pid),
+    <<Acc/binary, "{", Name/binary, ": ", PidBin/binary, "}" >>;
 flatten(X, Acc) ->
-    [X | Acc].
+    io:format(user, "Not logging value ~p in log string ~p~n", [X, Acc]),
+    Acc.
+
+p2b(Pid) ->
+    list_to_binary(pid_to_list(Pid)).
+
+a2b(Atom) ->
+    list_to_binary(atom_to_list(Atom)).
+
+i2b(Int) ->
+    integer_to_binary(Int).
+
+ts2b({Meg, Sec, Mic}) ->
+    MegBin = i2b(Meg),
+    SecBin = i2b(Sec),
+    MicBin = i2b(Mic),
+    <<"{", MegBin/binary, ",", SecBin/binary, ",", MicBin/binary, "}">>.

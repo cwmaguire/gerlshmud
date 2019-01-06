@@ -11,31 +11,39 @@
 
 %all() -> [look_player].
 %all() -> [player_drop_item].
-all() ->
-    [player_move,
-     player_move_fail,
-     player_move_exit_locked,
-     player_get_item,
-     player_drop_item,
-     character_owner_add_remove,
-     player_attack,
-     player_resource_wait,
-     attack_with_modifiers,
-     one_sided_fight,
-     counterattack_behaviour,
-     stop_attack_on_move,
-     player_wield,
-     player_wield_first_available,
-     player_wield_missing_body_part,
-     player_wield_wrong_body_part,
-     player_wield_body_part_is_full,
-     player_remove,
-     look_player,
-     look_room,
-     look_item,
-     set_character].
+%all() -> [counterattack_behaviour].
+all() -> [log].
+%all() ->
+    %[player_move,
+     %player_move_fail,
+     %player_move_exit_locked,
+     %player_get_item,
+     %player_drop_item,
+     %character_owner_add_remove,
+     %player_attack,
+     %player_resource_wait,
+     %attack_with_modifiers,
+     %one_sided_fight,
+     %counterattack_behaviour,
+     %stop_attack_on_move,
+     %player_wield,
+     %player_wield_first_available,
+     %player_wield_missing_body_part,
+     %player_wield_wrong_body_part,
+     %player_wield_body_part_is_full,
+     %player_remove,
+     %look_player,
+     %look_room,
+     %look_item,
+     %set_character].
 
 init_per_testcase(_, Config) ->
+    erlmud_dbg:add(erlmud_event_log, div_),
+    %erlmud_dbg:add(erlmud_event_log),
+
+    %dbg:tracer(),
+    %dbg:tpl(erlmud_event_log, '_', '_', [{'_', [], [{exception_trace}]}]),
+
     Port = ct:get_config(port),
     application:load(erlmud),
     application:set_env(erlmud, port, Port),
@@ -239,7 +247,7 @@ counterattack_behaviour(Config) ->
                     false
             end
         end,
-    true = wait_loop(WaitFun, true, 30),
+    true = wait_loop(WaitFun, true, 40),
 
     false = val(is_alive, z_life),
     true = 1000 > val(hitpoints, p_hp),
@@ -572,6 +580,19 @@ set_character(Config) ->
     Dog = val(character, collar),
     Dog = val(character, transmitter),
     Dog = val(character, stealth).
+
+log(Config) ->
+    start(?WORLD_7),
+    Player = erlmud_index:get(player),
+    ct:pal("~p: Player~n\t~p~n", [?MODULE, Player]),
+    %{ok, _ErlmudEventLog} = erlmud_event_log:start(),
+    erlmud_event_log:log(Player, default, [atom_test]),
+    %erlmud_event_log:log(Player, default, ["string_test"]),
+    %erlmud_event_log:log(Player, default, [<<"binary_test">>]),
+    %erlmud_event_log:log(Player, default, [1]),
+    receive after 2000 -> ok end,
+    ?WAIT100.
+    %ok = gen_server:stop(erlmud_event_log).
 
 start(Objects) ->
     IdPids = [{Id, start_obj(Id, Props)} || {Id, Props} <- Objects],

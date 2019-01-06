@@ -31,7 +31,7 @@ attempt({_Parents,
     end;
 attempt({_Parents,
          Props,
-         {Self, enter_world, in, Room, with, Conn}}) when Self == self(), is_pid(Room) ->
+         {Self, enter_world, in, Room, with, _Conn}}) when Self == self(), is_pid(Room) ->
     {succeed, true, Props};
 attempt(_) ->
     undefined.
