@@ -4,6 +4,7 @@
 
 -export([start_link/0]).
 -export([log/2]).
+-export([log/3]).
 
 %% gen_server
 
@@ -160,7 +161,12 @@ flatten(T, Acc) when is_tuple(T) ->
     Bin = flatten(tuple_to_list(T)),
     <<Acc/binary, "{", Bin/binary, "}">>;
 flatten(L, Acc) when is_list(L) ->
-    <<Acc/binary, (flatten(L))/binary>>;
+    case is_string(L) of
+        true ->
+            <<Acc/binary, (list_to_binary(L))/binary>>;
+        _ ->
+            <<Acc/binary, (flatten(L))/binary>>
+    end;
 flatten(I, Acc) when is_integer(I) ->
     <<Acc/binary, (integer_to_binary(I))/binary>>;
 flatten(Pid, Acc) when is_pid(Pid) ->
@@ -171,6 +177,14 @@ flatten(Pid, Acc) when is_pid(Pid) ->
 flatten(X, Acc) ->
     io:format(user, "Not logging value ~p in log string ~p~n", [X, Acc]),
     Acc.
+
+is_string([]) ->
+    true;
+is_string([X | Rest]) when is_integer(X),
+                           X > 9, X < 127 ->
+    is_string(Rest);
+is_string(_) ->
+    false.
 
 p2b(Pid) ->
     list_to_binary(pid_to_list(Pid)).
