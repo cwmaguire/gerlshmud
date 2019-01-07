@@ -24,14 +24,11 @@
 -export([t/0]).
 
 init() ->
-    %io:format(user, "WORLD = ~p~n", [?WORLD]),
     IdPids = [{Id, start(Id, Props)} || {Id, Props} <- ?WORLD],
-    io:format("Pids: ~p~n", [IdPids]),
     _Objs = [erlmud_object:populate(Pid, IdPids) || {_, Pid} <- IdPids],
     IdPids.
 
 start(Id, Props) ->
-    %io:format("Starting process with Id ~p and props:~n~p~n", [Id, Props]),
     {ok, Pid} = supervisor:start_child(erlmud_object_sup, [Id, Props]),
     Pid.
 

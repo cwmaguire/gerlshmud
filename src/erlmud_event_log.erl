@@ -30,11 +30,13 @@ log(Level, Terms) when is_atom(Level) ->
 log(Pid, Level, Terms) when is_atom(Level) ->
     case whereis(?MODULE) of
         undefined ->
-            ok;
+            io:format(user,
+                      "erlmud_event_log process not found~n"
+                      "Pid: ~p, Level: ~p, Terms: ~p~n",
+                      [Pid, Level, Terms]);
         _ ->
-            ok
-    end,
-    gen_server:cast(?MODULE, {log, Level, Pid, Terms}).
+            gen_server:cast(?MODULE, {log, Pid, Level, Terms})
+    end.
 
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
@@ -54,29 +56,27 @@ init([]) ->
     {ok, #state{log_file = LogFile,
                 html_file = HtmlFile}}.
 
-handle_call(_Request, _From, State) ->
+handle_call(Request, From, State) ->
+    io:format(user, "erlmud_event_log:handle_call(~p, ~p, ~p)~n",
+              [Request, From, State]),
     {reply, ignored, State}.
 
-handle_cast({old_log, Pid, Msg, Params}, State) ->
-    Id = erlmud_index:get(Pid),
-    io:format(State#state.log_file, "~p (~p):~n" ++ Msg ++ "~n",
-              [Pid, Id | Params]),
-    {noreply, State};
-handle_cast({log, Level, Pid, Terms}, State) ->
+handle_cast({log, Pid, Level, Terms}, State) ->
     try
-    LevelBin = list_to_binary(atom_to_list(Level)),
-    Data = flatten(Terms),
-    ok = file:write(State#state.log_file, io_lib:format("~s~n", [Data])),
+        LevelBin = list_to_binary(atom_to_list(Level)),
+        Data = flatten(Terms),
+        ok = file:write(State#state.log_file, <<Data/binary, "\n">>),
+        %ok = file:datasync(State#state.log_file),
 
-    HTMLSafe = html_escape(flatten(Terms)),
-    Props = props(Pid),
-    PropsWithNames = [{K, <<": ">>, maybe_name(V)} || {K, V} <- Props],
-    PropsBin = flatten(lists:join(<<", ">>, PropsWithNames)),
-    ok = file:write(State#state.html_file,
-                    spans([<<"log">>, LevelBin, p2b(Pid)],
-                          [div_(<<"log_time">>, ts2b(os:timestamp())),
-                           div_(<<"log_message">>, HTMLSafe),
-                           div_(<<"log_props">>, [Pid, PropsBin])]))
+        HTMLSafe = html_escape(flatten(Terms)),
+        Props = props(Pid),
+        PropsWithNames = [{K, <<": ">>, maybe_name(V)} || {K, V} <- Props],
+        PropsBin = flatten(lists:join(<<", ">>, PropsWithNames)),
+        ok = file:write(State#state.html_file,
+                        spans([<<"log">>, LevelBin, p2b(Pid)],
+                              [div_(<<"log_time">>, ts2b(os:timestamp())),
+                               div_(<<"log_message">>, HTMLSafe),
+                               div_(<<"log_props">>, [Pid, PropsBin])]))
     catch
         Error ->
             io:format(user, "~p caught error:~n\t~p~n", [?MODULE, Error])
@@ -170,8 +170,15 @@ flatten(L, Acc) when is_list(L) ->
 flatten(I, Acc) when is_integer(I) ->
     <<Acc/binary, (integer_to_binary(I))/binary>>;
 flatten(Pid, Acc) when is_pid(Pid) ->
-    Atom = erlmud_index:get(Pid),
-    Name = a2b(Atom),
+    Name = case erlmud_index:get(Pid) of
+               Atom when is_atom(Atom) ->
+                   a2b(Atom);
+               List when is_list(List) ->
+                   l2b(List);
+               Other ->
+                   io:format(user, "Pid name is not atom or list: ~p~n", [Other]),
+                   no_name
+           end,
     PidBin = p2b(Pid),
     <<Acc/binary, "{", Name/binary, ": ", PidBin/binary, "}" >>;
 flatten(X, Acc) ->
@@ -186,13 +193,16 @@ is_string([X | Rest]) when is_integer(X),
 is_string(_) ->
     false.
 
-p2b(Pid) ->
+l2b(List) when is_list(List) ->
+    list_to_binary(List).
+
+p2b(Pid) when is_pid(Pid) ->
     list_to_binary(pid_to_list(Pid)).
 
-a2b(Atom) ->
+a2b(Atom) when is_atom(Atom) ->
     list_to_binary(atom_to_list(Atom)).
 
-i2b(Int) ->
+i2b(Int) when is_integer(Int) ->
     integer_to_binary(Int).
 
 ts2b({Meg, Sec, Mic}) ->

@@ -584,6 +584,7 @@ set_character(Config) ->
 log(_Config) ->
     LogFile = "../erlmud.log",
     start(?WORLD_7),
+    ct:sleep(500),
     Player = erlmud_index:get(player),
     erlmud_event_log:log(Player, debug, [atom_test]),
     ?WAIT100,
@@ -620,26 +621,19 @@ start_obj(Id, Props) ->
 
 attempt(Config, Target, Message) ->
     TestObject = proplists:get_value(test_object, Config),
-    %ct:pal("Test object pid: ~p~n", [TestObject]),
     TestObject ! {attempt, Target, Message}.
 
 mock_object() ->
-    %ct:pal("mock_object ~p receiving~n", [self()]),
     receive
         X ->
-            %ct:pal("mock_object ~p received: ~p~n", [self(), X]),
             case X of
                 {'$gen_call', _Msg = {From, MonitorRef}, props} ->
-                    %ct:pal("mock_object ~p rec'd gen_call: ~p ~n", [self(), Msg]),
                     From ! {MonitorRef, _MockProps = []};
                 {attempt, Target, Message} ->
-                    %ct:pal("mock_object ~p Sending {attempt, ~p, ~p}", [self(), Target, Message]),
                     erlmud_object:attempt(Target, Message, false);
                 stop ->
-                    %ct:pal("mock_object ~p stopping", [self()]),
                     exit(normal);
                 _Other ->
-                    %ct:pal("mock_object ~p received other:~n\t~p~n", [self(), Other]),
                     ok
             end
     end,

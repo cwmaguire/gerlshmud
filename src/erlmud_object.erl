@@ -60,7 +60,9 @@ start_link(Id, Props) ->
     {ok, Pid}.
 
 id(_Id = undefined, Pid, Props) ->
-    _PidString = pid_to_list(Pid) ++ "___" ++ binary_to_list(proplists:get_value(name, Props, <<"_">>));
+    _PidString = pid_to_list(Pid)
+                 ++ "_"
+                 ++ binary_to_list(proplists:get_value(name, Props, <<"no_name">>));
 id(Id, _, _) ->
     Id.
 
