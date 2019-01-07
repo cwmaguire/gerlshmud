@@ -64,6 +64,8 @@ password(cast, _Event = Password, Data = #data{login = Login,
             {next_state, live, Data#data{login = undefined,
                                          player = PlayerPid,
                                          conn_obj = ConnObjPid}};
+        {true, logger} ->
+            erlmud_event_log:register(self());
         false ->
             get_failed_auth_state(Data#data{login = undefined, attempts = Attempts + 1})
     end.
@@ -110,6 +112,8 @@ callback_mode() ->
 
 %% private
 
+is_valid_creds("log", "log") ->
+    {true, logger};
 is_valid_creds(_String, never_fails) ->
     false;
 is_valid_creds(_Login, _Password) ->

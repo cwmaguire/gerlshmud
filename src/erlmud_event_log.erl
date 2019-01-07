@@ -5,6 +5,7 @@
 -export([start_link/0]).
 -export([log/2]).
 -export([log/3]).
+-export([register/1]).
 
 %% gen_server
 
@@ -17,7 +18,7 @@
 
 -record(state, {log_file :: file:io_device(),
                 html_file :: file:io_device(),
-                count :: integer()}).
+                processes = [] :: [pid()]}).
 
 -define(DIV(X), "<div>"X"</div>").
 -define(SPAN(Class), "<span class=\"" Class "\">~p</span>").
@@ -37,6 +38,9 @@ log(Pid, Level, Terms) when is_atom(Level) ->
         _ ->
             gen_server:cast(?MODULE, {log, Pid, Level, Terms})
     end.
+
+register(Logger) when is_function(Logger) ->
+    gen_server:cast(?MODULE, {register, Logger}).
 
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
@@ -66,7 +70,6 @@ handle_cast({log, Pid, Level, Terms}, State) ->
         LevelBin = list_to_binary(atom_to_list(Level)),
         Data = flatten(Terms),
         ok = file:write(State#state.log_file, <<Data/binary, "\n">>),
-        %ok = file:datasync(State#state.log_file),
 
         HTMLSafe = html_escape(flatten(Terms)),
         Props = props(Pid),
@@ -82,6 +85,10 @@ handle_cast({log, Pid, Level, Terms}, State) ->
             io:format(user, "~p caught error:~n\t~p~n", [?MODULE, Error])
     end,
     {noreply, State};
+
+handle_case({register, Logger}, State = #state{loggers = Loggers}) ->
+    {noreply, State#state{processes = [Logger | Loggers]}}.
+
 handle_cast(Msg, State) ->
     io:format(user, "Unrecognized cast: ~p~n", [Msg]),
     {noreply, State}.
@@ -154,21 +161,21 @@ flatten(NotList) ->
     NotList.
 
 flatten(Bin, Acc) when is_binary(Bin) ->
-    <<Acc/binary, Bin/binary>>;
+    <<Acc/binary, Bin/binary, " ">>;
 flatten(Atom, Acc) when is_atom(Atom) ->
-    <<Acc/binary, (a2b(Atom))/binary>>;
+    <<Acc/binary, (a2b(Atom))/binary, " ">>;
 flatten(T, Acc) when is_tuple(T) ->
     Bin = flatten(tuple_to_list(T)),
-    <<Acc/binary, "{", Bin/binary, "}">>;
+    <<Acc/binary, "{", Bin/binary, "} ">>;
 flatten(L, Acc) when is_list(L) ->
     case is_string(L) of
         true ->
-            <<Acc/binary, (list_to_binary(L))/binary>>;
+            <<Acc/binary, (list_to_binary(L))/binary, " ">>;
         _ ->
-            <<Acc/binary, (flatten(L))/binary>>
+            <<Acc/binary, (flatten(L))/binary, " ">>
     end;
 flatten(I, Acc) when is_integer(I) ->
-    <<Acc/binary, (integer_to_binary(I))/binary>>;
+    <<Acc/binary, (integer_to_binary(I))/binary, " ">>;
 flatten(Pid, Acc) when is_pid(Pid) ->
     Name = case erlmud_index:get(Pid) of
                Atom when is_atom(Atom) ->
@@ -180,7 +187,7 @@ flatten(Pid, Acc) when is_pid(Pid) ->
                    no_name
            end,
     PidBin = p2b(Pid),
-    <<Acc/binary, "{", Name/binary, ": ", PidBin/binary, "}" >>;
+    <<Acc/binary, "{", Name/binary, ": ", PidBin/binary, "} " >>;
 flatten(X, Acc) ->
     io:format(user, "Not logging value ~p in log string ~p~n", [X, Acc]),
     Acc.

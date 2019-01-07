@@ -73,7 +73,6 @@ attempt(Pid, Msg) ->
     attempt(Pid, Msg, _ShouldSubscribe = true).
 
 attempt(Pid, Msg, ShouldSubscribe) ->
-    %log([<<"attempt(Pid = ">>, Pid, <<", Msg = ">>, Msg, <<")">>]),
     Subs = case ShouldSubscribe of
                true ->
                    [self()];
@@ -83,19 +82,8 @@ attempt(Pid, Msg, ShouldSubscribe) ->
     send(Pid, {attempt, Msg, #procs{subs = Subs}}).
 
 attempt_after(Millis, Pid, Msg) ->
-    log(debug, [<<"attempt after ">>, Millis, <<", Pid = ">>, Pid, <<": Msg = ">>, Msg]),
+    log(debug, [{type, attempt_after}, {time, Milles}, {target, Pid}, {message, Msg}]),
     erlang:send_after(Millis, Pid, {Pid, Msg}).
-
-%add(Pid, Type, AddPid) ->
-    %send(Pid, {add, Type, AddPid}).
-
-%remove(_TheVoid = undefined, _CharacterLogginIn, _EntryRoom) ->
-    %ok;
-%remove(Pid, Type, RemovePid) ->
-    %send(Pid, {remove, Type, RemovePid}).
-
-%get(Pid, Key) ->
-    %gen_server:call(Pid, {get, Key}).
 
 set(Pid, Prop) ->
     send(Pid, {set, Prop}).
@@ -130,7 +118,7 @@ handle_cast(Msg, State) ->
     handle_cast_(Msg, State).
 
 handle_cast_({populate, ProcIds}, State = #state{props = Props}) ->
-    log(debug, [<<"populate on ">>, self()]),
+    log(debug, [{event, populate}, {source, self()}]),
     {noreply, State#state{props = populate_(Props, ProcIds)}};
 handle_cast_({set, Prop = {K, _}}, State = #state{props = Props}) ->
     {noreply, State#state{props = lists:keystore(K, 1, Props, Prop)}};
@@ -151,23 +139,22 @@ handle_cast_({succeed, Msg}, State) ->
             {stop, {shutdown, Reason}, State#state{props = Props}};
         Props ->
             {noreply, State#state{props = Props}}
-     end.
+    end.
 
 handle_info({'EXIT', From, Reason}, State = #state{props = Props}) ->
-    log(debug, [<<"handle_info EXIT Pid = ">>, From, <<", Reason = ">>, Reason, <<" Props: ">>, Props]),
+    log(debug, [{type, exit}, {source, From}, {reason, Reason}, {props, Props}]),
     Props2 = lists:keydelete(From, 2, Props),
-    log(debug, [<<"Props with dead pid removed: ">>, Props2]),
     {noreply, State#state{props = Props2}};
 handle_info({Pid, Msg}, State) ->
-    log(debug, [Pid, <<": handle_info attempt Msg = ">>, Msg]),
+    %log(debug, [Pid, <<": handle_info attempt Msg = ">>, Msg]),
     attempt(Pid, Msg),
     {noreply, State};
 handle_info(Unknown, State) ->
-    log(debug, [<<"Unknown Message: ">>, Unknown]),
+    log(debug, [{type, unknown_message}, {message, Unknown}]),
     {noreply, State}.
 
 terminate(Reason, State) ->
-    log(debug, [<<"erlmud_object ">>, self(), <<" shutting down Reason: ">>, Reason, <<" State: ">>, State]),
+    log(debug, [{type, shutdown}, {reason, Reason}, {state, State}]),
     erlmud_index:del(self()),
     ok.
 
@@ -208,9 +195,16 @@ attempt_(Msg,
     %% I found a case: you attempt to shoot someone and you miss: the clip can lose a round ...
     %% except the clip could just listen for the result and decrement the ammunition then.
     {Handler, Results = {Result, Msg2, ShouldSubscribe, Props2}} = ensure_message(Msg, run_handlers({Parents, Props, Msg})),
-    log(debug, [self(), <<" {owner, ">>, Parents#parents.owner, <<"} ">>,
-         Handler, <<"attempt: ">>, Msg, <<" -> ">>,
-         ShouldSubscribe, <<", ">>, binary_fail_reason(Result)]),
+    %log(debug, [self(), <<" {owner, ">>, Parents#parents.owner, <<"} ">>,
+         %Handler, <<"attempt: ">>, Msg, <<" -> ">>,
+         %ShouldSubscribe, <<", ">>, binary_fail_reason(Result)]),
+    log(debug, [{type, attempt},
+                {owner, Parents#parents.owner},
+                {message, Message},
+                {handler, Handler},
+                {subscribe, ShouldSubscribe},
+                {props, Props2} |
+                result_tuples(Result)]),
     MergedProcs = merge(self(), is_room(Props), Results, Procs),
     _ = handle(Result, Msg2, MergedProcs, Props2),
     State#state{props = Props2}.
@@ -228,18 +222,18 @@ parents(Props) ->
 is_room(Props) ->
     proplists:get_value(is_room, Props, false).
 
-binary_fail_reason({fail, Reason}) when is_list(Reason) ->
-    {fail, list_to_binary(Reason)};
-binary_fail_reason({fail, Reason}) when is_atom(Reason) ->
-    {fail, atom_to_binary(Reason, utf8)};
-binary_fail_reason(Any = {fail, _}) ->
-    Any;
-binary_fail_reason(Reason) when is_list(Reason) ->
-    list_to_binary(Reason);
-binary_fail_reason(Reason) when is_atom(Reason) ->
-    atom_to_binary(Reason, utf8);
-binary_fail_reason(Any) ->
-    Any.
+result_tuples({fail, Reason}) when is_list(Reason) ->
+    [{result, fail}, {reason, list_to_binary(Reason)}];
+result_tuples({fail, Reason}) when is_atom(Reason) ->
+    [{result, fail}, {reason, atom_to_binary(Reason, utf8)}];
+result_tuples(Any = {fail, Any}) ->
+    [{result, fail}, {reason, Any}];
+result_tuples({resend, Target, Message}) ->
+    [{result, resend}, {target, Target}, {new_message, Message}];
+result_tuples(succeed) ->
+    [{result, succeed}],
+result_tuples({broadcast, Message}) ->
+    [{result, broadcast}, {new_message, Message}].
 
 run_handlers(Attempt = {_, Props, _}) ->
     Handlers = proplists:get_value(handlers, Props),
@@ -261,16 +255,12 @@ handle_attempt([Handler | Handlers], Attempt) ->
 ensure_message(Msg, {Handler, {A, B, C}}) ->
     {Handler, {A, Msg, B, C}};
 ensure_message(_, T = {_, {_, NewMsg, _, _}}) ->
-    log(debug, [<<"New message: ">>, NewMsg]),
+    %log(debug, [<<"New message: ">>, NewMsg]),
     T.
 
 handle({resend, Target, Msg}, OrigMsg, _NoProcs, _Props) ->
-    log(debug, [<<"resending ">>, OrigMsg, <<" as ">>, Msg]),
     send(Target, {attempt, Msg, #procs{}});
 handle({fail, Reason}, Msg, Procs = #procs{subs = Subs}, _Props) ->
-    log(debug, [<<"failing msg: ">>, Msg,
-         <<" with reasons: ">>, binary_fail_reason(Reason),
-         <<" subs: ">>, Subs]),
     [send(Sub, {fail, Reason, Msg}, Procs) || Sub <- Subs];
 handle(succeed, Msg, Procs = #procs{subs = Subs}, _Props) ->
     _ = case next(Procs) of
@@ -288,26 +278,17 @@ handle({broadcast, Msg}, _Msg, _Procs, Props) ->
                           Key /= character,
                           Key /= body_part,
                           Key /= top_item],
-    log(debug, [<<"Broadcasting: ">>, Msg]),
-    log(debug, [<<"to: ">>, procs(NotParents)]),
-    log(debug, [<<"from props: ">>, NotParents]),
     [broadcast(V, Msg) || V <- procs(NotParents)].
 
 broadcast(Pid, Msg) ->
-    %ct:pal("Broadcasting ~p to ~p", [Msg, Pid]),
-    log(debug, [self(), <<" broadcasting ">>, Msg, <<" to ">>, Pid]),
     attempt(Pid, Msg).
 
 send(Pid, SendMsg = {fail, _Reason, Msg}, Procs) ->
-    log(debug, [Pid, fail, Msg, Procs]),
     send_(Pid, SendMsg);
 send(Pid, SendMsg = {succeed, Msg}, Procs) ->
-    log(debug, [Pid, succeed, Msg, Procs]),
-    log(debug, [Pid, succeed, Msg]),
     send_(Pid, SendMsg).
 
 send(Pid, SendMsg = {attempt, Msg, Procs}) ->
-    log(debug, [Pid, attempt, Msg, Procs]),
     send_(Pid, SendMsg);
 send(Pid, Msg) ->
     send_(Pid, Msg).
@@ -329,10 +310,10 @@ proc(MaybeId, IdPids) when is_atom(MaybeId) ->
     MaybePid = proplists:get_value(MaybeId, IdPids, MaybeId),
     case is_pid(MaybePid) of
         true ->
-            log(debug, [<<"Linking to pid: ">>, MaybePid, <<" for value ">>, MaybeId]),
+            log(debug, [{type, link}, {target, MaybePid}]),
             link(MaybePid);
         false ->
-            log(debug, [<<"Property value ">>, MaybeId, <<" is an atom, but not a pid">>])
+            ok
     end,
     MaybePid;
 proc(Value, _) ->
