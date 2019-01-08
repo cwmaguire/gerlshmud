@@ -76,6 +76,3 @@ unreserve(Character, Owner, Props) when is_list(Props) ->
 
 unreserve(Character, Resource, Owner) ->
     erlmud_object:attempt(self(), {Character, unreserve, Resource, for, Owner}).
-
-%log(Level, IoData) ->
-    %erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).

@@ -23,19 +23,18 @@
 attempt({#parents{}, Props, {Source, look, TargetName}})
   when Source =/= self(),
        is_binary(TargetName) ->
-    log([<<"Checking if name ">>, TargetName, <<" matches">>]),
+    log([{type, name_match}, {source, Source}, {name, TargetName}]),
     SelfName = proplists:get_value(name, Props, <<>>),
     case re:run(SelfName, TargetName, [{capture, none}, caseless]) of
         match ->
             NewMessage = {Source, look, self()},
             {{resend, Source, NewMessage}, _ShouldSubscribe = ignored, Props};
         _ ->
-            ct:pal("Name ~p did not match this character's name ~p~n", [TargetName, SelfName]),
-            log([<<"Name ">>,
-                 TargetName,
-                 <<" did not match this character's name: ">>,
-                 SelfName,
-                 <<".\n">>]),
+            log([{type, name_match},
+                 {source, Source},
+                 {self_name, SelfName},
+                 {name, TargetName},
+                 {result, no_match}]),
             {succeed, false, Props}
     end;
 attempt({#parents{owner = Room},
@@ -92,13 +91,13 @@ is_owner(_, _) ->
 
 description(Props) when is_list(Props) ->
     DescTemplate = erlmud_config:desc_template(character),
-    log([<<"char desc template: ">>, DescTemplate]),
+    log([{type, char_desc}, {template, DescTemplate}]),
     [[description_part(Props, Part)] || Part <- DescTemplate].
 
 description_part(_, RawText) when is_binary(RawText) ->
     RawText;
 description_part(Props, DescProp) ->
-    log([<<"character description_part DescProp: ">>, DescProp, <<" from Props: ">>, Props]),
+    log([{type, char_desc_part}, {desc_prop, DescProp}, {props, Props}]),
     prop_description(proplists:get_value(DescProp, Props, <<"??">>)).
 
 prop_description(undefined) ->
@@ -107,4 +106,4 @@ prop_description(Value) when not is_pid(Value) ->
     Value.
 
 log(Terms) ->
-    erlmud_event_log:log(debug, [list_to_binary(atom_to_list(?MODULE)) | Terms]).
+    erlmud_event_log:log(debug, [{module, ?MODULE} | Terms]).

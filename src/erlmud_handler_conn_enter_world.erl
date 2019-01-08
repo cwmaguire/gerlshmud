@@ -26,8 +26,8 @@ attempt({#parents{owner = Owner},
 attempt(_) ->
     undefined.
 
-succeed({Props, {Player, enter_world, in, _Room, with, _Conn}}) ->
-    log(debug, [<<"Player ">>, self(), <<" successfully entered the world\n">>]),
+succeed({Props, {Player, enter_world, in, Room, with, Conn}}) ->
+    log([{type, enter_world}, {player, self()}, {result, succeed}, {conn, Conn}, {room, Room}]),
     [{owner, Player} | lists:keydelete(owner, 1, Props)];
 succeed({Props, _Other}) ->
     Props.
@@ -40,5 +40,5 @@ fail({Props, Reason, {_Player, enter_world}}) ->
 fail({Props, _Reason, _Message}) ->
     Props.
 
-log(Level, IoData) ->
-    erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).
+log(Props) ->
+    erlmud_event_log:log(debug, [{module, ?MODULE} | Props]).

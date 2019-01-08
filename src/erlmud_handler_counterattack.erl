@@ -21,7 +21,7 @@
 -include("include/erlmud.hrl").
 
 attempt({#parents{}, Props, {_Attacker, attack, Self}}) when Self == self() ->
-    log([<<"caught attack attempt of ">>, _Attacker, attack, Self]),
+    log([{type, attack}, {source, Attacker}, {target, Self}]),
     {succeed, true, Props};
 
 attempt({#parents{}, Props, {Self, attack, _Target}}) when Self == self() ->
@@ -56,8 +56,8 @@ succeed({Props, _}) ->
     Props.
 
 fail({Props, Result, Msg}) ->
-    log([<<"result: ">>, Result, <<" message: ">>, Msg]),
+    log([{type, attack}, {result, fail}, {message, Msg}, {target, self()}]),
     Props.
 
-log(Terms) ->
-    erlmud_event_log:log(debug, [list_to_binary(atom_to_list(?MODULE)) | Terms]).
+log(Props) ->
+    erlmud_event_log:log(debug, [{module, ?MODULE} | Props]).

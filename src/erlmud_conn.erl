@@ -86,7 +86,7 @@ live(cast, {send, Message}, _Data = #data{socket = Socket}) ->
     Socket ! {send, Message},
     keep_state_and_data;
 live(cast, Event, Data = #data{player = PlayerPid, conn_obj = ConnObjPid}) ->
-    log([<<"got event \"">>, Event, <<"\" in state 'live' with state data ">>, Data]),
+    log([{event, Event}, {state, live}, {player, Data}, {conn, ConnObjPid}),
 
     _ = case erlmud_parse:parse(PlayerPid, Event) of
         {error, Error} ->
@@ -99,7 +99,7 @@ live({call, {From, Ref}}, props, _Data) ->
     From ! {Ref, _Props = []},
     keep_state_and_data;
 live(Type, Event, Data) ->
-    log(live, Type, Event, Data),
+    console_log_unknown(live, Type, Event, Data),
     keep_state_and_data.
 
 %% gen_statem
@@ -122,6 +122,6 @@ is_valid_creds(_Login, _Password) ->
 log(Terms) ->
     erlmud_event_log:log(debug, [list_to_binary(atom_to_list(?MODULE)) | Terms]).
 
-log(State, EventType, EventData, _Data = #data{player = Player}) ->
+console_log_unknown(State, EventType, EventData, _Data = #data{player = Player}) ->
     io:format("Connection ~p for player ~p received unrecognized event ~p:~p in state ~p",
               [self(), Player, EventType, EventData, State]).

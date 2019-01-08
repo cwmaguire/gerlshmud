@@ -62,14 +62,14 @@ send_description(Source, Props, Context) ->
 
 description(Props) when is_list(Props) ->
     DescTemplate = erlmud_config:desc_template(body_part),
-    log(debug, [<<"body part desc template: ">>, DescTemplate]),
+    log([{type, body_part_desc}, {template, DescTemplate}]),
     [[description_part(Props, Part)] || Part <- DescTemplate].
 
 description_part(_, RawText) when is_binary(RawText) ->
-    log(debug, [<<"body part description_part RawText: ">>, RawText]),
+    log([{type, body_part_desc}, {desc_part, RawText}]),
     RawText;
 description_part(Props, DescProp) ->
-    log(debug, [<<"body part description_part DescProp: ">>, DescProp, <<" from Props: ">>, Props]),
+    log([{type, body_part_desc}, {desc_prop, DescProp}, {props, Props}]),
     prop_description(proplists:get_value(DescProp, Props, <<"??">>)).
 
 prop_description(undefined) ->
@@ -77,5 +77,5 @@ prop_description(undefined) ->
 prop_description(Value) when not is_pid(Value) ->
     Value.
 
-log(Level, IoData) ->
-    erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).
+log(IoData) ->
+    erlmud_event_log:log(debug, [{module, ?MODULE} | IoData]).

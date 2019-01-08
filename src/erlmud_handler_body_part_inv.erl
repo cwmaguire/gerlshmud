@@ -93,7 +93,7 @@ attempt(_) ->
 
 succeed({Props, {Item, move, from, OldOwner, to, Self, on, body_part, type, BodyPartType}})
   when Self == self() ->
-    log(debug, [<<"Getting ">>, Item, <<" from ">>, OldOwner, <<"\n">>]),
+    log([{type, get_item}, {item, Item}, {from, OldOwner}]),
     ItemRef = make_ref(),
     erlmud_object:attempt(Item, {self(), set_child_property, body_part,
                                  #body_part{body_part = self(),
@@ -135,15 +135,12 @@ can_add(Props, ItemBodyParts) ->
             true).
 
 can_add([], _, _, Result) ->
-    log(debug, [<<"can_add([], _, _, ">>, Result ,<<")">>]),
+    log([{type, can_add}, {result, Result}]),
     Result;
 can_add(_, _, _, {false, Reason}) ->
-    log(debug, [<<"can_add([_ | _], _, _, {false, ", Reason/binary, "})">>]),
+    log([{type, can_add}, {result, false}, {reason, Reason}]),
     {false, Reason};
 can_add([Fun | Funs], Props, ItemBodyParts, true) ->
-    log(debug, [<<"can_add([">>, Fun, <<" | ">>,
-                Funs, <<"], ">>, Props, <<", ">>,
-                ItemBodyParts, <<", true)">>]),
     can_add(Funs, Props, ItemBodyParts, Fun(Props, ItemBodyParts)).
 
 can_remove(_Props, _Item) ->
@@ -151,9 +148,6 @@ can_remove(_Props, _Item) ->
 
 has_matching_body_part(Props, ItemBodyParts) ->
     BodyPart = proplists:get_value(body_part, Props, any),
-    log(debug, [<<"has_matching_body_part(">>, BodyPart,
-         <<", [">>, ItemBodyParts, <<"]):">>,
-         lists:member(BodyPart, ItemBodyParts)]),
     case {BodyPart, lists:member(BodyPart, ItemBodyParts)} of
         {any, _} ->
             true;
@@ -166,7 +160,7 @@ has_matching_body_part(Props, ItemBodyParts) ->
 has_space(Props, _) ->
     NumItems = length(proplists:get_all_values(item, Props)),
     MaxItems = proplists:get_value(max_items, Props, infinite),
-    log(debug, [<<"has_space(">>, Props, <<") Num items: ">>, NumItems, <<" Max items: ">>, MaxItems]),
+    log([{type, has_space}, {num_items, NumItems}, {max_items, MaxItems}]),
     case proplists:get_value(max_items, Props, infinite) of
         infinite ->
             true;
@@ -177,7 +171,7 @@ has_space(Props, _) ->
     end.
 
 clear_child_body_part(Props, Item, Target) ->
-    log(debug, [<<"Giving ">>, Item, <<" to ">>, Target, <<"\n\tProps: ">>, Props, <<"\n">>]),
+    log([{type, give_item}, {to, Target}, {props, Props}]),
     BodyPartType = proplists:get_value(body_part, Props, undefined),
     ItemRef = item_ref(Item, Props),
     erlmud_object:attempt(Item, {Target,
@@ -198,5 +192,5 @@ item_ref(Item, Props) ->
             Ref
     end.
 
-log(Level, IoData) ->
-    erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).
+log(IoData) ->
+    erlmud_event_log:log(debug, [{module, ?MODULE} | IoData]).

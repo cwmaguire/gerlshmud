@@ -26,7 +26,7 @@ attempt(_) ->
 
 
 succeed({Props, {send, Player, Message}}) ->
-    log(debug, [<<"saw send ">>, Player, <<" message: ">>, Message, <<" succeed\n">>]),
+    log([{type, send}, {player, Player}, {message, Message}, {result, succeed}]),
     {Conn} = proplists:get_value(conn, Props),
     erlmud_conn:handle(Conn, {send, Message}),
     Props;
@@ -36,6 +36,6 @@ succeed({Props, _Other}) ->
 fail({Props, _Reason, _Message}) ->
     Props.
 
-log(Level, IoData) ->
-    erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).
+log(Props) ->
+    erlmud_event_log:log(Level, [{module, ?MODULE} | Props]).
 

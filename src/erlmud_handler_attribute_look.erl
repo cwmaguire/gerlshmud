@@ -45,7 +45,8 @@ succeed({Props, {Source, describe, Target, with, Context}}) ->
         end,
     Props;
 succeed({Props, Msg}) ->
-    log([<<"saw unmatched msg ">>, Msg, <<" succeed">>]),
+    log([{unmatched, Msg}, {success, succeed}]),
+    io:format(user, "saw unmatched msg ~p succeed", [Msg]),
     Props.
 
 fail({Props, _Reason, _Msg}) ->
@@ -71,13 +72,13 @@ is_owner(_, _) ->
 description(Props) when is_list(Props) ->
     Type = proplists:get_value(type, Props),
     DescTemplate = erlmud_config:desc_template(Type),
-    log([<<"char desc template: ">>, DescTemplate]),
+    log([{desc_template, DescTemplate}, {props, Props}]),
     [[description_part(Props, Part)] || Part <- DescTemplate].
 
 description_part(_, RawText) when is_binary(RawText) ->
     RawText;
 description_part(Props, DescProp) ->
-    log([<<"character description_part DescProp: ">>, DescProp, <<" from Props: ">>, Props]),
+    log([{char_desc_part, DescProp}, {props, Props}]),
     prop_description(proplists:get_value(DescProp, Props, <<"??">>)).
 
 prop_description(undefined) ->
@@ -85,5 +86,5 @@ prop_description(undefined) ->
 prop_description(Value) when not is_pid(Value) ->
     Value.
 
-log(Terms) ->
-    erlmud_event_log:log(debug, [list_to_binary(atom_to_list(?MODULE)) | Terms]).
+log(Proplist) ->
+    erlmud_event_log:log(debug, [{module, ?MODULE} | Proplist]).

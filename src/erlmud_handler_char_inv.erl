@@ -50,10 +50,7 @@ attempt({_Owner, Props, {Item, move, from, Self, to, BodyPart, on, body_part, ty
        is_pid(Item),
        is_pid(BodyPart) ->
     {succeed, true, Props};
-%attempt({_Owner, Props, {_Item, move, from, Self, to, _BodyPart, on, body_part, type, _BodyPartType}})
-  %when Self == self() ->
-    %{succeed, true, Props};
-%% I suspect the name _Room means that it is expected that the source will be a room; is this so?
+%% TODO I suspect the name _Room means that it is expected that the source will be a room; is this so?
 attempt({_Owner, Props, {Item, move, from, _Room, to, Self}})
   when Self == self() andalso
        is_pid(Item) ->
@@ -62,15 +59,13 @@ attempt(_) ->
     undefined.
 
 succeed({Props, {Item, move, from, Source, to, Self}}) when Self == self() ->
-    log(debug, [<<"Getting ">>, Item, <<" from ">>, Source, <<"\n">>]),
+    log([{type, get_item}, {source, Source}, {target, Self}]),
     erlmud_object:attempt(Item, {self(), set_child_property, character, self()}),
     [{item, Item} | Props];
 succeed({Props, {Item, move, from, Self, to, _BodyPart, on, body_part, type, _BodyPartType}}) when Self == self() ->
     lists:keydelete(Item, 2, Props);
 succeed({Props, {Item, move, from, Self, to, Target}}) when Self == self() ->
     clear_child_character(Props, Item, Target);
-%succeed({Props, {Item, move, from, Self, to, Target, _ItemBodyParts}}) when Self == self() ->
-    %clear_child_character(Props, Item, Target);
 succeed({Props, _}) ->
     Props.
 
@@ -78,9 +73,9 @@ fail({Props, _, _}) ->
     Props.
 
 clear_child_character(Props, Item, Target) ->
-    log(debug, [<<"Giving ">>, Item, <<" to ">>, Target, <<"\n\tProps: ">>, Props, <<"\n">>]),
+    log([{type, give_item}, {source, self()}, {target, Target}, {props, Props}]),
     erlmud_object:attempt(Item, {Target, clear_child_property, character, 'if', self()}),
     lists:keydelete(Item, 2, Props).
 
-log(Level, IoData) ->
-    erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).
+log(Props) ->
+    erlmud_event_log:log(debug, [{module, ?MODULE} | Props]).

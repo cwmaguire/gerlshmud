@@ -69,7 +69,3 @@ fail({Props, _, _}) ->
 
 is_match(Props, Name) ->
     match == re:run(proplists:get_value(name, Props, <<>>), Name, [{capture, none}]).
-
-%log(Level, IoData) ->
-    %erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).
-

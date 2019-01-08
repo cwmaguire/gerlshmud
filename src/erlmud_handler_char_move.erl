@@ -35,10 +35,8 @@ attempt(_) ->
     undefined.
 
 succeed({Props, {Self, move, from, Source, to, Target, via, _Exit}}) when Self == self() ->
-    log(debug, [<<"moved from ">>, Source, <<" to ">>, Target, <<"\n">>]),
-    log(debug, [<<"setting ">>, Self, <<"'s room to ">>, Target, <<"\n">>]),
+    log([{type, move}, {source, Source}, {target, Target}, {result, succeed}]),
     NewProps = set(room, Target, set(owner, Target, Props)),
-    log(debug, [<<" finished moving rooms \n">>]),
     case proplists:get_value(is_attacking, Props) of
         true ->
             erlmud_object:attempt(self(), {self(), stop_attack});
@@ -51,7 +49,7 @@ succeed({Props, {Self, move, Direction, from, Source}}) when Self == self(), is_
     %in the direction Direction then this attempt would have been resent as:
     % {move, Self, Source, Target, ExitPid}
     % by the exit process.
-    log(debug, [<<"succeeded in moving ">>, Direction, <<" from ">>, Source, <<"\n">>]),
+    log([{type, move}, {source, Source}, {direction, Direction}, {result, succeed}]),
     % TODO Let the player know they didn't get anywhere: "There is no exit <Direction> here."
     Props;
 succeed({Props, _}) ->
@@ -63,6 +61,6 @@ fail({Props, _, _}) ->
 set(Type, Obj, Props) ->
     lists:keystore(Type, 1, Props, {Type, Obj}).
 
-log(Level, IoData) ->
-    erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).
+log(Props) ->
+    erlmud_event_log:log(debug, [{module, ?MODULE} | Props]).
 

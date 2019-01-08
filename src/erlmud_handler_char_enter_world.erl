@@ -22,10 +22,10 @@ attempt({_Parents,
          {Self, enter_world, in, room, with, Conn}}) when Self == self() ->
     case proplists:get_value(room, Props) of
         undefined ->
-            log(debug, [<<"char_enter_world did not find room ">>]),
+            log([{type, char_enter_world}, {result, did_not_find_room}]),
             {succeed, false, Props};
         Room ->
-            log(debug, [<<"char_enter_world found room ">>, Room]),
+            log([{type, char_enter_world}, {result, found_room}]),
             NewMessage = {Self, enter_world, in, Room, with, Conn},
             {{resend, Self, NewMessage}, true, Props}
     end;
@@ -37,8 +37,7 @@ attempt(_) ->
     undefined.
 
 succeed({Props, {_Player, enter_world, in, _Room, with, Conn}}) ->
-    log(debug, [<<"Player ">>, self(),
-                <<" successfully entered the world\n">>]),
+    log([{type, char_enter_world}, {player, Player}, {result, succeed}]),
     lists:foldl(fun keyreplace/2, Props, [{conn_object, Conn}]);
 succeed({Props, _Other}) ->
     Props.
@@ -53,5 +52,5 @@ fail({Props, _Reason, _Message}) ->
 keyreplace(NewKV = {Key, _}, Props) ->
     [NewKV | lists:keydelete(Key, 1, Props)].
 
-log(Level, IoData) ->
-    erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).
+log(IoData) ->
+    erlmud_event_log:log(debug, [list_to_binary(atom_to_list(?MODULE)) | IoData]).

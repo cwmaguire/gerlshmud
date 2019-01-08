@@ -42,7 +42,3 @@ succeed({Props, _}) ->
 
 fail({Props, _, _}) ->
     Props.
-
-%log(Level, IoData) ->
-    %erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).
-
