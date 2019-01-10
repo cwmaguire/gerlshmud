@@ -22,9 +22,21 @@
 -export([succeed/1]).
 -export([fail/1]).
 
+-define(Character_describe_Owner_with_Context,
+        attempt({#parents{owner = Owner},
+                 Props,
+                 {Source = {source, Character},
+                  describe,
+                  Target = {target, Owner},
+                  with,
+                  Context_ = {context, Context}}}) ->
+        Log = [{Source, Target, Context}],).
+
 attempt({#parents{owner = Owner},
          Props,
          {Source, describe, Owner, with, Context}}) ->
+
+?Character_describe_Owner_with_Context
     Log = [{type, describe},
            {source, Source},
            {target, Owner},
