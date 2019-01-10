@@ -33,16 +33,22 @@ attempt({#parents{character = Character,
                   top_item = TopItem = #top_item{item = Item}},
          Props,
          {Character, calc, Hit, on, Target, with, Item}}) ->
+    Log = [{type, calc_hit},
+           {source, Character},
+           {target, Target},
+           {hit, Hit},
+           {item, Item}],
     case is_interested(TopItem, Props) of
         true ->
             case proplists:get_value(attack_hit_modifier, Props) of
                 undefined ->
-                    {succeed, false, Props};
+                    {succeed, false, Props, Log};
                 Amount ->
                     {succeed,
                      {Character, calc, Hit + Amount, on, Target, with, Item},
                      false,
-                     Props}
+                     Props,
+                     Log ++ [{new_hit, Hit + Amount}}
             end;
         _ ->
             {succeed, false, Props}
@@ -51,19 +57,25 @@ attempt({#parents{character = Character,
                   top_item = TopItem = #top_item{item = Item}},
          Props,
          {Character, damage, Damage, to, Target, with, Item}}) ->
+    Log = [{type, damage},
+           {source, Character},
+           {target, Target},
+           {damage, Damage},
+           {item, Item}],
     case is_interested(TopItem, Props) of
         true ->
             case proplists:get_value(attack_damage_modifier, Props) of
                 undefined ->
-                    {succeed, false, Props};
+                    {succeed, false, Props, Log};
                 Amount ->
                     {succeed,
                      {Character, calc, Damage + Amount, on, Target, with, Item},
                      false,
-                     Props}
+                     Props,
+                     [{new_damage, Damage + Amount} | Log]}
             end;
         _ ->
-            {succeed, false, Props}
+            {succeed, false, Props, Log}
     end;
 
 %% Defend with item
@@ -71,70 +83,91 @@ attempt({#parents{character = Character,
                   top_item = TopItem = #top_item{item = Item}},
          Props,
          {Attacker, calc, Hit, on, Character, with, Item}}) ->
+    Log = [{type, calc_hit}
+           {source, Attacker},
+           {target, Character},
+           {hit, Hit},
+           {item, Item}],
     case is_interested(TopItem, Props) of
         true ->
             case proplists:get_value(defence_hit_modifier, Props) of
                 undefined ->
-                    {succeed, false, Props};
+                    {succeed, false, Props, Log};
                 Amount ->
                     {succeed,
                      {Attacker, calc, Hit - Amount, on, Character, with, Item},
                      false,
-                     Props}
+                     Props,
+                     [{new_hit, Hit - Amount} | Log]}
             end;
         _ ->
-            {succeed, false, Props}
+            {succeed, false, Props, Log}
     end;
 attempt({#parents{character = Character,
                   top_item = TopItem = #top_item{item = Item}},
          Props,
          {Target, damage, Damage, to, Character, with, Item}}) ->
+    Log = [{type, damage},
+           {source, Target},
+           {target, Character},
+           {item, Item}],
     case is_interested(TopItem, Props) of
         true ->
             case proplists:get_value(defence_damage_modifier, Props) of
                 undefined ->
-                    {succeed, false, Props};
+                    {succeed, false, Props, Log};
                 Amount ->
                     {succeed,
                      {Target, calc, Damage - Amount, on, Character, with, Item},
                      false,
-                     Props}
+                     Props,
+                     [{new_damage, Damage - Amount} | Log]}
             end;
         _ ->
-            {succeed, false, Props}
+            {succeed, false, Props, Log}
     end;
 
 %% Defend without item
 attempt({#parents{character = Character},
          Props,
          {Attacker, calc, Hit, on, Character, with, Item}}) ->
+    Log = [{type, calc_hit},
+           {source, Attacker},
+           {target, Character},
+           {item, Item}],
     case is_interested(not_an_item, Props) of
         true ->
             case proplists:get_value(defence_hit_modifier, Props) of
                 undefined ->
-                    {succeed, false, Props};
+                    {succeed, false, Props, Log};
                 Amount ->
                     {succeed,
                      {Attacker, calc, Hit - Amount, on, Character, with, Item},
                      false,
-                     Props}
+                     Props,
+                     [{new_hit, Hit - Amount} | Log]}
             end;
         _ ->
-            {succeed, false, Props}
+            {succeed, false, Props, Log}
     end;
 attempt({#parents{character = Character},
          Props,
-         {Target, damage, Damage, to, Character, with, Item}}) ->
+         {Attacker, damage, Damage, to, Character, with, Item}}) ->
+    Log = [{type, damage},
+           {source, Attacker},
+           {target, Character},
+           {item, Item}],
     case is_interested(not_an_item, Props) of
         true ->
             case proplists:get_value(defence_damage_modifier, Props) of
                 undefined ->
-                    {succeed, false, Props};
+                    {succeed, false, Props, Log};
                 Amount ->
                     {succeed,
-                     {Target, calc, Damage - Amount, on, Character, with, Item},
+                     {Attacker, calc, Damage - Amount, on, Character, with, Item},
                      false,
-                     Props}
+                     Props,
+                     [{new_damage, Damage - Amount} | Log]}
             end;
         _ ->
             {succeed, false, Props}

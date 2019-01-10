@@ -24,11 +24,21 @@
 
 attempt({#parents{owner = Owner},
          Props,
-         {_Source, describe, Owner, with, _Context}}) ->
-    {succeed, true, Props};
+         {Source, describe, Owner, with, Context}}) ->
+    Log = [{type, describe},
+           {source, Source},
+           {target, Owner},
+           {context, Context}],
+    {succeed, true, Props, Log};
+% TODO WHAT THE CRAP? This second pattern will never match
+% Remove and make sure tests pass
 attempt({#parents{owner = Owner},
          Props,
-         {_Source, describe, Owner, with, _Context}}) ->
+         {Source, describe, Owner, with, Context}}) ->
+    Log = [{type, describe},
+           {source, Source},
+           {target, Owner},
+           {context, Context}],
     ShouldSubscribe = _AttributeIsRace = race == proplists:get_value(type, Props),
     {succeed, ShouldSubscribe, Props};
 attempt(_) ->
@@ -45,8 +55,6 @@ succeed({Props, {Source, describe, Target, with, Context}}) ->
         end,
     Props;
 succeed({Props, Msg}) ->
-    log([{unmatched, Msg}, {success, succeed}]),
-    io:format(user, "saw unmatched msg ~p succeed", [Msg]),
     Props.
 
 fail({Props, _Reason, _Msg}) ->

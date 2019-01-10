@@ -24,8 +24,6 @@
 attempt({#parents{character = Character},
          Props,
          {Attacker, attack, _Target}})
-  %when Attacker == Character, is_pid(Target);
-       %Target == Character ->
   when Attacker == Character ->
     {succeed, true, Props};
 
@@ -34,6 +32,12 @@ attempt({#parents{character = Character},
          {Character, counter_attack, Target}}) ->
     IsAttacking = proplists:get_value(is_attacking, Props, false),
     log(debug, [self(), <<"attacking">>, Target, <<"with character ">>, Character, <<", is_attacking: ">>, IsAttacking]),
+    log([{type, attack},
+         {object, self()},
+         {target, Target},
+         {character, Target},
+         {source, Character},
+         {is_attacking, IsAttacking}]),
     case IsAttacking of
         false ->
             {succeed, true, Props};
@@ -123,7 +127,13 @@ attempt({#parents{character = Character},
 attempt({_, _, _Msg}) ->
     undefined.
 
-succeed({Props, {_Attacker, killed, _Target, with, _AttackVector}}) ->
+succeed({Props, {_Attacker, killed, Target, with, AttackVector}}) ->
+    log([{type, killed},
+         {object, self()},
+         {props, Props},
+         {target, Target},
+         {attack_vector, AttackVector},
+         {result, succeed}]),
     Character = proplists:get_value(character, Props),
     unreserve(Character, Props),
     Props2 = lists:keystore(target, 1, Props, {target, undefined}),
@@ -149,7 +159,13 @@ succeed({Props, {Attacker, attack, Target}}) when is_pid(Target) ->
     IsAttacking = proplists:get_value(is_attacking, Props, false),
     case {Character, IsAttacking} of
         {Attacker, false} ->
-            log(debug, [Character, <<"attacking">>, Target, <<" with ">>, self(), <<"(is_attacking: ">>, IsAttacking, <<")">>]),
+            log([{type, attack},
+                 {object, self()},
+                 {character, Character},
+                 {target, Target},
+                 {is_attacking, IsAttacking},
+                 {props, Props},
+                 {result, succeed}]),
             erlmud_object:attempt(self(), {Attacker, attack, Target, with, self()});
         {Target, false} ->
             ok;
@@ -162,7 +178,12 @@ succeed({Props, {Attacker, attack, Target}}) when is_pid(Target) ->
 succeed({Props, {Attacker, counter_attack, Target}}) when is_pid(Target) ->
     Character = proplists:get_value(character, Props),
     IsAttacking = proplists:get_value(is_attacking, Props, false),
-    log(debug, [self(), <<"attacking">>, Target, <<"with character ">>, Character, <<", is_attacking: ">>, IsAttacking]),
+    log([{type, counter_attack},
+         {object, self()},
+         {target, Target},
+         {character, Character},
+         {props, Props},
+         {result, succeed}]),
     case {Character, IsAttacking} of
         {Attacker, false} ->
             erlmud_object:attempt(self(), {Attacker, attack, Target, with, self()});
@@ -176,6 +197,12 @@ succeed({Props, {Attacker, counter_attack, Target}}) when is_pid(Target) ->
 %% An attack by our character has been successfully instigated using this process:
 %% we'll register for resources and implement the attack when we have them.
 succeed({Props, {Character, attack, Target, with, _Self}}) ->
+    log([{type, attack},
+         {object, self()},
+         {props, Props},
+         {character, Character},
+         {target, Target},
+         {result, succeed}]),
     reserve(Character, Props),
     Props2 = lists:keystore(target, 1, Props, {target, Target}),
     _Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, true});
@@ -183,19 +210,26 @@ succeed({Props, {Character, attack, Target, with, _Self}}) ->
 succeed({Props, {allocate, Amt, 'of', Type, to, Self}})
   when Self == self() ->
     Allocated = update_allocated(Amt, Type, Props),
-    log(debug, [<<"Allocated = ">>, Allocated]),
     Required = proplists:get_value(resources, Props, []),
-    log(debug, [<<"Required = ">>, Required]),
+    HasResources = has_resources(Allocated, Required),
     RemainingAllocated =
-        case has_resources(Allocated, Required) of
+        case HasResources of
             true ->
-                log(debug, [<<"Has resources">>]),
                 attack(Props),
                 deallocate(Allocated, Required);
             _ ->
-                log(debug, [<<"Does not have resources">>]),
                 Allocated
         end,
+    log([{type, allocate},
+         {object, self()},
+         {amount, Amt},
+         {resource, Type},
+         {allocated, Allocated},
+         {required, Required},
+         {remaining_allocated, RemainingAllocated},
+         {has_resources, },
+         {props, Props},
+         {result, succeed}]),
     _Props = lists:keystore(allocated_resources, 1, Props, {allocated_resources, RemainingAllocated});
 
 succeed({Props, {Character, calc, Hit, on, Target, with, Self}})
@@ -203,35 +237,71 @@ succeed({Props, {Character, calc, Hit, on, Target, with, Self}})
        Self == self(),
        Hit > 0 ->
     Damage = proplists:get_value(attack_damage_modifier, Props, 1),
+    log([{type, calc_hit},
+         {object, Self},
+         {props, Props},
+         {character, Character},
+         {hit, Hit},
+         {target, Target},
+         {result, succeed}]),
     erlmud_object:attempt(self(), {Character, calc, Damage, to, Target, with, Self}),
     Props;
 
-succeed({Props, {_Character, calc, _Miss, on, Target, with, Self}})
+succeed({Props, {Character, calc, Miss, on, Target, with, Self}})
   when is_pid(Target),
        Self == self() ->
+    log([{type, calc_hit},
+         {object, Self},
+         {props, Props},
+         {character, Character},
+         {hit, Miss},
+         {target, Target},
+         {result, succeed}]),
     % TODO: say "you missed!"
     Props;
 
 succeed({Props, {Character, calc, Damage, to, Target, with, Self}})
   when Self == self(),
        Damage > 0 ->
+    log([{type, calc_damage},
+         {object, Self},
+         {props, Props},
+         {character, Character},
+         {damage, Miss},
+         {target, Target},
+         {result, succeed}]),
     erlmud_object:attempt(self(), {Character, does, Damage, to, Target, with, Self}),
     Props;
 
-succeed({Props, {_Character, calc, _NoDamage, to, _Target, with, Self}})
+succeed({Props, {Character, calc, _NoDamage, to, Target, with, Self}})
   when Self == self() ->
     %% Attack failed (No damage was done)
     %% TODO: output something to the client like
     %% "You manage to hit <target> but fail to do any damage"
     %%       _if_ this is a player
+    log([{type, calc_damage},
+         {object, Self},
+         {props, Props},
+         {character, Character},
+         {damage, Miss},
+         {target, Target},
+         {result, succeed}]),
     Props;
 
 succeed({Props, {Character, stop_attack}}) ->
+    log([{type, stop_attack},
+         {props, Props},
+         {character, Character},
+         {result, succeed}]),
     unreserve(Character, Props),
     Props2 = lists:keystore(target, 1, Props, {target, undefined}),
     _Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, false});
 
 succeed({Props, {Character, die}}) ->
+    log([{type, die},
+         {props, Props},
+         {character, Character},
+         {result, succeed}]),
     unreserve(Character, Props),
     Props2 = lists:keystore(target, 1, Props, {target, undefined}),
     _Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, false});
@@ -276,11 +346,9 @@ unreserve(Character, Resource) ->
     erlmud_object:attempt(self(), {Character, unreserve, Resource, for, self()}).
 
 reserve(Character, Props) when is_list(Props) ->
-    log(debug, [<<"Reserving">>]),
     [reserve(Character, Resource, Amount) || {Resource, Amount} <- proplists:get_value(resources, Props, [])].
 
 reserve(Character, Resource, Amount) ->
-    log(debug, [<<"Reserving">>, list_to_binary(integer_to_list(Amount)), <<"of">>, list_to_binary(atom_to_list(Resource))]),
     erlmud_object:attempt(self(), {Character, reserve, Amount, 'of', Resource, for, self()}).
 
 update_allocated(New, Type, Props) ->
@@ -315,5 +383,5 @@ is_resource_lacking({_Type, Amount}) when Amount =< 0 ->
 is_resource_lacking(_) ->
     true.
 
-log(Level, IoData) ->
-    erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).
+log(Props) ->
+    erlmud_event_log:log(debug, [{module, ?MODULE} | Props]).

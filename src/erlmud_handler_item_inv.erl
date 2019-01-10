@@ -99,7 +99,13 @@ succeed({Props, {Self, move, from, _OldOwner, to, NewOwner}})
 
 %% gaining an item
 succeed({Props, {Item, move, from, Source, to, Self}}) when Self == self() ->
-    log(debug, [<<"Getting ">>, Item, <<" from ">>, Source, <<"\n">>]),
+    log([{type, move},
+         {object, Self},
+         {props, Props},
+         {item, Item},
+         {source, Source},
+         {target, Self},
+         {result, succeed}]),
     set_child_properties(Item, Props),
     [{item, Item} | Props];
 
@@ -135,7 +141,13 @@ set_child_properties(Child, Props) ->
     erlmud_object:attempt(Child, {self(), set_child_properties, ChildProps}).
 
 clear_child_top_item(Props, Item, Target) ->
-    log(debug, [<<"Giving ">>, Item, <<" to ">>, Target, <<"\n\tProps: ">>, Props, <<"\n">>]),
+    log({type, give},
+        {object, self()},
+        {props, Props},
+        {item, Item},
+        {source, self()},
+        {target, Target},
+        {result, succeed}]),
     TopItem = top_item(Props),
     Message = {Target, clear_child_property, top_item, 'if', TopItem},
     erlmud_object:attempt(Item, Message),
@@ -167,5 +179,5 @@ is_wielded(_, _) ->
 apply_prop({K, V}, Props) ->
     lists:keystore(K, 1, Props, {K, V}).
 
-log(Level, IoData) ->
-    erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).
+log(Props) ->
+    erlmud_event_log:log(debug, [{module, ?MODULE} | Props]).

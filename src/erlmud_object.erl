@@ -82,7 +82,11 @@ attempt(Pid, Msg, ShouldSubscribe) ->
     send(Pid, {attempt, Msg, #procs{subs = Subs}}).
 
 attempt_after(Millis, Pid, Msg) ->
-    log(debug, [{type, attempt_after}, {time, Milles}, {target, Pid}, {message, Msg}]),
+    log([{stage, attempt_after},
+         {object, self()},
+         {target, Pid},
+         {message, Msg},
+         {millis, Millis}]),
     erlang:send_after(Millis, Pid, {Pid, Msg}).
 
 set(Pid, Prop) ->
@@ -118,43 +122,94 @@ handle_cast(Msg, State) ->
     handle_cast_(Msg, State).
 
 handle_cast_({populate, ProcIds}, State = #state{props = Props}) ->
-    log(debug, [{event, populate}, {source, self()}]),
+    log(debug,
+        [{stage, none},
+         {object, self()},
+         {type, populate},
+         {source, self()},
+         {props, Props}]),
     {noreply, State#state{props = populate_(Props, ProcIds)}};
 handle_cast_({set, Prop = {K, _}}, State = #state{props = Props}) ->
     {noreply, State#state{props = lists:keystore(K, 1, Props, Prop)}};
 handle_cast_({attempt, Msg, Procs}, State = #state{props = Props}) ->
     IsExit = proplists:get_value(is_exit, Props, false),
     {noreply, maybe_attempt(Msg, Procs, IsExit, State)};
-handle_cast_({fail, Reason, Msg}, State) ->
+handle_cast_({fail, Reason, Msg, CustomLogProps}, State) ->
     case fail(Reason, Msg, State) of
-        {stop, Props} ->
+        {stop, Props, CustomLogProps} ->
+            {_, ParentsList} = parents(Props),
             %% TODO: remove from index
+            log([{stage, fail_stop},
+                 {object, self()},
+                 {owner, proplists:get_value(owner, Props)},
+                 {props, Props},
+                 {message, Msg},
+                 {stop_reason, Reason} |
+                 ParentsList ++ CustomLogProps]),
             {stop, {shutdown, Reason}, State#state{props = Props}};
-        Props ->
+        {Props, CustomLogProps} ->
+            {_, ParentsList} = parents(Props),
+            log([{stage, fail},
+                 {object, self()},
+                 {props, Props},
+                 {message, Msg},
+                 {stop_reason, Reason} |
+                 ParentsList ++ CustomLogProps]),
             {noreply, State#state{props = Props}}
     end;
 handle_cast_({succeed, Msg}, State) ->
     case succeed(Msg, State) of
-        {stop, Reason, Props} ->
+        {stop, Reason, Props, CustomLogProps} ->
+            {_, ParentsList} = parents(Props),
+            log([{stage, succed_stop},
+                 {object, self()},
+                 {props, Props},
+                 {message, Msg},
+                 {stop_reason, Reason} |
+                 Parents ++ CustomLogProps]),
             {stop, {shutdown, Reason}, State#state{props = Props}};
-        Props ->
+        {Props, LogProps} ->
+            {_, ParentsList} = parents(Props),
+            log([{stage, succeed},
+                 {object, self()},
+                 {props, Props},
+                 {message, Msg} |
+                 ParentsList ++ CustomLogProps]),
             {noreply, State#state{props = Props}}
     end.
 
 handle_info({'EXIT', From, Reason}, State = #state{props = Props}) ->
-    log(debug, [{type, exit}, {source, From}, {reason, Reason}, {props, Props}]),
+    {_, ParentsList} = parents(Props),
+    log(debug,
+        [{type, exit},
+         {object, self()},
+         {source, From},
+         {reason, Reason},
+         {props, Props} |
+         ParentsList]]),
     Props2 = lists:keydelete(From, 2, Props),
     {noreply, State#state{props = Props2}};
 handle_info({Pid, Msg}, State) ->
-    %log(debug, [Pid, <<": handle_info attempt Msg = ">>, Msg]),
     attempt(Pid, Msg),
     {noreply, State};
-handle_info(Unknown, State) ->
-    log(debug, [{type, unknown_message}, {message, Unknown}]),
+handle_info(Unknown, State = #state{props = Props}) ->
+    {_, ParentsList} = parents(Props),
+    log(debug,
+        [{type, unknown_message},
+         {object, self()},
+         {props, Props},
+         {message, Unknown} |
+         ParentsList]]),
     {noreply, State}.
 
-terminate(Reason, State) ->
-    log(debug, [{type, shutdown}, {reason, Reason}, {state, State}]),
+terminate(Reason, State = #state{props = Props}) ->
+    {_, ParentsList} = parents(Props),
+    log(debug,
+        [{type, shutdown},
+         {object, self()},
+         {reason, Reason},
+         {props, Props} |
+         ParentsList]),
     erlmud_index:del(self()),
     ok.
 
@@ -189,22 +244,30 @@ exit_has_room(Props, Room) ->
 attempt_(Msg,
          Procs,
          State = #state{props = Props}) ->
-    Parents = parents(Props),
+    {Parents, ParentsList} = parents(Props),
     %% So far it looks like nothing actually changes the object properties on attempt
     %% but I'm leaving it in for now
     %% I found a case: you attempt to shoot someone and you miss: the clip can lose a round ...
     %% except the clip could just listen for the result and decrement the ammunition then.
-    {Handler, Results = {Result, Msg2, ShouldSubscribe, Props2}} = ensure_message(Msg, run_handlers({Parents, Props, Msg})),
-    %log(debug, [self(), <<" {owner, ">>, Parents#parents.owner, <<"} ">>,
-         %Handler, <<"attempt: ">>, Msg, <<" -> ">>,
-         %ShouldSubscribe, <<", ">>, binary_fail_reason(Result)]),
-    log(debug, [{type, attempt},
-                {owner, Parents#parents.owner},
+    %% I think I should stick with attempts never modifying the world ...
+    %% if that's still possible, other than reserved resources ... although
+    %% maybe even that should happen in succeed/fail
+    {Handler,
+     Results = {Result,
+                Msg2,
+                ShouldSubscribe,
+                Props2,
+                CustomLogProps}}
+      = ensure_log_props(
+          ensure_message(Msg,
+                         run_handlers({Parents, Props, Msg}))),
+    log(debug, [{stage, attempt},
+                {object, Object},
                 {message, Message},
                 {handler, Handler},
                 {subscribe, ShouldSubscribe},
                 {props, Props2} |
-                result_tuples(Result)]),
+                ParentsList ++ CustomLogProps ++ result_tuples(Result)]),
     MergedProcs = merge(self(), is_room(Props), Results, Procs),
     _ = handle(Result, Msg2, MergedProcs, Props2),
     State#state{props = Props2}.
@@ -214,10 +277,15 @@ parents(Props) ->
     Character = proplists:get_value(character, Props),
     TopItem = proplists:get_value(top_item, Props),
     BodyPart = proplists:get_value(body_part, Props),
-    #parents{owner = Owner,
-             character = Character,
-             top_item = TopItem,
-             body_part = BodyPart}.
+    Parents = #parents{owner = Owner,
+                       character = Character,
+                       top_item = TopItem,
+                       body_part = BodyPart},
+    {Parents,
+     [{owner, Owner},
+      {character, Character},
+      {top_item, TopItem},
+      {body_part, BodyPart}]}.
 
 is_room(Props) ->
     proplists:get_value(is_room, Props, false).
@@ -229,7 +297,7 @@ result_tuples({fail, Reason}) when is_atom(Reason) ->
 result_tuples(Any = {fail, Any}) ->
     [{result, fail}, {reason, Any}];
 result_tuples({resend, Target, Message}) ->
-    [{result, resend}, {target, Target}, {new_message, Message}];
+    [{result, resend}, {resend_to, Target}, {new_message, Message}];
 result_tuples(succeed) ->
     [{result, succeed}],
 result_tuples({broadcast, Message}) ->
@@ -257,6 +325,12 @@ ensure_message(Msg, {Handler, {A, B, C}}) ->
 ensure_message(_, T = {_, {_, NewMsg, _, _}}) ->
     %log(debug, [<<"New message: ">>, NewMsg]),
     T.
+
+ensure_log_props({A, {B, {C, D, E}}}) ->
+    {A, {B, {C, D, E, []}}};
+ensure_log_props(WithLogProps) ->
+    WithLogProps.
+
 
 handle({resend, Target, Msg}, OrigMsg, _NoProcs, _Props) ->
     send(Target, {attempt, Msg, #procs{}});
@@ -404,5 +478,5 @@ prop(Prop, Props, Fun, Default) ->
             Default
     end.
 
-log(Level, Terms) ->
-    erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | Terms]).
+log(Props) ->
+    erlmud_event_log:log(debug, [{module, ?MODULE} | Props]).

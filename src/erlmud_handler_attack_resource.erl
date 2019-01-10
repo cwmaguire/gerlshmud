@@ -32,35 +32,49 @@
 attempt({#parents{character = Character,
                   owner = Owner},
          Props,
-         {Character, attack, _Target, with, Owner}}) ->
+         {Character, attack, Target, with, Owner}}) ->
+    Log = [{type, attack},
+           {target, Target}],
     {succeed, true, Props};
 
 attempt({#parents{character = Character},
          Props,
-         {move, Character, _From, _To, _Exit}}) ->
-    {succeed, true, Props};
+         {move, Character, From, To, Exit}}) ->
+    Log = [{type, move},
+           {from, From},
+           {to, To},
+           {exit, Exit}]
+    {succeed, true, Props, Log};
 
 attempt({#parents{character = Character},
          Props,
          {die, Character}}) ->
-    {succeed, true, Props};
+    Log = [{type, die}],
+    {succeed, true, Props, Log};
 
 attempt({_, _, _Msg}) ->
     undefined.
 
-succeed({Props, {Character, attack, _Target, with, Owner}}) ->
+succeed({Props, {Character, attack, Target, with, Owner}}) ->
     [reserve(Character, Resource, Amount, Owner) || {resource, Resource, Amount} <- Props],
+    Log = [{type, attack},
+           {target, Target}],
     Props;
 
-succeed({Props, {Character, move, _From, _To, _Exit}}) ->
+succeed({Props, {Character, move, From, To, Exit}}) ->
     Owner = proplists:get_value(owner, Props),
     [unreserve(Character, Resource, Owner) || {resource, Resource} <- Props],
-    Props;
+    Log = [{type, move},
+           {from, From},
+           {to, To},
+           {exit, Exit}],
+    {Props, Log};
 
 succeed({Props, {die, Character}}) ->
     Owner = proplists:get_value(owner, Props),
     unreserve(Character, Owner, Props),
-    Props;
+    Log = [{type, die}],
+    {Props, Logs};
 
 succeed({Props, _}) ->
     Props.

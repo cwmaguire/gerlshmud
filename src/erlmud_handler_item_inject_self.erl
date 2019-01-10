@@ -20,12 +20,21 @@
 
 %attempt({_Owner, Props, {Action, Obj, ItemName, BodyPart}})
 
-attempt({_Owner, Props, {Object, Action, ItemName}})
+attempt({_Owner, Props, Message = {Object, Action, ItemName}})
   when is_binary(ItemName) andalso
        Action == get; Action == drop ->
     case is_name(Props, ItemName) of
         true ->
             NewMessage = {Object, Action, self()},
+            log([{type, inject_self},
+                 {object, self()},
+                 {action, Action},
+                 {name, ItemName},
+                 {props, Props},
+                 {message, Message},
+                 {resend, NewMessage},
+                 {sub, true}]),
+            %% TODO why sub if we're not listening for success?
             %% resending to source is kind of arbitrary:
             %% Target might have initiated the move.
             Result = {resend, Object, NewMessage},
@@ -33,11 +42,20 @@ attempt({_Owner, Props, {Object, Action, ItemName}})
         _ ->
             {succeed, _Subscribe = false, Props}
     end;
-attempt({_Owner, Props, {ItemName, move, from, Source, to, Target}})
+attempt({_Owner, Props, Message = {ItemName, move, from, Source, to, Target}})
   when is_binary(ItemName) ->
     case is_name(Props, ItemName) of
         true ->
             NewMessage = {self(), move, from, Source, to, Target},
+            log([{type, inject_self},
+                 {sub_type, move},
+                 {object, self()},
+                 {name, ItemName},
+                 {props, Props},
+                 {message, Message},
+                 {resend, NewMessage},
+                 {sub, true}]),
+            %% TODO again, why sub if we're not listening for success?
             %% send to self() since we _know_ that's a PID.
             %% Source might be a binary name
             Result = {resend, self(), NewMessage},
@@ -57,3 +75,6 @@ fail({Props, _, _}) ->
 is_name(Props, Name) ->
     ItemName = proplists:get_value(name, Props, ""),
     match == re:run(ItemName, Name, [{capture, none}]).
+
+log(Props) ->
+    erlmud_event_log:log(debug, [{module, ?MODULE} | Props]).

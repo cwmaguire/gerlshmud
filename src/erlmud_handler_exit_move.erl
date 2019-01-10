@@ -30,11 +30,12 @@ attempt({_Owner, Props, {Obj, move, Exit, from, Room}}) when is_atom(Exit) ->
     %% to try and go from room A through an exit back to A.
     %% So, find the exit that leads to the "FromRoom", which we're trying to
     %% leave, so we don't go back there.
-    log([<<"Process ">>, Obj, <<"wants to leave room ">>, Room, <<" via exit ">>, Exit, <<"\n">>]),
+    log([{type, move}, {source, Obj}, {exit, Exit}, {from, Room}]),
     Rooms = [R || R = {_, Room_} <- Props, Room_ == Room],
     move(Props, Obj, Rooms, Exit);
 attempt({_Owner, Props, {Mover, move, from, Source, to, Target, via, Self}}) when Self == self() ->
     log([<<"Process ">>, Mover, <<" wants to leave room ">>, Source, <<" for ">>, Target, <<"\n">>]),
+    log([{type, move}, {source, Obj}, {from, Source}, {to, Target}, {exit, Self}]),
     case blocked_reason(Props) of
         {blocked_because, Reason} ->
             {{fail, Reason}, false, Props};
@@ -45,11 +46,11 @@ attempt(_) ->
     undefined.
 
 succeed({Props, Message}) ->
-    log([<<"Message ">>, Message, <<" succeeded">>]),
+    log([{source, self()}, {message, Message}, {result, succeed}]),
     Props.
 
 fail({Props, Result, Msg}) ->
-    log([Result, <<" message: ">>, Msg]),
+    log([{source, self()}, {message, Message}, {result, fail}]),
     Props.
 
 %% Make sure the specified exit name doesn't go back to the room that
@@ -93,8 +94,11 @@ move(Props, Obj, [{{room, FromExit}, FromRoom}], ToExit) when FromExit /= ToExit
         %% Now that we've found an exit that doesn't go back to the original room
         %% we can resend the message to specify which room we lead to with exit "ToExit"
         [{_, ToRoom}] ->
-            log([<<"Found room ">>, ToRoom, <<" with exit ">>, ToExit, <<" connected to room ">>, FromRoom,
-                 <<" (exit ">>, FromExit, <<")">>]),
+            log([{type, found_room},
+                 {to, ToRoom},
+                 {from, FromRoom},
+                 {exit, ToExit},
+                 {from_exit, FromExit}]),
             NewMsg = {Obj, move, from, FromRoom, to, ToRoom, via, self()},
             {{resend, Obj, NewMsg}, false, Props};
         [] ->
@@ -113,4 +117,4 @@ blocked_reason(Props) ->
     end.
 
 log(Terms) ->
-    erlmud_event_log:log(debug, [list_to_binary(atom_to_list(?MODULE)) | Terms]).
+    erlmud_event_log:log(debug, [{module, ?MODULE} | Terms]).

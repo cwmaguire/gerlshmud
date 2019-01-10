@@ -23,34 +23,63 @@
 
 attempt({#parents{owner = Owner},
          Props,
-         {_Character, does, _Damage, to, Owner, with, _AttackVector}}) ->
+         {Character, does, Damage, to, Owner, with, AttackVector}}) ->
+    log([{type, damage},
+         {target, self()},
+         {owner, Owner},
+         {from, Character},
+         {to, Owner},
+         {damage, Damage},
+         {vector, AttackVector}]),
     {succeed, true, Props};
 attempt(_) ->
     undefined.
 
 succeed({Props, Msg = {Attacker, does, Damage, to, Owner, with, AttackVector}}) ->
-    log([<<"saw ">>, Msg, <<"succeed">>]),
+    log([{stage, succeed},
+         {type, damage},
+         {target, self()},
+         {owner, Owner},
+         {from, Character},
+         {to, Owner},
+         {damage, Damage},
+         {vector, AttackVector},
+         {result, succeed}]),
     take_damage(Attacker, Owner, Damage, AttackVector, Props);
 succeed({Props, _Msg}) ->
     Props.
 
-fail({Props, Message, _Reason}) ->
-    log([<<"saw ">>, Message, <<" fail with props ">>, Props]),
+fail({Props, Message, Reason}) ->
+    log([{type, damage},
+         {object, self()},
+         {message, Message},
+         {result, fail},
+         {reason, Reason},
+         {props, Props}]),
     Props.
 
 take_damage(Attacker, Owner, Damage, AttackVector, Props) ->
-    log([<<"taking ">>, Damage, <<" points of damage.">>]),
     Hp = proplists:get_value(hitpoints, Props, 0) - Damage,
     case Hp of
         X when X < 1 ->
-            log([<<"dying; hp = ">>, Hp]),
+            log([{type, dying},
+                 {hp, Hp},
+                 {object, self()},
+                 {owner, Owner},
+                 {damage, Damage},
+                 {props, Props}]),
             Owner = proplists:get_value(owner, Props),
             erlmud_object:attempt(Owner, {Attacker, killed, Owner, with, AttackVector});
         _ ->
-            log([<<"Not dying; hitpoints = ">>, Hp]),
+            log([{type, not_dying},
+                 {hp, Hp},
+                 {object, self()},
+                 {owner, Owner},
+                 {damage, Damage},
+                 {props, Props}]),
             ok
     end,
     lists:keystore(hitpoints, 1, Props, {hitpoints, Hp}).
 
 log(Terms) ->
-    erlmud_event_log:log(debug, [list_to_binary(atom_to_list(?MODULE)) | Terms]).
+    erlmud_event_log:log(debug, [{module, ?MODULE} | Terms]).
