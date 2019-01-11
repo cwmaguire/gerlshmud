@@ -1,4 +1,4 @@
-%% Copyright (c) 2015, Chris Maguire <cwmaguire@gmail.com>
+%% Copyright (c) 2019, Chris Maguire <cwmaguire@gmail.com>
 %%
 %% Permission to use, copy, modify, and/or distribute this software for any
 %% purpose with or without fee is hereby granted, provided that the above
@@ -22,37 +22,33 @@
 -export([succeed/1]).
 -export([fail/1]).
 
--define(Character_describe_Owner_with_Context,
-        attempt({#parents{owner = Owner},
-                 Props,
-                 {Source = {source, Character},
-                  describe,
-                  Target = {target, Owner},
-                  with,
-                  Context_ = {context, Context}}}) ->
-        Log = [{Source, Target, Context}],).
+-define(ATTEMPT_LOG(Props),
+        ({#parents{},
+          proplist(),
+          Props}) -> {atom(), boolean(), proplist(), proplist()}).
 
+%-spec attempt({#parents{},
+               %proplist(),
+               %{source(), type(), target(), atom(), context()}}) ->
+          %{atom(), boolean(), proplist(), proplist()};
+             %({#parents{},
+               %proplist(),
+               %{source(), type(), target(), atom(), context()}}) ->
+          %{atom(), boolean(), proplist(), proplist()}.
+
+-spec attempt?ATTEMPT_LOG({source(), type(), target(), atom(), context()});
+             ?ATTEMPT_LOG({source(), type(), target(), atom(), context()}).
 attempt({#parents{owner = Owner},
          Props,
          {Source, describe, Owner, with, Context}}) ->
-
-?Character_describe_Owner_with_Context
-    Log = [{type, describe},
-           {source, Source},
-           {target, Owner},
-           {context, Context}],
     {succeed, true, Props, Log};
 % TODO WHAT THE CRAP? This second pattern will never match
 % Remove and make sure tests pass
 attempt({#parents{owner = Owner},
          Props,
          {Source, describe, Owner, with, Context}}) ->
-    Log = [{type, describe},
-           {source, Source},
-           {target, Owner},
-           {context, Context}],
     ShouldSubscribe = _AttributeIsRace = race == proplists:get_value(type, Props),
-    {succeed, ShouldSubscribe, Props};
+    {succeed, ShouldSubscribe, Props, Log};
 attempt(_) ->
     undefined.
 
@@ -65,12 +61,13 @@ succeed({Props, {Source, describe, Target, with, Context}}) ->
             _ ->
                 ok
         end,
-    Props;
-succeed({Props, Msg}) ->
-    Props.
+    {Props, _Log = []};
+succeed({Props, _Msg}) ->
+    {Props, _Log = []}.
 
+-spec fail(proplist(), any(), tuple()) -> {proplist(), proplist()}.
 fail({Props, _Reason, _Msg}) ->
-    Props.
+    {Props, _Log = []}.
 
 describe(Source, Props, Context, shallow) ->
     send_description(Source, Props, Context);
