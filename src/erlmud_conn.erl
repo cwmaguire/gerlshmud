@@ -48,6 +48,8 @@ password(cast, _Event = Password, Data = #data{login = Login,
                                                attempts = Attempts,
                                                socket = _Socket}) ->
     case is_valid_creds(Login, Password) of
+        {true, logger} ->
+            erlmud_event_log:register(self());
         {true, _Player} ->
             % All players are live processes at MUD startup; processes are almost free
             PlayerPid = erlmud_index:get(player),
@@ -64,8 +66,6 @@ password(cast, _Event = Password, Data = #data{login = Login,
             {next_state, live, Data#data{login = undefined,
                                          player = PlayerPid,
                                          conn_obj = ConnObjPid}};
-        {true, logger} ->
-            erlmud_event_log:register(self());
         false ->
             get_failed_auth_state(Data#data{login = undefined, attempts = Attempts + 1})
     end.
@@ -86,7 +86,7 @@ live(cast, {send, Message}, _Data = #data{socket = Socket}) ->
     Socket ! {send, Message},
     keep_state_and_data;
 live(cast, Event, Data = #data{player = PlayerPid, conn_obj = ConnObjPid}) ->
-    log([{event, Event}, {state, live}, {player, Data}, {conn, ConnObjPid}),
+    log([{event, Event}, {state, live}, {player, Data}, {conn, ConnObjPid}]),
 
     _ = case erlmud_parse:parse(PlayerPid, Event) of
         {error, Error} ->

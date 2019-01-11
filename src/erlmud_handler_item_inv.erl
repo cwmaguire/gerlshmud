@@ -141,13 +141,13 @@ set_child_properties(Child, Props) ->
     erlmud_object:attempt(Child, {self(), set_child_properties, ChildProps}).
 
 clear_child_top_item(Props, Item, Target) ->
-    log({type, give},
-        {object, self()},
-        {props, Props},
-        {item, Item},
-        {source, self()},
-        {target, Target},
-        {result, succeed}]),
+    log([{type, give},
+         {object, self()},
+         {props, Props},
+         {item, Item},
+         {source, self()},
+         {target, Target},
+         {result, succeed}]),
     TopItem = top_item(Props),
     Message = {Target, clear_child_property, top_item, 'if', TopItem},
     erlmud_object:attempt(Item, Message),

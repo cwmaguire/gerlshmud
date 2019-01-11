@@ -48,7 +48,7 @@ attempt({#parents{character = Character,
                      {Character, calc, Hit + Amount, on, Target, with, Item},
                      false,
                      Props,
-                     Log ++ [{new_hit, Hit + Amount}}
+                     [{new_hit, Hit + Amount} | Log]}
             end;
         _ ->
             {succeed, false, Props}
@@ -83,7 +83,7 @@ attempt({#parents{character = Character,
                   top_item = TopItem = #top_item{item = Item}},
          Props,
          {Attacker, calc, Hit, on, Character, with, Item}}) ->
-    Log = [{type, calc_hit}
+    Log = [{type, calc_hit},
            {source, Attacker},
            {target, Character},
            {hit, Hit},

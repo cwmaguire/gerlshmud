@@ -48,15 +48,9 @@ attempt({#parents{}, Props, Msg = {Source, look, TargetName}})
                  <<".\n">>]),
             {succeed, false, Props}
     end;
-attempt({#parents{}, Props, Msg = {Source, look, Self}}) when Self == self() ->
-    log([{stage, attempt},
-         {type, look},
-         {object, self()},
-         {props, Props},
-         {source, Source},
-         {name, TargetName},
-         {sub, true},
-         {message, Msg}]),
+attempt({#parents{}, Props, {Source, look, Self}}) when Self == self() ->
+    log([{type, look},
+         {source, Source} ]),
     {succeed, true, Props};
 attempt({#parents{},
          Props,
@@ -68,21 +62,19 @@ attempt({#parents{},
          {source, Source},
          {target, Self},
          {context, Context},
-         {sub, true},
-         {message, Msg}]),
+         {sub, true}]),
     {succeed, true, Props};
 attempt({#parents{owner = Owner},
          Props,
          {Source, describe, Owner, with, Context}}) ->
     log([{stage, attempt},
          {type, describe},
-         {object, Self},
+         {object, self()},
          {props, Props},
          {source, Source},
          {target, Owner},
          {context, Context},
-         {sub, true},
-         {message, Msg}]),
+         {sub, true}]),
     {succeed, true, Props};
 attempt(_) ->
     undefined.
@@ -105,7 +97,7 @@ succeed({Props, Msg = {Source, describe, Target, with, Context}}) ->
                      {object, Target},
                      {props, Props},
                      {source, Source},
-                     {target, Self},
+                     {target, self()},
                      {message, Msg},
                      {context, Context}]),
                 describe(Source, Props, Context, shallow);

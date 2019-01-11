@@ -45,8 +45,6 @@
                 next = [] :: ordsets:ordset(pid()),
                 subs = [] :: ordsets:ordset(pid())}).
 
--type proplist() :: [{atom(), any()}].
-
 -callback added(atom(), pid()) -> ok.
 -callback removed(atom(), pid()) -> ok.
 
@@ -122,8 +120,7 @@ handle_cast(Msg, State) ->
     handle_cast_(Msg, State).
 
 handle_cast_({populate, ProcIds}, State = #state{props = Props}) ->
-    log(debug,
-        [{stage, none},
+    log([{stage, none},
          {object, self()},
          {type, populate},
          {source, self()},
@@ -134,9 +131,9 @@ handle_cast_({set, Prop = {K, _}}, State = #state{props = Props}) ->
 handle_cast_({attempt, Msg, Procs}, State = #state{props = Props}) ->
     IsExit = proplists:get_value(is_exit, Props, false),
     {noreply, maybe_attempt(Msg, Procs, IsExit, State)};
-handle_cast_({fail, Reason, Msg, CustomLogProps}, State) ->
+handle_cast_({fail, Reason, Msg, LogProps}, State) ->
     case fail(Reason, Msg, State) of
-        {stop, Props, CustomLogProps} ->
+        {stop, Props, LogProps} ->
             {_, ParentsList} = parents(Props),
             %% TODO: remove from index
             log([{stage, fail_stop},
@@ -145,28 +142,28 @@ handle_cast_({fail, Reason, Msg, CustomLogProps}, State) ->
                  {props, Props},
                  {message, Msg},
                  {stop_reason, Reason} |
-                 ParentsList ++ CustomLogProps]),
+                 ParentsList ++ LogProps]),
             {stop, {shutdown, Reason}, State#state{props = Props}};
-        {Props, CustomLogProps} ->
+        {Props, LogProps} ->
             {_, ParentsList} = parents(Props),
             log([{stage, fail},
                  {object, self()},
                  {props, Props},
                  {message, Msg},
                  {stop_reason, Reason} |
-                 ParentsList ++ CustomLogProps]),
+                 ParentsList ++ LogProps]),
             {noreply, State#state{props = Props}}
     end;
 handle_cast_({succeed, Msg}, State) ->
     case succeed(Msg, State) of
-        {stop, Reason, Props, CustomLogProps} ->
+        {stop, Reason, Props, LogProps} ->
             {_, ParentsList} = parents(Props),
             log([{stage, succed_stop},
                  {object, self()},
                  {props, Props},
                  {message, Msg},
                  {stop_reason, Reason} |
-                 Parents ++ CustomLogProps]),
+                 ParentsList ++ LogProps]),
             {stop, {shutdown, Reason}, State#state{props = Props}};
         {Props, LogProps} ->
             {_, ParentsList} = parents(Props),
@@ -174,19 +171,18 @@ handle_cast_({succeed, Msg}, State) ->
                  {object, self()},
                  {props, Props},
                  {message, Msg} |
-                 ParentsList ++ CustomLogProps]),
+                 ParentsList ++ LogProps]),
             {noreply, State#state{props = Props}}
     end.
 
 handle_info({'EXIT', From, Reason}, State = #state{props = Props}) ->
     {_, ParentsList} = parents(Props),
-    log(debug,
-        [{type, exit},
+    log([{type, exit},
          {object, self()},
          {source, From},
          {reason, Reason},
          {props, Props} |
-         ParentsList]]),
+         ParentsList]),
     Props2 = lists:keydelete(From, 2, Props),
     {noreply, State#state{props = Props2}};
 handle_info({Pid, Msg}, State) ->
@@ -194,18 +190,16 @@ handle_info({Pid, Msg}, State) ->
     {noreply, State};
 handle_info(Unknown, State = #state{props = Props}) ->
     {_, ParentsList} = parents(Props),
-    log(debug,
-        [{type, unknown_message},
+    log([{type, unknown_message},
          {object, self()},
          {props, Props},
          {message, Unknown} |
-         ParentsList]]),
+         ParentsList]),
     {noreply, State}.
 
-terminate(Reason, State = #state{props = Props}) ->
+terminate(Reason, _State = #state{props = Props}) ->
     {_, ParentsList} = parents(Props),
-    log(debug,
-        [{type, shutdown},
+    log([{type, shutdown},
          {object, self()},
          {reason, Reason},
          {props, Props} |
@@ -257,17 +251,17 @@ attempt_(Msg,
                 Msg2,
                 ShouldSubscribe,
                 Props2,
-                CustomLogProps}}
+                LogProps}}
       = ensure_log_props(
           ensure_message(Msg,
                          run_handlers({Parents, Props, Msg}))),
-    log(debug, [{stage, attempt},
-                {object, Object},
-                {message, Message},
-                {handler, Handler},
-                {subscribe, ShouldSubscribe},
-                {props, Props2} |
-                ParentsList ++ CustomLogProps ++ result_tuples(Result)]),
+    log([{stage, attempt},
+         {object, self()},
+         {message, Msg},
+         {handler, Handler},
+         {subscribe, ShouldSubscribe},
+         {props, Props2} |
+         ParentsList ++ LogProps ++ result_tuples(Result)]),
     MergedProcs = merge(self(), is_room(Props), Results, Procs),
     _ = handle(Result, Msg2, MergedProcs, Props2),
     State#state{props = Props2}.
@@ -299,7 +293,7 @@ result_tuples(Any = {fail, Any}) ->
 result_tuples({resend, Target, Message}) ->
     [{result, resend}, {resend_to, Target}, {new_message, Message}];
 result_tuples(succeed) ->
-    [{result, succeed}],
+    [{result, succeed}];
 result_tuples({broadcast, Message}) ->
     [{result, broadcast}, {new_message, Message}].
 
@@ -322,8 +316,7 @@ handle_attempt([Handler | Handlers], Attempt) ->
 
 ensure_message(Msg, {Handler, {A, B, C}}) ->
     {Handler, {A, Msg, B, C}};
-ensure_message(_, T = {_, {_, NewMsg, _, _}}) ->
-    %log(debug, [<<"New message: ">>, NewMsg]),
+ensure_message(_, T) ->
     T.
 
 ensure_log_props({A, {B, {C, D, E}}}) ->
@@ -332,7 +325,7 @@ ensure_log_props(WithLogProps) ->
     WithLogProps.
 
 
-handle({resend, Target, Msg}, OrigMsg, _NoProcs, _Props) ->
+handle({resend, Target, Msg}, _OrigMsg, _NoProcs, _Props) ->
     send(Target, {attempt, Msg, #procs{}});
 handle({fail, Reason}, Msg, Procs = #procs{subs = Subs}, _Props) ->
     [send(Sub, {fail, Reason, Msg}, Procs) || Sub <- Subs];
@@ -357,12 +350,12 @@ handle({broadcast, Msg}, _Msg, _Procs, Props) ->
 broadcast(Pid, Msg) ->
     attempt(Pid, Msg).
 
-send(Pid, SendMsg = {fail, _Reason, Msg}, Procs) ->
+send(Pid, SendMsg = {fail, _Reason, _Msg}, _Procs) ->
     send_(Pid, SendMsg);
-send(Pid, SendMsg = {succeed, Msg}, Procs) ->
+send(Pid, SendMsg = {succeed, _Msg}, _Procs) ->
     send_(Pid, SendMsg).
 
-send(Pid, SendMsg = {attempt, Msg, Procs}) ->
+send(Pid, SendMsg = {attempt, _Msg, _Procs}) ->
     send_(Pid, SendMsg);
 send(Pid, Msg) ->
     send_(Pid, Msg).
@@ -384,7 +377,7 @@ proc(MaybeId, IdPids) when is_atom(MaybeId) ->
     MaybePid = proplists:get_value(MaybeId, IdPids, MaybeId),
     case is_pid(MaybePid) of
         true ->
-            log(debug, [{type, link}, {target, MaybePid}]),
+            log([{type, link}, {target, MaybePid}]),
             link(MaybePid);
         false ->
             ok

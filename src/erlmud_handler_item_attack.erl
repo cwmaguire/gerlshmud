@@ -31,7 +31,6 @@ attempt({#parents{character = Character},
          Props,
          {Character, counter_attack, Target}}) ->
     IsAttacking = proplists:get_value(is_attacking, Props, false),
-    log(debug, [self(), <<"attacking">>, Target, <<"with character ">>, Character, <<", is_attacking: ">>, IsAttacking]),
     log([{type, attack},
          {object, self()},
          {target, Target},
@@ -227,7 +226,7 @@ succeed({Props, {allocate, Amt, 'of', Type, to, Self}})
          {allocated, Allocated},
          {required, Required},
          {remaining_allocated, RemainingAllocated},
-         {has_resources, },
+         {has_resources, HasResources},
          {props, Props},
          {result, succeed}]),
     _Props = lists:keystore(allocated_resources, 1, Props, {allocated_resources, RemainingAllocated});
@@ -267,13 +266,13 @@ succeed({Props, {Character, calc, Damage, to, Target, with, Self}})
          {object, Self},
          {props, Props},
          {character, Character},
-         {damage, Miss},
+         {damage, Damage},
          {target, Target},
          {result, succeed}]),
     erlmud_object:attempt(self(), {Character, does, Damage, to, Target, with, Self}),
     Props;
 
-succeed({Props, {Character, calc, _NoDamage, to, Target, with, Self}})
+succeed({Props, {Character, calc, NoDamage, to, Target, with, Self}})
   when Self == self() ->
     %% Attack failed (No damage was done)
     %% TODO: output something to the client like
@@ -283,7 +282,7 @@ succeed({Props, {Character, calc, _NoDamage, to, Target, with, Self}})
          {object, Self},
          {props, Props},
          {character, Character},
-         {damage, Miss},
+         {damage, NoDamage},
          {target, Target},
          {result, succeed}]),
     Props;

@@ -40,7 +40,6 @@ attempt({#parents{owner = Owner}, Props, Msg = {Owner, die}}) ->
          {type, die},
          {object, self()},
          {props, Props},
-         {source, Source},
          {target, Owner},
          {message, Msg},
          {sub, true}]),
@@ -94,8 +93,7 @@ succeed({Props, {Source, killed, Owner, with, AttackVector}}) ->
          {props, Props},
          {source, Source},
          {target, Owner},
-         {attack_vector, AttackVector},
-         {message, Msg}]),
+         {attack_vector, AttackVector}]),
     erlmud_object:attempt(self(), {Owner, die}),
     Props;
 
@@ -104,8 +102,7 @@ succeed({Props, {Owner, die}}) ->
          {type, die},
          {object, self()},
          {props, Props},
-         {target, Owner},
-         {message, Msg}]),
+         {target, Owner}]),
     CorpseCleanupMilis = application:get_env(erlmud, corpse_cleanup_milis, 10 * 60 * 1000),
     erlmud_object:attempt_after(CorpseCleanupMilis, self(), {cleanup, Owner}),
     lists:keystore(is_alive, 1, Props, {is_alive, false});
