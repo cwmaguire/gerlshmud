@@ -58,23 +58,63 @@ add_log_to_fun({function, X, Stage, Y, Clauses},
 add_log_to_fun(Form, {NewForms, LogKeys}) ->
     {[Form | NewForms], LogKeys}.
 
-add_log_to_clause({clause, 34,
-                   [{tuple, X,
-                     [Parents,
-                      Props,
-                      Msg = [Vars]]}],
-                   [],
-                   Expressions},
+add_log_to_clause(Clause = {clause, X,
+                           [{tuple, Y,
+                             [Parents,
+                              Props,
+                              Msg = [Vars]]}],
+                           [],
+                           Expressions},
                   LogKeys) ->
 
     [LogTypes | Rest] = get(Stage, LogKeys),
     case length(LogTypes) == length(Vars) of
         true ->
-            add_log_to_expressions(Expressions, LogTypes)
+            LogExpression = log_expression(LogTypes, Vars),
+            Clause = {clause, X,
+                      [{tuple, Y,
+                        [Parents,
+                         Props,
+                         Msg]}],
+                      [],
+                      [LogExpression | Expressions]},
 
+            {Clause, update_log_keys(Stage, Rest, LogKeys)};
+        false ->
+            {Clause, LogKeys}
+    end;
+add_log_to_clause(Clause, LogKeys) ->
+    {Clause, LogKeys}.
 
+log_expression(LogTypes, Vars) ->
+    Cons = log_expression(lists:reverse(LogTypes),
+                          lists:reverse(Vars),
+                          {nil, 40}),
+    {cons, X, _} = Cons,
+    {match, X,
+     {var,X,'Log'}
+     Cons}
 
-    add_log_to_expression
+log_expression([], [], Cons) ->
+    Cons;
+log_expression([{user_type, _, Key, []} | LogTypes],
+               [{var, Y, Var} | Vars],
+               Cons) ->
+    Cons2 =
+        {cons, Y,
+         {tuple, Y, [{atom, Y, Key},
+                     {var, Y, Var}]},
+         Cons},
+    log_expression(LogTypes, Vars, Cons2);
+log_expression([{type, _, atom, []}  | LogTypes],
+               [_NotLogged | Vars],
+               Cons) ->
+    log_expression(LogTypes, Vars, Cons).
+
+update_log_keys(Stage, [], LogKeys) ->
+    maps:remove(Stage, LogKeys);
+update_log_keys(Stage, Keys, LogKeys) ->
+    maps:update(Stage, Keys, LogKeys).
 
 % TODO add succeed and fail functions
 % This first clause works for attempt
