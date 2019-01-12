@@ -34,8 +34,7 @@ attempt({_Owner, Props, {Obj, move, Exit, from, Room}}) when is_atom(Exit) ->
     Rooms = [R || R = {_, Room_} <- Props, Room_ == Room],
     move(Props, Obj, Rooms, Exit);
 attempt({_Owner, Props, {Mover, move, from, Source, to, Target, via, Self}}) when Self == self() ->
-    log([<<"Process ">>, Mover, <<" wants to leave room ">>, Source, <<" for ">>, Target, <<"\n">>]),
-    log([{type, move}, {source, Obj}, {from, Source}, {to, Target}, {exit, Self}]),
+    log([{type, move}, {source, Mover}, {from, Source}, {to, Target}, {exit, Self}]),
     case blocked_reason(Props) of
         {blocked_because, Reason} ->
             {{fail, Reason}, false, Props};
@@ -45,12 +44,12 @@ attempt({_Owner, Props, {Mover, move, from, Source, to, Target, via, Self}}) whe
 attempt(_) ->
     undefined.
 
-succeed({Props, Message}) ->
-    log([{source, self()}, {message, Message}, {result, succeed}]),
+succeed({Props, Msg}) ->
+    log([{source, self()}, {message, Msg}, {result, succeed}]),
     Props.
 
-fail({Props, Result, Msg}) ->
-    log([{source, self()}, {message, Message}, {result, fail}]),
+fail({Props, _Result, Msg}) ->
+    log([{source, self()}, {message, Msg}, {result, fail}]),
     Props.
 
 %% Make sure the specified exit name doesn't go back to the room that
@@ -116,5 +115,5 @@ blocked_reason(Props) ->
             not_blocked
     end.
 
-log(Terms) ->
-    erlmud_event_log:log(debug, [{module, ?MODULE} | Terms]).
+log(Props) ->
+    erlmud_event_log:log(debug, [{module, ?MODULE} | Props]).

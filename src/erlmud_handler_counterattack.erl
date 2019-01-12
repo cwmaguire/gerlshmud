@@ -20,7 +20,7 @@
 
 -include("include/erlmud.hrl").
 
-attempt({#parents{}, Props, {_Attacker, attack, Self}}) when Self == self() ->
+attempt({#parents{}, Props, {Attacker, attack, Self}}) when Self == self() ->
     log([{type, attack}, {source, Attacker}, {target, Self}]),
     {succeed, true, Props};
 
@@ -55,8 +55,8 @@ succeed({Props, {_Self, counter_attack, Target}}) ->
 succeed({Props, _}) ->
     Props.
 
-fail({Props, Result, Msg}) ->
-    log([{type, attack}, {result, fail}, {message, Msg}, {target, self()}]),
+fail({Props, _Result, _Msg}) ->
+    log([{type, attack}, {target, self()}]),
     Props.
 
 log(Props) ->

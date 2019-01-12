@@ -66,20 +66,22 @@ handle_call(Request, From, State) ->
     {reply, ignored, State}.
 
 handle_cast({log, Pid, Level, Props}, State) when is_list(Props) ->
+    JSON2 =
     try
         Props2 = [{process, Pid}, {level, Level} | Props],
         BinProps = [{K, json_friendly(V)} || {K, V} <- Props2],
-        JSON = jsx:encode(BinProps)
-        ok = file:write(State#state.log_file, <<JSON/binary, "\n">>)
+        JSON = jsx:encode(BinProps),
+        ok = file:write(State#state.log_file, <<JSON/binary, "\n">>),
+        JSON
     catch
         Error ->
             io:format(user, "~p caught error:~n\t~p~n", [?MODULE, Error])
     end,
-    [call_logger(Logger, Level, JSON) || Logger <- State#state.loggers],
+    [call_logger(Logger, Level, JSON2) || Logger <- State#state.loggers],
     {noreply, State};
 
-handle_case({register, Logger}, State = #state{loggers = Loggers}) ->
-    {noreply, State#state{loggers = [Logger | Loggers]}}.
+handle_cast({register, Logger}, State = #state{loggers = Loggers}) ->
+    {noreply, State#state{loggers = [Logger | Loggers]}};
 
 handle_cast(Msg, State) ->
     io:format(user, "Unrecognized cast: ~p~n", [Msg]),
@@ -103,14 +105,14 @@ terminate(Reason, State) ->
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
-props(Pid) ->
-    case erlmud_object:props(Pid) of
-        undefined ->
-            io:format(user, "Pid ~p has no props!", [Pid]),
-            [];
-        Props ->
-            Props
-    end.
+%props(Pid) ->
+%    case erlmud_object:props(Pid) of
+%        undefined ->
+%            io:format(user, "Pid ~p has no props!", [Pid]),
+%            [];
+%        Props ->
+%            Props
+%    end.
 
 get_log_path() ->
     case os:getenv("ERLMUD_LOG_PATH") of
@@ -121,10 +123,10 @@ get_log_path() ->
             Path
     end.
 
-maybe_name(Pid) when is_pid(Pid) ->
-    {Pid, erlmud_index:get(Pid)};
-maybe_name(NotPid) ->
-    NotPid.
+% maybe_name(Pid) when is_pid(Pid) ->
+%     {Pid, erlmud_index:get(Pid)};
+% maybe_name(NotPid) ->
+%     NotPid.
 
 call_logger(Logger, Level, JSON) ->
     try
@@ -136,19 +138,15 @@ call_logger(Logger, Level, JSON) ->
                       [?MODULE, Error])
     end.
 
-to_binary(L) when is_list(L) ->
-    lists:foldl(fun to_binary/2, <<>>, L);
-to_binary(NotList) ->
-    NotList.
-
-json_friendly(List) -> when is_list(List) ->
+json_friendly(List) when is_list(List) ->
     case is_string(List) of
         true ->
             l2b(List);
         false ->
             [json_friendly(E) || E <- List]
     end;
-json_friendly(Timestamp = {Meg, Sec, Mic}) when is_int(Meg), is_int(Sec), is_int(Mic)  ->
+json_friendly(Timestamp = {Meg, Sec, Mic})
+  when is_integer(Meg), is_integer(Sec), is_integer(Mic)  ->
     ts2b(Timestamp);
 json_friendly(Tuple) when is_tuple(Tuple) ->
     json_friendly(tuple_to_list(Tuple));
@@ -171,8 +169,8 @@ l2b(List) when is_list(List) ->
 p2b(Pid) when is_pid(Pid) ->
     list_to_binary(pid_to_list(Pid)).
 
-a2b(Atom) when is_atom(Atom) ->
-    list_to_binary(atom_to_list(Atom)).
+%a2b(Atom) when is_atom(Atom) ->
+    %list_to_binary(atom_to_list(Atom)).
 
 i2b(Int) when is_integer(Int) ->
     integer_to_binary(Int).

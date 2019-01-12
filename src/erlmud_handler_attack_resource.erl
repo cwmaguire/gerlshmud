@@ -35,7 +35,7 @@ attempt({#parents{character = Character,
          {Character, attack, Target, with, Owner}}) ->
     Log = [{type, attack},
            {target, Target}],
-    {succeed, true, Props};
+    {succeed, true, Props, Log};
 
 attempt({#parents{character = Character},
          Props,
@@ -43,7 +43,7 @@ attempt({#parents{character = Character},
     Log = [{type, move},
            {from, From},
            {to, To},
-           {exit, Exit}]
+           {exit, Exit}],
     {succeed, true, Props, Log};
 
 attempt({#parents{character = Character},
@@ -59,7 +59,7 @@ succeed({Props, {Character, attack, Target, with, Owner}}) ->
     [reserve(Character, Resource, Amount, Owner) || {resource, Resource, Amount} <- Props],
     Log = [{type, attack},
            {target, Target}],
-    Props;
+    {Props, Log};
 
 succeed({Props, {Character, move, From, To, Exit}}) ->
     Owner = proplists:get_value(owner, Props),
@@ -74,13 +74,13 @@ succeed({Props, {die, Character}}) ->
     Owner = proplists:get_value(owner, Props),
     unreserve(Character, Owner, Props),
     Log = [{type, die}],
-    {Props, Logs};
+    {Props, Log};
 
 succeed({Props, _}) ->
-    Props.
+    {Props, _Log = []}.
 
 fail({Props, _, _}) ->
-    Props.
+    {Props, _Log = []}.
 
 reserve(Character, Resource, Amount, Owner) ->
     erlmud_object:attempt(self(), {Character, reserve, Amount, 'of', Resource, for, Owner}).

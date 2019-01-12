@@ -35,12 +35,12 @@ attempt({#parents{owner = Owner},
 attempt(_) ->
     undefined.
 
-succeed({Props, Msg = {Attacker, does, Damage, to, Owner, with, AttackVector}}) ->
+succeed({Props, _Msg = {Attacker, does, Damage, to, Owner, with, AttackVector}}) ->
     log([{stage, succeed},
          {type, damage},
          {target, self()},
          {owner, Owner},
-         {from, Character},
+         {from, Attacker},
          {to, Owner},
          {damage, Damage},
          {vector, AttackVector},

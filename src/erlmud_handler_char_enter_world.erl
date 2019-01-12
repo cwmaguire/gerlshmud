@@ -36,8 +36,11 @@ attempt({_Parents,
 attempt(_) ->
     undefined.
 
-succeed({Props, {_Player, enter_world, in, _Room, with, Conn}}) ->
-    log([{type, char_enter_world}, {player, Player}, {result, succeed}]),
+succeed({Props, {Player, enter_world, in, Room, with, Conn}}) ->
+    log([{type, char_enter_world},
+         {player, Player},
+         {result, succeed},
+         {room, Room}]),
     lists:foldl(fun keyreplace/2, Props, [{conn_object, Conn}]);
 succeed({Props, _Other}) ->
     Props.

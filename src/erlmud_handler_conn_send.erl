@@ -37,5 +37,4 @@ fail({Props, _Reason, _Message}) ->
     Props.
 
 log(Props) ->
-    erlmud_event_log:log(Level, [{module, ?MODULE} | Props]).
-
+    erlmud_event_log:log(debug, [{module, ?MODULE} | Props]).
