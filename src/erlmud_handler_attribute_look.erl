@@ -65,7 +65,7 @@ succeed({Props, {Source, describe, Target, with, Context}}) ->
 succeed({Props, _Msg}) ->
     {Props, _Log = []}.
 
--spec fail(proplist(), any(), tuple()) -> {proplist(), proplist()}.
+-spec fail({proplist(), any(), tuple()}) -> {proplist(), proplist()}.
 fail({Props, _Reason, _Msg}) ->
     {Props, _Log = []}.
 
