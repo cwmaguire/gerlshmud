@@ -19,25 +19,16 @@
 parse_transform(Forms, _Options) ->
     io:format(user, ".~n", []),
     {attribute, _, file, {Path, _}} = lists:keyfind(file, 3, Forms),
-    case Path of
-        "src/erlmud_handler_attribute_look.erl" ->
-            %io:format(user, "Parse transforming forms: ~n"
-                            %"\t~p~n"
-                            %"\t with Options:~n"
-                            %"\t~p~n",
-                      %[Forms, Options]),
-            parse(Forms);
-        _ ->
-            io:format(user, "Path: ~p~n", [Path]),
-            Forms
-    end.
+    io:format(user, "Path = ~p~n", [Path]),
 
-parse(Forms) ->
+    % Get the keys for the properties we want to log from the function specs
     LogKeys = lists:foldl(fun spec_log_keys/2, #{}, Forms),
+
+    % for any function with message values that match a spec add a function
+    % building a proplist with the spec type names as keys and the message
+    % values as the values
     {Forms2, _} = lists:foldl(fun add_log_to_fun/2, {[], LogKeys}, Forms),
-    Forms3 = lists:reverse(Forms2),
-    io:format(user, "Forms3 = ~p~n", [Forms3]),
-    Forms3.
+    lists:reverse(Forms2).
 
 spec_log_keys({attribute, _, spec, {{Stage, _}, Funs}}, Map)
   when Stage == attempt;
