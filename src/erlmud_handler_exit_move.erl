@@ -30,26 +30,32 @@ attempt({_Owner, Props, {Obj, move, Exit, from, Room}}) when is_atom(Exit) ->
     %% to try and go from room A through an exit back to A.
     %% So, find the exit that leads to the "FromRoom", which we're trying to
     %% leave, so we don't go back there.
-    log([{type, move}, {source, Obj}, {exit, Exit}, {from, Room}]),
+    Log = [{type, move},
+           {source, Obj},
+           {exit, Exit},
+           {from, Room}],
     Rooms = [R || R = {_, Room_} <- Props, Room_ == Room],
-    move(Props, Obj, Rooms, Exit);
+    move(Props, Obj, Rooms, Exit, Log);
 attempt({_Owner, Props, {Mover, move, from, Source, to, Target, via, Self}}) when Self == self() ->
-    log([{type, move}, {source, Mover}, {from, Source}, {to, Target}, {exit, Self}]),
+    Log = [{type, move},
+           {source, Mover},
+           {from, Source},
+           {to, Target},
+           {exit, Self}],
     case blocked_reason(Props) of
         {blocked_because, Reason} ->
-            {{fail, Reason}, false, Props};
+            {{fail, Reason}, false, Props, Log};
         not_blocked ->
-            {succeed, true, Props}
+            {succeed, true, Props, Log}
     end;
 attempt(_) ->
     undefined.
 
 succeed({Props, Msg}) ->
-    log([{source, self()}, {message, Msg}, {result, succeed}]),
-    Props.
+    Log = [{source, self()}, {message, Msg}, {result, succeed}],
+    {Props, Log}.
 
-fail({Props, _Result, Msg}) ->
-    log([{source, self()}, {message, Msg}, {result, fail}]),
+fail({Props, _Result, _Msg}) ->
     Props.
 
 %% Make sure the specified exit name doesn't go back to the room that
@@ -81,7 +87,7 @@ fail({Props, _Result, Msg}) ->
 %% However, if the "FromExit" that goes to "FromRoom" is _different_ than the exit
 %% the object is trying to use, then it goes to a different room and we could be
 %% a valid exit; i.e. we lead somewhere else with "e".
-move(Props, Obj, [{{room, FromExit}, FromRoom}], ToExit) when FromExit /= ToExit ->
+move(Props, Obj, [{{room, FromExit}, FromRoom}], ToExit, Log) when FromExit /= ToExit ->
     %% This is a bit redundant, but will protect us from maps that are setup
     %% incorrectly: find the opposite exit in our properties that goes the
     %% way the object desires (e.g. "e") and doesn't go back to the room the
@@ -93,18 +99,15 @@ move(Props, Obj, [{{room, FromExit}, FromRoom}], ToExit) when FromExit /= ToExit
         %% Now that we've found an exit that doesn't go back to the original room
         %% we can resend the message to specify which room we lead to with exit "ToExit"
         [{_, ToRoom}] ->
-            log([{type, found_room},
-                 {to, ToRoom},
-                 {from, FromRoom},
-                 {exit, ToExit},
-                 {from_exit, FromExit}]),
+            Log2 = [{to, ToRoom},
+                    {from_exit, FromExit} | Log],
             NewMsg = {Obj, move, from, FromRoom, to, ToRoom, via, self()},
-            {{resend, Obj, NewMsg}, false, Props};
+            {{resend, Obj, NewMsg}, false, Props, Log2};
         [] ->
-            {succeed, false, Props}
+            {succeed, false, Props, Log}
     end;
-move(Props, _, _, _) ->
-    {succeed, false, Props}.
+move(Props, _, _, _, Log) ->
+    {succeed, false, Props, Log}.
 
 %% TODO: add things like is_one_way, is_open, is_right_size, etc.
 blocked_reason(Props) ->
@@ -114,6 +117,3 @@ blocked_reason(Props) ->
         _ ->
             not_blocked
     end.
-
-log(Props) ->
-    erlmud_event_log:log(debug, [{module, ?MODULE} | Props]).

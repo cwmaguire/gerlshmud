@@ -23,56 +23,70 @@
 %% Attacking
 attempt({#parents{character = Character},
          Props,
-         {Attacker, attack, _Target}})
+         {Attacker, attack, Target}})
   when Attacker == Character ->
-    {succeed, true, Props};
+    Log = [{source, Attacker},
+           {type, attack},
+           {target, Target}],
+    {succeed, true, Props, Log};
 
 attempt({#parents{character = Character},
          Props,
          {Character, counter_attack, Target}}) ->
     IsAttacking = proplists:get_value(is_attacking, Props, false),
-    log([{type, attack},
-         {object, self()},
-         {target, Target},
-         {character, Target},
-         {source, Character},
-         {is_attacking, IsAttacking}]),
+    Log = [{type, attack},
+           {source, Character},
+           {target, Target},
+           {is_attacking, IsAttacking}],
     case IsAttacking of
         false ->
-            {succeed, true, Props};
+            {succeed, true, Props, Log};
         _ ->
             %% If _other_ items aren't yet attacking the Target then they'll join in.
             %% I'm not sure how that would happen unless the player can set what they're
             %% attacking with for each individual attack. In that case they'll need to
             %% set what their default counterattack is.
-            {succeed, false, Props}
+            {succeed, false, Props, Log}
     end;
 
 attempt({#parents{character = Character},
          Props,
-         {Character, attack, _Target, with, Self}})
+         {Character, attack, Target, with, Self}})
   when Self == self() ->
+    Log = [{source, Character},
+           {type, attack},
+           {target, Target},
+           {item, Self}],
     case should_attack(Props) of
         true ->
-            {succeed, true, Props};
+            {succeed, true, Props, Log};
         false ->
-            {{fail, <<"Item is not wielded or is not activated">>}, false, Props}
+            {{fail, <<"Item is not wielded or is not activated">>}, false, Props, Log}
     end;
 
 attempt({#parents{},
          Props,
-         {allocate, _Required, 'of', _Type, to, Self}})
+         {allocate, Required, 'of', Type, to, Self}})
   when Self == self() ->
-    {succeed, true, Props};
+    Log = [{type, allocate},
+           {amount, Required},
+           {resource_type, Type},
+           {target, Self}],
+    {succeed, true, Props, Log};
 
 attempt({#parents{},
          Props,
-         {_Attacker, killed, Target, with, _AttackVector}}) ->
+         {Attacker, killed, Target, with, AttackVector}}) ->
+    Log = [{source, Attacker},
+           {type, killed},
+           {source, Target},
+           {vector, AttackVector}],
     case proplists:get_value(target, Props) of
         Target ->
-            {succeed, true, Props};
+            Log2 = [{target, Target} | Log],
+            {succeed, true, Props, Log2};
         _ ->
-            {succeed, false, Props}
+            {succeed, false, Props, Log}
     end;
 
 %% Defending
@@ -83,60 +97,75 @@ attempt({#parents{},
 attempt({#parents{character = Character},
          Props,
          {Attacker, calc, Hit, on, Character, with, AttackVector}}) ->
+    Log = [{source, Attacker},
+           {type, calc_hit},
+           {hit, Hit},
+           {target, Character},
+           {vector, AttackVector}],
     case should_defend(Props) of
         true ->
             case proplists:get_value(defence_hit_modifier, Props) of
                 undefined ->
-                    {succeed, false, Props};
+                    {succeed, false, Props, Log};
                 Amount ->
                     {succeed,
                      {Attacker, calc, Hit - Amount, on, Character, with, AttackVector},
                      true,
-                     Props}
+                     Props,
+                     Log}
             end;
         _ ->
-            {succeed, false, Props}
+            {succeed, false, Props, Log}
     end;
 attempt({#parents{character = Character},
          Props,
          {Attacker, calc, Damage, to, Character, with, AttackVector}}) ->
+    Log = [{source, Attacker},
+           {type, calc_damage},
+           {damage, Damage},
+           {target, Character},
+           {vector, AttackVector}],
     case should_defend(Props) of
         true ->
             case proplists:get_value(defence_damage_modifier, Props) of
                 undefined ->
-                    {succeed, false, Props};
+                    {succeed, false, Props, Log};
                 Amount ->
                     {succeed,
                      {Attacker, calc, Damage - Amount, on, Character, with, AttackVector},
                      true,
-                     Props}
+                     Props,
+                     Log}
             end;
         _ ->
-            {succeed, false, Props}
+            {succeed, false, Props, Log}
     end;
 
 attempt({#parents{character = Character}, Props, {Character, stop_attack}}) ->
-    {succeed, true, Props};
+    Log = [{source, Character},
+           {type, stop_attack}],
+    {succeed, true, Props, Log};
 
 attempt({#parents{character = Character},
          Props,
          {die, Character}}) ->
-    {succeed, true, Props};
+    Log = [{source, Character},
+           {type, die}],
+    {succeed, true, Props, Log};
 
 attempt({_, _, _Msg}) ->
     undefined.
 
-succeed({Props, {_Attacker, killed, Target, with, AttackVector}}) ->
-    log([{type, killed},
-         {object, self()},
-         {props, Props},
-         {target, Target},
-         {attack_vector, AttackVector},
-         {result, succeed}]),
+succeed({Props, {Attacker, killed, Target, with, AttackVector}}) ->
+    Log = [{type, killed},
+           {source, Attacker},
+           {target, Target},
+           {vector, AttackVector}],
     Character = proplists:get_value(character, Props),
     unreserve(Character, Props),
     Props2 = lists:keystore(target, 1, Props, {target, undefined}),
-    _Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, false});
+    Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, false}),
+    {Props3, Log};
 
 %% I feel like the character should kick off a counter-attack message when hit, but that means
 %% on _every_ hit I'm sending out a counter-attack message that's going to get ignored.
@@ -154,17 +183,13 @@ succeed({Props, {_Attacker, killed, Target, with, AttackVector}}) ->
 %% distinct, but similar, event.
 
 succeed({Props, {Attacker, attack, Target}}) when is_pid(Target) ->
+    Log = [{type, attack},
+           {source, Attacker},
+           {target, Target}],
     Character = proplists:get_value(character, Props),
     IsAttacking = proplists:get_value(is_attacking, Props, false),
     case {Character, IsAttacking} of
         {Attacker, false} ->
-            log([{type, attack},
-                 {object, self()},
-                 {character, Character},
-                 {target, Target},
-                 {is_attacking, IsAttacking},
-                 {props, Props},
-                 {result, succeed}]),
             erlmud_object:attempt(self(), {Attacker, attack, Target, with, self()});
         {Target, false} ->
             ok;
@@ -172,17 +197,14 @@ succeed({Props, {Attacker, attack, Target}}) when is_pid(Target) ->
         _ ->
             ok
     end,
-    Props;
+    {Props, Log};
 
 succeed({Props, {Attacker, counter_attack, Target}}) when is_pid(Target) ->
+    Log = [{source, Attacker},
+           {type, counter_attack},
+           {target, Target}],
     Character = proplists:get_value(character, Props),
     IsAttacking = proplists:get_value(is_attacking, Props, false),
-    log([{type, counter_attack},
-         {object, self()},
-         {target, Target},
-         {character, Character},
-         {props, Props},
-         {result, succeed}]),
     case {Character, IsAttacking} of
         {Attacker, false} ->
             erlmud_object:attempt(self(), {Attacker, attack, Target, with, self()});
@@ -191,23 +213,26 @@ succeed({Props, {Attacker, counter_attack, Target}}) when is_pid(Target) ->
         _ ->
             ok
     end,
-    Props;
+    {Props, Log};
 
 %% An attack by our character has been successfully instigated using this process:
 %% we'll register for resources and implement the attack when we have them.
-succeed({Props, {Character, attack, Target, with, _Self}}) ->
-    log([{type, attack},
-         {object, self()},
-         {props, Props},
-         {character, Character},
-         {target, Target},
-         {result, succeed}]),
+succeed({Props, {Character, attack, Target, with, Self}}) ->
+    Log = [{type, attack},
+           {source, Character},
+           {target, Target},
+           {item, Self}],
     reserve(Character, Props),
     Props2 = lists:keystore(target, 1, Props, {target, Target}),
-    _Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, true});
+    Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, true}),
+    {Props3, Log};
 
 succeed({Props, {allocate, Amt, 'of', Type, to, Self}})
   when Self == self() ->
+    Log = [{type, allocate},
+           {amount, Amt},
+           {resource_type, Type},
+           {target, Self}],
     Allocated = update_allocated(Amt, Type, Props),
     Required = proplists:get_value(resources, Props, []),
     HasResources = has_resources(Allocated, Required),
@@ -219,45 +244,31 @@ succeed({Props, {allocate, Amt, 'of', Type, to, Self}})
             _ ->
                 Allocated
         end,
-    log([{type, allocate},
-         {object, self()},
-         {amount, Amt},
-         {resource, Type},
-         {allocated, Allocated},
-         {required, Required},
-         {remaining_allocated, RemainingAllocated},
-         {has_resources, HasResources},
-         {props, Props},
-         {result, succeed}]),
-    _Props = lists:keystore(allocated_resources, 1, Props, {allocated_resources, RemainingAllocated});
+    Props = lists:keystore(allocated_resources, 1, Props, {allocated_resources, RemainingAllocated}),
+    {Props, Log};
 
 succeed({Props, {Character, calc, Hit, on, Target, with, Self}})
   when is_pid(Target),
        Self == self(),
        Hit > 0 ->
     Damage = proplists:get_value(attack_damage_modifier, Props, 1),
-    log([{type, calc_hit},
-         {object, Self},
-         {props, Props},
-         {character, Character},
-         {hit, Hit},
-         {target, Target},
-         {result, succeed}]),
+    Log = [{source, Character},
+           {type, calc_hit},
+           {hit, Hit},
+           {target, Target},
+           {item, Self}],
     erlmud_object:attempt(self(), {Character, calc, Damage, to, Target, with, Self}),
-    Props;
+    {Props, Log};
 
 succeed({Props, {Character, calc, Miss, on, Target, with, Self}})
   when is_pid(Target),
        Self == self() ->
-    log([{type, calc_hit},
-         {object, Self},
-         {props, Props},
-         {character, Character},
-         {hit, Miss},
-         {target, Target},
-         {result, succeed}]),
+    Log = [{source, Character},
+           {type, calc_hit},
+           {target, Target},
+           {hit, Miss}],
     % TODO: say "you missed!"
-    Props;
+    {Props, Log};
 
 succeed({Props, {Character, calc, Damage, to, Target, with, Self}})
   when Self == self(),
@@ -278,32 +289,28 @@ succeed({Props, {Character, calc, NoDamage, to, Target, with, Self}})
     %% TODO: output something to the client like
     %% "You manage to hit <target> but fail to do any damage"
     %%       _if_ this is a player
-    log([{type, calc_damage},
-         {object, Self},
-         {props, Props},
-         {character, Character},
-         {damage, NoDamage},
-         {target, Target},
-         {result, succeed}]),
-    Props;
+    Log = [{source, Character},
+           {type, calc_damage},
+           {damage, NoDamage},
+           {target, Target},
+           {item, Self}],
+    {Props, Log};
 
 succeed({Props, {Character, stop_attack}}) ->
-    log([{type, stop_attack},
-         {props, Props},
-         {character, Character},
-         {result, succeed}]),
+    Log = [{source, Character},
+           {type, stop_attack}],
     unreserve(Character, Props),
     Props2 = lists:keystore(target, 1, Props, {target, undefined}),
-    _Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, false});
+    Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, false}),
+    {Props3, Log};
 
 succeed({Props, {Character, die}}) ->
-    log([{type, die},
-         {props, Props},
-         {character, Character},
-         {result, succeed}]),
+    Log = [{source, Character},
+           {type, die}],
     unreserve(Character, Props),
     Props2 = lists:keystore(target, 1, Props, {target, undefined}),
-    _Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, false});
+    Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, false}),
+    {Props3, Log};
 
 succeed({Props, _}) ->
     Props.

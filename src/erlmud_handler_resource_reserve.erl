@@ -21,21 +21,36 @@
 -export([fail/1]).
 
 % If something reserves us and we have the same owner (character).
-attempt({#parents{owner = Owner}, Props, {Owner, reserve, _Amount, 'of', Self, for, _Proc}})
+attempt({#parents{owner = Owner}, Props, {Owner, reserve, Amount, 'of', Self, for, Proc}})
   when Self == self() ->
-    {succeed, true, Props};
-attempt({#parents{owner = Owner}, Props, {Owner, unreserve, Self, for, _Proc}})
+    Log = [{source, Owner},
+           {type, reserve},
+           {amount, Amount},
+           {target, Self},
+           {for, Proc}],
+    {succeed, true, Props, Log};
+attempt({#parents{owner = Owner}, Props, {Owner, unreserve, Self, for, Proc}})
   when Self == self() ->
-    {succeed, true, Props};
+    Log = [{source, Owner},
+           {type, unreserve},
+           {target, Self},
+           {for, Proc}],
+    {succeed, true, Props, Log};
 attempt({#parents{}, Props, {Self, update_tick}}) when Self == self() ->
-    {succeed, false, Props};
+    Log = [{source, Self},
+           {type, update_tick}],
+    {succeed, false, Props, Log};
 
 attempt(_) ->
     undefined.
 
-succeed({Props, {_Character, reserve, Amount, 'of', Self, for, Proc}})
+succeed({Props, {Character, reserve, Amount, 'of', Self, for, Proc}})
   when Self == self() ->
-    log(debug, [<<"Reserving ">>, Amount, <<" of ">>, Self, <<" for ">>, Proc, <<"\n">>]),
+    Log = [{source, Character},
+           {type, reserve},
+           {amount, Amount},
+           {target, Self},
+           {for, Proc}],
     Reservations = proplists:get_value(reservations, Props, []),
     Props2 = case lists:member({Proc, Amount}, Reservations) of
                  true ->
@@ -44,35 +59,35 @@ succeed({Props, {_Character, reserve, Amount, 'of', Self, for, Proc}})
                     [{reservations, Reservations ++ [{Proc, Amount}]} | proplists:delete(reservations, Props)]
              end,
     %io:format("New props (with reservations): ~p~n", [Props2]),
-    update_tick(Props2);
-succeed({Props, {_Character, unreserve, Self, for, Proc}})
+    Props3 = update_tick(Props2),
+    {Props3, Log};
+succeed({Props, {Character, unreserve, Self, for, Proc}})
   when Self == self() ->
+    Log = [{source, Character},
+           {type, unreserve},
+           {target, Self},
+           {for, Proc}],
     Reservations = proplists:get_value(reservations, Props, []),
     Props2 = lists:keystore(reservations, 1, Props, {reservations, lists:keydelete(Proc, 1, Reservations)}),
-    update_tick(Props2);
+    Props3 = update_tick(Props2),
+    {Props3, Log};
 succeed({Props, _}) ->
     Props.
 
 fail({Props, _, _}) ->
     Props.
 
-log(Level, IoData) ->
-    erlmud_event_log:log(Level, [list_to_binary(atom_to_list(?MODULE)) | IoData]).
-
 update_tick(Props) ->
     Self = self(),
-    log(debug, [Self, <<" updating tick">>, <<"\n">>]),
     Reservations = proplists:get_value(reservations, Props, []),
     Tick = proplists:get_value(tick, Props, undefined),
     PerTick = proplists:get_value(per_tick, Props, 1),
     case {Reservations, Tick} of
         {[_ | _], undefined} ->
-            log(debug, [Self, <<" creating new tick">>, <<"\n">>]),
             Ref = make_ref(),
             erlmud_object:attempt(Self, {Self, tick, Ref, with, PerTick}),
             [{tick, Ref} | Props];
         {[], _} ->
-            log(debug, [Self, <<" deleting tick">>, <<"\n">>]),
             lists:keydelete(tick, 1, Props);
         _ ->
             Props

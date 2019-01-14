@@ -21,21 +21,38 @@
 -export([fail/1]).
 
 attempt({#parents{}, Props, {Self, move, Direction}}) when Self == self() ->
+    Log = [{source, Self},
+           {type, move},
+           {direction, Direction}],
     case proplists:get_value(owner, Props) of
         undefined ->
-            {{fail, <<"Character doesn't have room">>}, false, Props};
+            {{fail, <<"Character doesn't have room">>}, false, Props, Log};
         Room ->
-            {{resend, Self, {Self, move, Direction, from, Room}}, false, Props}
+            Log2 = [{from, Room} | Log],
+            {{resend, Self, {Self, move, Direction, from, Room}}, false, Props, Log2}
     end;
-attempt({#parents{}, Props, {Self, move, _Dir, from, _From}}) when Self == self() ->
-    {succeed, true, Props};
-attempt({#parents{}, Props, {Self, move, from, _From, to, _To, via, _Exit}}) when Self == self() ->
-    {succeed, true, Props};
+attempt({#parents{}, Props, {Self, move, Dir, from, From}}) when Self == self() ->
+    Log = [{source, Self},
+           {type, move},
+           {direction, Dir},
+           {from, From}],
+    {succeed, true, Props, Log};
+attempt({#parents{}, Props, {Self, move, from, From, to, To, via, Exit}}) when Self == self() ->
+    Log = [{source, Self},
+           {type, move},
+           {from, From},
+           {to, To},
+           {exit, Exit}],
+    {succeed, true, Props, Log};
 attempt(_) ->
     undefined.
 
-succeed({Props, {Self, move, from, Source, to, Target, via, _Exit}}) when Self == self() ->
-    log([{type, move}, {source, Source}, {target, Target}, {result, succeed}]),
+succeed({Props, {Self, move, from, Source, to, Target, via, Exit}}) when Self == self() ->
+    Log = [{type, move},
+           {source, Self},
+           {from, Source},
+           {to, Target},
+           {exit, Exit}],
     NewProps = set(room, Target, set(owner, Target, Props)),
     case proplists:get_value(is_attacking, Props) of
         true ->
@@ -43,15 +60,16 @@ succeed({Props, {Self, move, from, Source, to, Target, via, _Exit}}) when Self =
         _ ->
             ok
     end,
-    NewProps;
+    {NewProps, Log};
 succeed({Props, {Self, move, Direction, from, Source}}) when Self == self(), is_atom(Direction) ->
-    %TODO I think this is actually a failure: if we found an exit that lead _from_ Source
-    %in the direction Direction then this attempt would have been resent as:
-    % {move, Self, Source, Target, ExitPid}
-    % by the exit process.
-    log([{type, move}, {source, Source}, {direction, Direction}, {result, succeed}]),
+    % erlmud_handler_exit_move should have turned this into:
+    % {Self, move, from, Source, to, Target, via, Exit}
+    Log = [{type, move},
+           {source, Self},
+           {direction, Direction},
+           {from, Source}],
     % TODO Let the player know they didn't get anywhere: "There is no exit <Direction> here."
-    Props;
+    {Props, Log};
 succeed({Props, _}) ->
     Props.
 
@@ -60,7 +78,3 @@ fail({Props, _, _}) ->
 
 set(Type, Obj, Props) ->
     lists:keystore(Type, 1, Props, {Type, Obj}).
-
-log(Props) ->
-    erlmud_event_log:log(debug, [{module, ?MODULE} | Props]).
-

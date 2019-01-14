@@ -20,40 +20,46 @@
 attempt({_Parents,
          Props,
          {Self, enter_world, in, room, with, Conn}}) when Self == self() ->
+    Log = [{source, Self},
+           {type, enter_world},
+           {conn, Conn}],
     case proplists:get_value(room, Props) of
         undefined ->
-            log([{type, char_enter_world}, {result, did_not_find_room}]),
-            {succeed, false, Props};
+            Log2 = [{target, undefined} | Log],
+            {succeed, false, Props, Log2};
         Room ->
-            log([{type, char_enter_world}, {result, found_room}]),
+            Log2 = [{target, Room} | Log],
             NewMessage = {Self, enter_world, in, Room, with, Conn},
-            {{resend, Self, NewMessage}, true, Props}
+            {{resend, Self, NewMessage}, true, Props, Log2}
     end;
 attempt({_Parents,
          Props,
          {Self, enter_world, in, Room, with, _Conn}}) when Self == self(), is_pid(Room) ->
-    {succeed, true, Props};
+    Log = [{source, Self},
+           {type, enter_world},
+           {target, Room}],
+    {succeed, true, Props, Log};
 attempt(_) ->
     undefined.
 
 succeed({Props, {Player, enter_world, in, Room, with, Conn}}) ->
-    log([{type, char_enter_world},
-         {player, Player},
-         {result, succeed},
-         {room, Room}]),
-    lists:foldl(fun keyreplace/2, Props, [{conn_object, Conn}]);
+    Log = [{type, char_enter_world},
+           {source, Player},
+           {target, Room},
+           {conn, Conn}],
+    Props2 = lists:foldl(fun keyreplace/2, Props, [{conn_object, Conn}]),
+    {Props2, Log};
 succeed({Props, _Other}) ->
     Props.
 
-fail({Props, Reason, {_Player, enter_world}}) ->
+fail({Props, Reason, {Player, enter_world}}) ->
+    Log = [{source, Player},
+           {type, enter_world}],
     Conn = proplists:get_value(conn, Props),
     Conn ! {disconnect, Reason},
-    Props;
+    {Props, Log};
 fail({Props, _Reason, _Message}) ->
     Props.
 
 keyreplace(NewKV = {Key, _}, Props) ->
     [NewKV | lists:keydelete(Key, 1, Props)].
-
-log(IoData) ->
-    erlmud_event_log:log(debug, [list_to_binary(atom_to_list(?MODULE)) | IoData]).

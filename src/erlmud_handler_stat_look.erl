@@ -23,25 +23,32 @@
 
 attempt({#parents{owner = Owner},
          Props,
-         {_Source, look, Owner, with, _Context}}) ->
-    {succeed, true, Props};
+         {Source, look, Owner, with, Context}}) ->
+    Log = [{source, Source},
+           {type, look},
+           {target, Owner},
+           {context, Context}],
+    {succeed, true, Props, Log};
 attempt(_) ->
     undefined.
 
-succeed({Props, {Source, look, Target, look, Context}}) ->
+succeed({Props, {Source, look, Target, with, Context}}) ->
+    Log = [{source, Source},
+           {type, look},
+           {target, Target},
+           {context, Context}],
+
     _ = case is_owner(Target, Props) of
             true ->
                 describe(Source, Props, Context);
             _ ->
                 ok
         end,
-    Props;
-succeed({Props, Msg}) ->
-    log([<<"saw ">>, Msg, <<" succeed with props ">>, Props]),
+    {Props, Log};
+succeed({Props, _Msg}) ->
     Props.
 
-fail({Props, Result, Msg}) ->
-    log([<<"result: ">>, Result, <<" message: ">>, Msg]),
+fail({Props, _Result, _Msg}) ->
     Props.
 
 is_owner(MaybeOwner, Props) when is_pid(MaybeOwner) ->

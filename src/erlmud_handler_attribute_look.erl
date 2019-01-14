@@ -22,46 +22,47 @@
 -export([succeed/1]).
 -export([fail/1]).
 
--define(ATTEMPT_LOG(Props),
-        ({#parents{},
-          proplist(),
-          Props}) -> {atom(), boolean(), proplist(), proplist()}).
-
-%-spec attempt({#parents{},
-               %proplist(),
-               %{source(), type(), target(), atom(), context()}}) ->
-          %{atom(), boolean(), proplist(), proplist()};
-             %({#parents{},
-               %proplist(),
-               %{source(), type(), target(), atom(), context()}}) ->
-          %{atom(), boolean(), proplist(), proplist()}.
-
--spec attempt?ATTEMPT_LOG({source(), type(), target(), atom(), context()});
-             ?ATTEMPT_LOG({source(), type(), target(), atom(), context()}).
 attempt({#parents{owner = Owner},
          Props,
          {Source, describe, Owner, with, Context}}) ->
+    Log = [{source, Source},
+           {type, describe},
+           {target, Owner},
+           {context, Context}],
     {succeed, true, Props, Log};
 % TODO WHAT THE CRAP? This second pattern will never match
 % Remove and make sure tests pass
 attempt({#parents{owner = Owner},
          Props,
          {Source, describe, Owner, with, Context}}) ->
+    Log = [{source, Source},
+           {type, describe},
+           {target, Owner},
+           {context, Context}],
     ShouldSubscribe = _AttributeIsRace = race == proplists:get_value(type, Props),
     {succeed, ShouldSubscribe, Props, Log};
 attempt(_) ->
     undefined.
 
 succeed({Props, {Source, describe, Self, with, Context}}) when Self == self() ->
-    describe(Source, Props, Context, deep);
+    Log = [{source, Source},
+           {type, describe},
+           {target, Self},
+           {context, Context}],
+    Props2 = describe(Source, Props, Context, deep),
+    {Props2, Log};
 succeed({Props, {Source, describe, Target, with, Context}}) ->
+    Log = [{source, Source},
+           {type, describe},
+           {target, Target},
+           {context, Context}],
     _ = case is_owner(Target, Props) of
             true ->
                 describe(Source, Props, Context, shallow);
             _ ->
                 ok
         end,
-    {Props, _Log = []};
+    {Props, Log};
 succeed({Props, _Msg}) ->
     {Props, _Log = []}.
 

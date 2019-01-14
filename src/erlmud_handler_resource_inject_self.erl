@@ -30,9 +30,11 @@ attempt({#parents{owner = Owner},
          Props,
          {Owner, reserve, Amt, 'of', ResourceType, for, AttackVector}})
   when is_atom(ResourceType) ->
-    Log = [{type, reserve},
-           {source, Owner},
-           {amount, Amt}],
+    Log = [{source, Owner},
+           {type, reserve},
+           {amount, Amt},
+           {resource_type, ResourceType},
+           {vector, AttackVector}],
     case proplists:get_value(type, Props) of
         ResourceType ->
             NewMessage = {Owner, reserve, Amt, 'of', self(), for, AttackVector},
@@ -45,8 +47,10 @@ attempt({#parents{owner = Owner},
 attempt({#parents{owner = Owner},
          Props,
          {Owner, unreserve, ResourceType, for, AttackVector}}) when is_atom(ResourceType) ->
-    Log = [{resource_type, ResourceType},
-           {attack_vector, AttackVector}],
+    Log = [{source, Owner},
+           {type, unreserver},
+           {resource_type, ResourceType},
+           {vector, AttackVector}],
     case proplists:get_value(type, Props) of
         ResourceType ->
             NewMessage = {Owner, unreserve, self(), for, AttackVector},

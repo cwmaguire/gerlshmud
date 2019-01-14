@@ -23,18 +23,23 @@
 attempt({#parents{}, Props, {Source, Action, TargetName}})
   when is_binary(TargetName) andalso
       (Action == look orelse Action == attack) ->
+    Log = [{source, Source},
+           {type, Action}],
     case is_name(Props, TargetName) of
         true ->
+            Log2 = [{target, self()} | Log],
             NewMessage = {Source, Action, self()},
             Result = {resend, Source, NewMessage},
-            {Result, true, Props};
+            {Result, true, Props, Log2};
         _ ->
-            _Name = proplists:get_value(name, Props),
-            {succeed, _Subscribe = false, Props}
+            Log2 = [{target, TargetName} | Log],
+            {succeed, _Subscribe = false, Props, Log2}
     end;
 attempt({Owner, Props, {Self, look}}) when Self == self() ->
+    Log = [{source, Self},
+           {type, look}],
     NewMessage = {Self, look, Owner},
-    {{resend, Self, NewMessage}, _ShouldSubscribe = false, Props};
+    {{resend, Self, NewMessage}, _ShouldSubscribe = false, Props, Log};
 attempt(_) ->
     undefined.
 

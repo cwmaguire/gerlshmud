@@ -18,36 +18,61 @@
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({_Owner, Props, {_Obj, move, from, Source, to, Target, via, _Exit}}) when Source == self(); Target == self() ->
-    {succeed, true, Props};
-attempt({_Owner, Props, {_Obj, enter_world, in, Self, with, _Conn}}) when Self == self() ->
-    {succeed, true, Props};
+attempt({_Owner, Props, {Obj, move, from, Source, to, Target, via, Exit}})
+  when Source == self(); Target == self() ->
+    Log = [{source, Obj},
+           {type, move},
+           {from, Source},
+           {to, Target},
+           {exit, Exit}],
+    {succeed, true, Props, Log};
+attempt({_Owner, Props, {Obj, enter_world, in, Self, with, Conn}}) when Self == self() ->
+    Log = [{source, Obj},
+           {type, enter_world},
+           {room, Self},
+           {conn, Conn}],
+    {succeed, true, Props, Log};
 attempt(_) ->
     undefined.
 
-succeed({Props, {Obj, move, from, Self, to, Target, via, _Exit}}) when Self == self() ->
-    log([Obj, <<" went to ">>, Target]),
-    lists:keydelete(Obj, 2, Props);
-succeed({Props, {Obj, move, from, Source, to, Self, via, _Exit}}) when Self == self() ->
-    log([Obj, <<" came from ">>, Source]),
-    [{character, Obj} | Props];
-succeed({Props, {Obj, enter_world, in, Self, with, _Conn}}) when Self == self() ->
-    [{character, Obj} | Props];
+succeed({Props, {Obj, move, from, Self, to, Target, via, Exit}}) when Self == self() ->
+    Log = [{source, Obj},
+           {type, move},
+           {from, Self},
+           {to, Target},
+           {exit, Exit}],
+    Props2 = lists:keydelete(Obj, 2, Props),
+    {Props2, Log};
+succeed({Props, {Obj, move, from, Source, to, Self, via, Exit}}) when Self == self() ->
+    Log = [{source, Obj},
+           {type, move},
+           {from, Source},
+           {to, Self},
+           {exit, Exit}],
+    Props2 = [{character, Obj} | Props],
+    {Props2, Log};
+succeed({Props, {Obj, enter_world, in, Self, with, Conn}}) when Self == self() ->
+    Log = [{source, Obj},
+           {type, enter_world},
+           {room, Self},
+           {conn, Conn}],
+    Props2 = [{character, Obj} | Props],
+    {Props2, Log};
 succeed({Props, _}) ->
     Props.
 
-fail({Props, Reason, {Obj, move, from, Self, to, Target}}) when Self == self() ->
-    log([Obj, <<" couldn't go from here to ">>, Target, <<" ">>, Reason]),
-    Props;
-fail({Props, Reason, {Obj, move, from, Source, to, Target, via, Exit}}) when Source == self(); Target == self() ->
-    log([Obj, <<" couldn't move from ">>,
-         <<" room ">>, Source, <<" to room ">>, Target,
-         <<" via ">>, Exit,
-         <<" because ">>, Reason,
-         <<", Props: ">>, Props]),
-    Props;
+fail({Props, _Reason, {Obj, move, from, Self, to, Target}}) when Self == self() ->
+    Log = [{source, Obj},
+           {type, move},
+           {from, Self},
+           {to, Target}],
+    {Props, Log};
+fail({Props, _Reason, {Obj, move, from, Source, to, Target, via, Exit}}) when Source == self(); Target == self() ->
+    Log = [{source, Obj},
+           {type, move},
+           {from, Source},
+           {to, Target},
+           {exit, Exit}],
+    {Props, Log};
 fail({Props, _, _}) ->
     Props.
-
-log(Terms) ->
-    erlmud_event_log:log(debug, [list_to_binary(atom_to_list(?MODULE)) | Terms]).

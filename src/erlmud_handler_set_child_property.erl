@@ -38,19 +38,28 @@
 attempt({#parents{owner = Owner},
          Props,
          {Owner, set_child_property, Key, Value}}) ->
+    Log = [{source, Owner},
+           {type, set_child_property},
+           {key, Key},
+           {value, Value}],
     NewMessage = {self(), set_child_property, Key, Value},
     Props2 = lists:keystore(Key, 1, Props, {Key, Value}),
-    {{broadcast, NewMessage}, false, Props2};
+    {{broadcast, NewMessage}, false, Props2, Log};
 attempt({#parents{owner = Owner},
          Props,
          {Owner, set_child_properties, ParentProps}}) ->
+    Log = [{source, Owner},
+           {type, set_child_properties}],
     NewMessage = {self(), set_child_properties, ParentProps},
     Props2 = lists:foldl(fun apply_parent_prop/2, Props, ParentProps),
-    {{broadcast, NewMessage}, false, Props2};
+    {{broadcast, NewMessage}, false, Props2, Log};
 attempt({#parents{owner = Owner},
          Props,
-         {Owner, clear_child_property, _Key = top_item,
+         {Owner, clear_child_property, Key = top_item,
           'if', TopItem = #top_item{item = Item, ref = Ref}}}) ->
+    Log = [{source, Owner},
+           {type, clear_child_property},
+           {key, Key}],
     NewMessage = {self(), clear_child_property, top_item, 'if', TopItem},
     %% Only clear the top item if our #top_item{} has the same ref.
     %% Otherwise another item (or this same item) may have already
@@ -64,10 +73,14 @@ attempt({#parents{owner = Owner},
                  _ ->
                      Props
              end,
-    {{broadcast, NewMessage}, false, Props2};
+    {{broadcast, NewMessage}, false, Props2, Log};
 attempt({#parents{owner = Owner},
          Props,
          {Owner, clear_child_property, Key, 'if', Value}}) ->
+    Log = [{source, Owner},
+           {type, clear_child_property},
+           {key, Key},
+           {value, Value}],
     NewMessage = {self(), clear_child_property, Key, 'if', Value},
     Props2 = case proplists:get_value(Key, Props) of
                  Value ->
@@ -75,9 +88,10 @@ attempt({#parents{owner = Owner},
                  _ ->
                      Props
              end,
-    {{broadcast, NewMessage}, false, Props2};
+    {{broadcast, NewMessage}, false, Props2, Log};
 attempt({_, Props, {_, set_child_property, _, _}}) ->
-    {{fail, not_a_child}, _Subscribe = false, Props};
+    Log = [{type, set_child_property}],
+    {{fail, not_a_child}, _Subscribe = false, Props, Log};
 attempt(_) ->
     undefined.
 

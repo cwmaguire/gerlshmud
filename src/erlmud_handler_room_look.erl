@@ -24,7 +24,9 @@ attempt(_) ->
     undefined.
 
 succeed({Props, {Player, look, Self}}) when Self == self() ->
-    log([<<"Process ">>, Player, <<" looked at me">>]),
+    Log = [{source, Player},
+           {type, look},
+           {target, Self}],
     describe(Player, Props),
     Name = proplists:get_value(name, Props, <<"room with no name">>),
     RoomContext = <<Name/binary, " -> ">>,
@@ -32,7 +34,7 @@ succeed({Props, {Player, look, Self}}) when Self == self() ->
     %% which is a key to objects in this room to describe themselves
     NewMessage = {Player, describe, self(), with, RoomContext},
     erlmud_object:attempt(Player, NewMessage),
-    Props;
+    {Props, Log};
 succeed({Props, _}) ->
     Props.
 

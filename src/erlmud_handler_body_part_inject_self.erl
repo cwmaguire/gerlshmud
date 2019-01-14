@@ -24,39 +24,50 @@ attempt({#parents{owner = Owner},
          Props,
          {Item, move, from, Owner, to, BodyPartName}})
   when is_binary(BodyPartName) ->
+    Log = [{item, Item},
+           {type, move},
+           {source, Owner}],
     case is_match(Props, BodyPartName) of
         true ->
             NewMessage = {Item, move, from, Owner, to, self()},
             Result = {resend, Owner, NewMessage},
-            {Result, _Subscribe = true, Props};
+            {Result, _Subscribe = true, Props, [{target, self()} | Log]};
         _ ->
-            {succeed, _Subscribe = false, Props}
+            {succeed, _Subscribe = false, Props, [{target, BodyPartName} | Log]}
     end;
 attempt({#parents{owner = Owner},
          Props,
          {Item, move, from, BodyPartName, to, Owner}})
   when is_pid(Item) andalso
        is_binary(BodyPartName) ->
+    Log = [{item, Item},
+           {type, move},
+           {target, Owner}],
     case is_match(Props, BodyPartName) of
         true ->
+            Log2 = [{source, self()} | Log],
             NewMessage = {Item, move, from, self(), to, Owner},
             Result = {resend, Owner, NewMessage},
-            {Result, _Subscribe = true, Props};
+            {Result, _Subscribe = true, Props, Log2};
         _ ->
-            {succeed, _Subscribe = false, Props}
+            Log2 = [{source, BodyPartName} | Log],
+            {succeed, _Subscribe = false, Props, Log2}
     end;
 attempt({#parents{owner = Owner},
          Props,
          {Item, move, from, current_body_part, to, Owner}}) ->
-    %% We can't have the room inject itself because a room might
-    %% be owned by  a room, character, another item, etc.
+    Log = [{item, Item},
+           {type, move},
+           {target, Owner}],
     case [Item_ || {item, {Item_, _Ref}} <- Props, Item_ == Item] of
         [_ | _] ->
+            Log2 = [{source, self()} | Log],
             NewMessage = {Item, move, from, self(), to, Owner},
             Result = {resend, Owner, NewMessage},
-            {Result, _Subscribe = true, Props};
+            {Result, _Subscribe = true, Props, Log2};
         _ ->
-            {succeed, _Subscribe = false, Props}
+            Log2 = [{source, current_body_part} | Log],
+            {succeed, _Subscribe = false, Props, Log2}
     end;
 attempt(_) ->
     undefined.

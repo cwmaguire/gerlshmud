@@ -41,31 +41,40 @@
 attempt({#parents{top_item = TopItem},
          Props,
          {Character, calc, Hit, on, Target, with, TopItem}}) ->
+    Log = [{source, Character},
+           {type, calc_hit},
+           {hit, Hit},
+           {target, Target},
+           {vector, TopItem}],
     case is_interested(Props) of
         true ->
             case proplists:get_value(attack_hit_modifier, Props) of
                 undefined ->
-                    {succeed, false, Props};
+                    {succeed, false, Props, Log};
                 Amount ->
-                    {succeed, {Character, calc, Hit + Amount, on, Target, with, TopItem}}
+                    {succeed, {Character, calc, Hit + Amount, on, Target, with, TopItem}, Log}
             end;
         _ ->
-            {succeed, false, Props}
+            {succeed, false, Props, Log}
     end;
 attempt({#parents{top_item = TopItem},
          Props,
          {Character, damage, Damage, to, Target, with, TopItem}}) ->
-
+    Log = [{source, Character},
+           {type, damage},
+           {damage, Damage},
+           {target, Target},
+           {vector, TopItem}],
     case is_interested(Props) of
         true ->
             case proplists:get_value(attack_damage_modifier, Props) of
                 undefined ->
-                    {succeed, false, Props};
+                    {succeed, false, Props, Log};
                 Amount ->
-                    {succeed, {Character, calc, Damage + Amount, on, Target, with, TopItem}}
+                    {succeed, {Character, calc, Damage + Amount, on, Target, with, TopItem}, Log}
             end;
         _ ->
-            {succeed, false, Props}
+            {succeed, false, Props, Log}
     end;
 
 %% Defending: hit and damage
@@ -73,39 +82,52 @@ attempt({#parents{top_item = TopItem},
 %% and active when their states change.
 attempt({#parents{character = Character},
          Props,
-         {_Attacker, calc, Hit, on, Character, with, AttackVector}}) ->
+         {Attacker, calc, Hit, on, Character, with, AttackVector}}) ->
+    Log = [{source, Attacker},
+           {type, calc_hit},
+           {hit, Hit},
+           {target, Character},
+           {vector, AttackVector}],
     case is_interested(Props) of
         true ->
             case proplists:get_value(defence_hit_modifier, Props) of
                 undefined ->
-                    {succeed, false, Props};
+                    {succeed, false, Props, Log};
                 Amount ->
-                    {succeed, {Character, calc, Hit + Amount, on, Character, with, AttackVector}}
+                    {succeed, {Character, calc, Hit + Amount, on, Character, with, AttackVector}, Log}
             end;
         _ ->
-            {succeed, false, Props}
+            {succeed, false, Props, Log}
     end;
 attempt({#parents{character = Character},
          Props,
          {Character, damage, Damage, to, Target, with, AttackVector}}) ->
-
+    Log = [{source, Character},
+           {type, damage},
+           {damage, Damage},
+           {target, Target},
+           {vector, AttackVector}],
     case is_interested(Props) of
         true ->
             case proplists:get_value(defence_damage_modifier, Props) of
                 undefined ->
-                    {succeed, false, Props};
+                    {succeed, false, Props, Log};
                 Amount ->
-                    {succeed, {Character, calc, Damage + Amount, on, Target, with, AttackVector}}
+                    ModifiedMessage = {Character, calc, Damage + Amount, on, Target, with, AttackVector},
+                    {succeed, ModifiedMessage, Log}
             end;
         _ ->
-            {succeed, false, Props}
+            {succeed, false, Props, Log}
     end;
 attempt({_, _, _Msg}) ->
     undefined.
 
 succeed({Props, {Character, attack, Target}}) when is_pid(Target) ->
+    Log = [{source, Character},
+           {type, attack},
+           {target, Target}],
     erlmud_object:attempt(self(), {Character, attack, Target, with, self()}),
-    Props;
+    {Props, Log};
 succeed({Props, _}) ->
     Props.
 

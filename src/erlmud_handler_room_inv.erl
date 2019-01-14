@@ -18,18 +18,32 @@
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({_Owner, Props, {_Item, move, from, Source, to, Target}})
+attempt({_Owner, Props, {Item, move, from, Source, to, Target}})
   when Source == self(); Target == self() ->
-    {succeed, true, Props};
+    Log = [{source, Item},
+           {type, move},
+           {from, Source},
+           {to, Target}],
+    {succeed, true, Props, Log};
 attempt(_Attempt) ->
     undefined.
 
 succeed({Props, {Item, move, from, Self, to, Target}}) when Self == self() ->
     log([<<"Process ">>, Target, <<" got ">>, Item, <<" from me">>]),
-    lists:keydelete(Item, 2, Props);
+    Log = [{source, Item},
+           {type, move},
+           {from, Self},
+           {to, Target}],
+    Props2 = lists:keydelete(Item, 2, Props),
+    {Props2, Log};
 succeed({Props, {Item, move, from, Target, to, Self}}) when Self == self() ->
     log([Item, <<" added to me from ">>, Target]),
-    [{item, Item} | Props];
+    Log = [{source, Item},
+           {type, move},
+           {from, Target},
+           {to, Self}],
+    Props2 = [{item, Item} | Props],
+    {Props2, Log};
 succeed({Props, _}) ->
     Props.
 

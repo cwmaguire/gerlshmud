@@ -13,8 +13,8 @@ ERLC_OPTS = -Werror \
 						+warn_export_vars \
 						+warn_shadow_vars \
 						+warn_obsolete_guard \
-						+'{parse_transform, lager_transform}' \
-						+'{parse_transform, erlmud_log_transform}'
+						+'{parse_transform, lager_transform}'
+						#+'{parse_transform, erlmud_log_transform}'
 						#+native ##\
 
 ## copied from erlang.mk and added lager parse transform
@@ -22,7 +22,7 @@ TEST_ERLC_OPTS = +debug_info \
 								 +warn_export_vars \
                  +warn_shadow_vars \
 								 +warn_obsolete_guard \
-								 +'{parse_transform, lager_transform}' \
-								 +'{parse_transform, erlmud_log_transform}'
+								 +'{parse_transform, lager_transform}'
+								 #+'{parse_transform, erlmud_log_transform}'
 
 include erlang.mk

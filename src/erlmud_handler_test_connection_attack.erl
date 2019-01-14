@@ -31,136 +31,161 @@ is_dead_action(_) ->
 
 attempt({#parents{owner = Owner},
          Props,
-         Msg = {killed, _Attack, _Source, Owner}}) ->
-    log([<<"attempt: ">>, Msg, <<", props: ">>, Props]),
-    {succeed, _Subscribe = true, Props};
+         _Msg = {killed, Attack, Source, Owner}}) ->
+    % This is just a guess, per the message above I don't know if this is used
+    Log = [{type, killed},
+           {source, Source},
+           {target, Owner},
+           {vector, Attack}],
+    {succeed, _Subscribe = true, Props, Log};
 attempt({#parents{owner = Owner},
          Props,
          _Msg = {die, Owner}}) ->
-    %log("attempt: ~p, props: ~p~n", [Msg, Props]),
-    {succeed, _Subscribe = true, Props};
+    Log = [{type, die},
+           {source, Owner}],
+    {succeed, _Subscribe = true, Props, Log};
 attempt({#parents{owner = Owner},
          Props,
-         _Msg = {Action, _Attack, Owner, _Target, _}})
+         _Msg = {Action, Attack, Owner, Target, _}})
     when Action == calc_hit; Action == calc_damage ->
-    %log("attempt: ~p, props: ~p~n", [Msg, Props]),
+    Log = [{type, Action},
+           {source, Owner},
+           {target, Target},
+           {vector, Attack}],
     case proplists:get_value(is_alive, Props, false) of
         false ->
             %log("~p cannot ~p ~p when ~p is dead~n", [Owner, Action, Target, Owner]),
-            {{fail, target_is_dead}, _Subscribe = false, Props};
+            {{fail, target_is_dead}, _Subscribe = false, Props, Log};
         _ ->
-            {succeed, false, Props}
+            {succeed, false, Props, Log}
     end;
 attempt({#parents{owner = Owner},
          Props,
-         _Msg = {Action, _Attack, _Attacker, Owner, _}})
+         _Msg = {Action, Attack, Attacker, Owner, _}})
     when Action == calc_hit; Action == calc_damage ->
-    %log("attempt: ~p, props: ~p~n", [Msg, Props]),
+    Log = [{type, Action},
+           {vector, Attack},
+           {source, Attacker},
+           {target, Owner}],
     case proplists:get_value(is_alive, Props, false) of
         false ->
             %log("~p cannot ~p ~p when ~p is dead~n", [Attacker, Action, Owner, Owner]),
-            {{fail, target_is_dead}, _Subscribe = false, Props};
+            {{fail, target_is_dead}, _Subscribe = false, Props, Log};
         _ ->
-            {succeed, false, Props}
+            {succeed, false, Props, Log}
     end;
 attempt({#parents{owner = Owner},
          Props,
-         _Msg = {calc_next_attack_wait, _Attack, _Attacker, Owner, _, _}}) ->
-    %log("attempt: ~p,~nprops: ~p~n", [Msg, Props]),
+         _Msg = {calc_next_attack_wait, Attack, Attacker, Owner, _, _}}) ->
+    Log = [{type, calc_next_attack_wait},
+           {vector, Attack},
+           {source, Attacker},
+           {target, Owner}],
     case proplists:get_value(is_alive, Props, false) of
         false ->
             %log("~p cannot ~p to attack ~p when ~p is dead~n", [Attacker, calc_next_attack_wait, Owner, Owner]),
-            {{fail, target_is_dead}, _Subscribe = false, Props};
+            {{fail, target_is_dead}, _Subscribe = false, Props, Log};
         _ ->
-            {succeed, false, Props}
+            {succeed, false, Props, Log}
     end;
 attempt({#parents{owner = Owner},
          Props,
-         _Msg = {calc_next_attack_wait, _Attack, Owner, _Target, _, _}}) ->
-    %log("attempt: ~p,~nprops: ~p~n", [Msg, Props]),
+         _Msg = {calc_next_attack_wait, Attack, Owner, Target, _, _}}) ->
+    Log = [{type, calc_next_attack_wait},
+           {vector, Attack},
+           {source, Owner},
+           {target, Target}],
     case proplists:get_value(is_alive, Props, false) of
         false ->
             %log("~p cannot ~p to attack ~p when ~p is dead~n", [Owner, calc_next_attack_wait, Target, Target]),
-            {{fail, target_is_dead}, _Subscribe = false, Props};
+            {{fail, target_is_dead}, _Subscribe = false, Props, Log};
         _ ->
-            {succeed, false, Props}
+            {succeed, false, Props, Log}
     end;
 attempt({#parents{owner = Owner},
          Props,
-         _Msg = {attack, _Attack, _Attacker, Owner}}) ->
-    %log("attempt: ~p, props: ~p~n", [Msg, Props]),
+         _Msg = {attack, Attack, Attacker, Owner}}) ->
+    Log = [{type, attack},
+           {vector, Attack},
+           {source, Attacker},
+           {target, Owner}],
     case proplists:get_value(is_alive, Props, false) of
         false ->
             %log("~p cannot attack ~p when ~p is dead~n", [Attacker, Owner, Owner]),
-            {{fail, target_is_dead}, _Subscribe = false, Props};
+            {{fail, target_is_dead}, _Subscribe = false, Props, Log};
         _ ->
-            {succeed, false, Props}
+            {succeed, false, Props, Log}
     end;
 attempt({#parents{owner = Owner},
          Props,
-         _Msg = {attack, _Attack, Owner, _Target}}) ->
-    %log("attempt: ~p, props: ~p~n", [Msg, Props]),
+         _Msg = {attack, Attack, Owner, Target}}) ->
+    Log = [{type, attack},
+           {vector, Attack},
+           {source, Owner},
+           {target, Target}],
     case proplists:get_value(is_alive, Props, false) of
         false ->
-            %FailMsg = lists:flatten(io_lib:format("~p cannot attack ~p when ~p is dead~n",
-                                                  %[Owner, Target, Owner])),
-            %log("~p", [FailMsg]),
-            {{fail, attacker_is_dead}, _Subscribe = false, Props};
+            {{fail, attacker_is_dead}, _Subscribe = false, Props, Log};
         _ ->
-            {succeed, false, Props}
+            {succeed, false, Props, Log}
     end;
 attempt({#parents{owner = Owner},
          Props,
          Msg}) when Owner == element(2, Msg) ->
-    %log("attempt: ~p, props: ~p~n", [Msg, Props]),
     Action = element(1, Msg),
+    Log = [{type, Action}],
     IsAlive = proplists:get_value(is_alive, Props, false),
     IsDeadAction = is_dead_action(Action),
     case IsAlive orelse IsDeadAction of
         true ->
-            {succeed, _Subscribe = false, Props};
+            {succeed, _Subscribe = false, Props, Log};
         false ->
             AliveOrDead = case IsAlive of true -> "alive"; false -> "dead" end,
             FailMsg = iolist_to_binary(io_lib:format("~p cannot ~p when ~p~n",
                                                   [Owner, Action, AliveOrDead])),
-            {{fail, FailMsg}, _Subscribe = false, Props}
+            {{fail, FailMsg}, _Subscribe = false, Props, Log}
     end;
 attempt({#parents{owner = Owner},
          Props,
          {calc_hit, Attack, Attacker, Owner, _}}) ->
+    Log = [{type, calc_hit},
+           {vector, Attack},
+           {source, Attacker},
+           {target, Owner}],
     case proplists:get_value(is_alive, Props) of
         false ->
-            {{resend, Attacker, {killed, Attack, Attacker, Owner}}, false, Props};
+            {{resend, Attacker, {killed, Attack, Attacker, Owner}}, false, Props, Log};
         _ ->
-            {succeed, false, Props}
+            {succeed, false, Props, Log}
     end;
 attempt(_) ->
     undefined.
 
-succeed({Props, {killed, _Attack, _Source, Owner}}) ->
-    %log("Character ~p killed by ~p, sending die: ~p~nprops: ~p~n",
-        %[Owner, Source, Owner, Props]),
+succeed({Props, {killed, Attack, Source, Owner}}) ->
+    Log = [{type, killed},
+           {vector, Attack},
+           {source, Source},
+           {target, Owner}],
     erlmud_object:attempt(self(), {die, Owner}),
-    Props;
+    {Props, Log};
 succeed({Props, {die, Target}}) ->
+    Log = [{type, die},
+           {source, Target}],
     Owner = proplists:get_value(owner, Props),
-    case Target of
+    Props2
+    = case Target of
         X when X == Owner ->
             CorpseCleanupMilis = application:get_env(erlmud, corpse_cleanup_milis, 10 * 60 * 1000),
             erlmud_object:attempt_after(CorpseCleanupMilis, self(), {cleanup, Owner}),
             lists:keystore(is_alive, 1, Props, {is_alive, false});
         _ ->
             Props
-    end;
+    end,
+    {Props2, Log};
 succeed({Props, _Msg}) ->
-    %log("saw ~p succeed with props ~p~n", [Msg, Props]),
     throw(should_never_happen),
     Props.
 
 fail({Props, _Message, _Reason}) ->
-    %log("saw ~p fail with props ~p~n", [Message, Props]),
     throw(should_never_happen),
     Props.
-
-log(Terms) ->
-    erlmud_event_log:log(debug, [list_to_binary(atom_to_list(?MODULE)) | Terms]).

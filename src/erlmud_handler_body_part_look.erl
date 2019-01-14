@@ -20,23 +20,40 @@
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({#parents{}, Props, {_Source, describe, Self, with, _Context}}) when Self == self() ->
-    {succeed, true, Props};
-attempt({#parents{owner = Owner}, Props, {_Source, describe, Owner, with, _Context}}) ->
-    {succeed, true, Props};
+attempt({#parents{}, Props, {Source, describe, Self, with, Context}}) when Self == self() ->
+    Log = [{source, Source},
+           {type, describe},
+           {target, Self},
+           {context, Context}],
+    {succeed, true, Props, Log};
+attempt({#parents{owner = Owner}, Props, {Source, describe, Owner, with, Context}}) ->
+    Log = [{source, Source},
+           {type, describe},
+           {target, Owner},
+           {context, Context}],
+    {succeed, true, Props, Log};
 attempt(_) ->
     undefined.
 
 succeed({Props, {Source, describe, Self, with, Context}}) when Self == self() ->
-    describe(Source, Props, Context, deep);
+    Log = [{source, Source},
+           {type, describe},
+           {target, Self},
+           {context, Context}],
+    Props2 = describe(Source, Props, Context, deep),
+    {Props2, Log};
 succeed({Props, {Source, describe, Target, with, Context}}) ->
+    Log = [{source, Source},
+           {type, describe},
+           {target, Target},
+           {context, Context}],
     _ = case is_owner(Target, Props) of
             true ->
                 describe(Source, Props, Context, shallow);
             _ ->
                 ok
         end,
-    Props;
+    {Props, Log};
 succeed({Props, _}) ->
     Props.
 

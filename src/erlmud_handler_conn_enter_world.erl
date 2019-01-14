@@ -22,23 +22,29 @@
 attempt({#parents{owner = Owner},
          Props,
          {Owner, enter_world, in, Room, with, Self}}) when Self == self(), is_pid(Room) ->
-    {succeed, _Subscribe = true, Props};
+    Log = [{source, Owner},
+           {type, enter_world},
+           {room, Room},
+           {conn, Self}],
+    {succeed, _Subscribe = true, Props, Log};
 attempt(_) ->
     undefined.
 
 succeed({Props, {Player, enter_world, in, Room, with, Conn}}) ->
-    log([{type, enter_world}, {player, self()}, {result, succeed}, {conn, Conn}, {room, Room}]),
-    [{owner, Player} | lists:keydelete(owner, 1, Props)];
+    Log = [{type, enter_world},
+           {source, self()},
+           {conn, Conn},
+           {room, Room}],
+    {[{owner, Player} | lists:keydelete(owner, 1, Props)], Log};
 succeed({Props, _Other}) ->
     Props.
 
 %% TODO test that failing to enter the world disconnects the player
-fail({Props, Reason, {_Player, enter_world}}) ->
+fail({Props, Reason, {Player, enter_world}}) ->
+    Log = [{source, Player},
+           {type, enter_world}],
     Conn = proplists:get_value(conn, Props),
     Conn ! {disconnect, Reason},
-    Props;
+    {Props, Log};
 fail({Props, _Reason, _Message}) ->
     Props.
-
-log(Props) ->
-    erlmud_event_log:log(debug, [{module, ?MODULE} | Props]).

@@ -29,17 +29,29 @@
 -export([fail/1]).
 
 %% This process' parent character is attacking a target
-attempt({#parents{character = Character}, Props, {Character, attack, _Target}}) ->
-    {succeed, true, Props};
+attempt({#parents{character = Character}, Props, {Character, attack, Target}}) ->
+    Log = [{source, Character},
+           {type, attack},
+           {target, Target}],
+    {succeed, true, Props, Log};
 
-attempt({#parents{character = Character}, Props, {Character, attack, _Target, with, Self}})
+attempt({#parents{character = Character}, Props, {Character, attack, Target, with, Self}})
   when Self == self() ->
-    {succeed, true, Props};
+    Log = [{source, Character},
+           {type, attack},
+           {target, Target},
+           {vector, Self}],
+    {succeed, true, Props, Log};
 
 %% This process landed an attack on a target
-attempt({#parents{}, Props, {_Character, calc, _Hit, on, _Target, with, Self}})
+attempt({#parents{}, Props, {Character, calc, Hit, on, Target, with, Self}})
   when Self == self() ->
-    {succeed, true, Props};
+    Log = [{source, Character},
+           {type, calc_hit},
+           {hit, Hit},
+           {target, Target},
+           {vector, Self}],
+    {succeed, true, Props, Log};
 
 %% This process needs to calculate damage to a target
 %% TODO that needs to happen in the attempt
@@ -73,17 +85,31 @@ attempt({#parents{}, Props, {_Character, calc, _Hit, on, _Target, with, Self}})
 %%
 %%    I think I'll stick with a generic handler until I need something specific
 %%    and then I'll move that process over completely to custom handlers.
-attempt({#parents{}, Props, {_Character, calc, _Damage, to, _Target, with, Self}})
+attempt({#parents{}, Props, {Character, calc, Damage, to, Target, with, Self}})
   when Self == self() ->
-    {succeed, true, Props};
+    Log = [{source, Character},
+           {type, calc_damage},
+           {damage, Damage},
+           {target, Target},
+           {vector, Self}],
+    {succeed, true, Props, Log};
 
 %% This process did damage to a target
-attempt({#parents{}, Props, {_Character, does, _Damage, to, Target, with, Self}}) when Self == self(), is_pid(Target) ->
-    {succeed, true, Props};
+attempt({#parents{}, Props, {Character, does, Damage, to, Target, with, Self}})
+  when Self == self(), is_pid(Target) ->
+    Log = [{source, Character},
+           {type, damage},
+           {damage, Damage},
+           {target, Target},
+           {vector, Self}],
+    {succeed, true, Props, Log};
 
 %% All processes belonging to this character need to stop attacking
-attempt({#parents{character = Character}, Props, {Character, stop_attacking, _Target}}) ->
-    {succeed, true, Props};
+attempt({#parents{character = Character}, Props, {Character, stop_attacking, Target}}) ->
+    Log = [{source, Character},
+           {type, stop_attacking},
+           {target, Target}],
+    {succeed, true, Props, Log};
 
 attempt(_) ->
     undefined.
@@ -92,8 +118,11 @@ attempt(_) ->
 %% specfic attack vector: we'll kick off an attempt to attack with this item
 %% specifically.
 succeed({Props, {Character, attack, Target}}) when is_pid(Target) ->
+    Log = [{source, Character},
+           {type, attack},
+           {target, Target}],
     erlmud_object:attempt(self(), {Character, attack, Target, with, self()}),
-    Props;
+    {Props, Log};
 
 %% An attack by our character has been successfully instigated using this process:
 %% we'll register for resources and implement the attack when we have them.
@@ -105,37 +134,60 @@ succeed({Props, {Character, calc, Hit, on, Target, with, Self}})
   when is_pid(Target),
        Self == self(),
        Hit > 0 ->
+    Log = [{source, Character},
+           {type, calc_hit},
+           {hit, Hit},
+           {target, Target},
+           {vector, Self}],
     erlmud_object:attempt(self(), {Character, calc, _InitialDamage = 0, to, Target, with, Self}),
-    Props;
-succeed({Props, {_Character, calc, _Miss, on, Target, with, Self}})
+    {Props, Log};
+succeed({Props, {Character, calc, Miss, on, Target, with, Self}})
   when is_pid(Target),
        Self == self() ->
+    Log = [{source, Character},
+           {type, calc_hit},
+           {hit, Miss},
+           {target, Target},
+           {vector, Self}],
     % TODO: say "you missed!"
-    Props;
+    {Props, Log};
 succeed({Props, {Character, calc, Damage, to, Target, with, Self}})
   when Self == self(),
        Damage > 0 ->
+    Log = [{source, Character},
+           {type, calc_damage},
+           {damage, Damage},
+           {target, Target},
+           {vector, Self}],
     erlmud_object:attempt(self(), {Character, does, Damage, to, Target, with, Self}),
-    Props;
-succeed({Props, {_Character, calc, _NoDamage, to, _Target, with, Self}})
+    {Props, Log};
+succeed({Props, {Character, calc, NoDamage, to, Target, with, Self}})
   when Self == self() ->
+    Log = [{source, Character},
+           {type, calc_damage},
+           {damage, NoDamage},
+           {target, Target},
+           {vector, Self}],
     %% Attack failed (No damage was done)
     %% TODO: output something to the client like
     %% "You manage to hit <target> but fail to do any damage"
     %%       _if_ this is a player
-    Props;
+    {Props, Log};
 succeed({Props, {Character, stop_attack}}) ->
+    Log = [{source, Character},
+           {type, stop_attack}],
     unreserve(Character, Props),
-    [{is_attacking, false} | Props];
+    Props2 = [{is_attacking, false} | Props],
+    {Props2, Log};
 
 succeed({Props, Msg}) ->
     log([<<"saw ">>, Msg, <<" succeed">>]),
     Props.
 
 fail({Props, target_is_dead, _Message}) ->
-    log([<<"Stopping because target is dead">>]),
+    Log = [{type, target_is_dead}],
     erlmud_object:attempt(self(), {self(), stop_attack}),
-    Props;
+    {Props, Log};
 fail({Props, _Reason, _Message}) ->
     Props.
 

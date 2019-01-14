@@ -27,6 +27,9 @@ attempt({_Owner, Props, {Self, Action, Item}})
   when Self == self() andalso
        is_pid(Item) andalso
        Action == get; Action == drop ->
+    Log = [{source, Self},
+           {type, Action},
+           {target, Item}],
     case Action == get orelse erlmud_object:has_pid(Props, Item) of
         true ->
             Room = proplists:get_value(owner, Props),
@@ -36,36 +39,62 @@ attempt({_Owner, Props, {Self, Action, Item}})
                 get ->
                     {Room, Self}
             end,
-            {{resend, Self, {Item, move, from, Source, to, Target}}, true, Props};
+            {{resend, Self, {Item, move, from, Source, to, Target}}, true, Props, Log};
         _ ->
-            {succeed, _Interested = false, Props}
+            {succeed, _Interested = false, Props, Log}
     end;
 attempt({_Owner, Props, {Item, move, from, Self, to, Room}})
   when Self == self() andalso
        is_pid(Item),
        is_pid(Room) ->
-    {succeed, true, Props};
-attempt({_Owner, Props, {Item, move, from, Self, to, BodyPart, on, body_part, type, _BodyPartType}})
+    Log = [{item, Item},
+           {type, move},
+           {source, Self},
+           {target, Room}],
+    {succeed, true, Props, Log};
+attempt({_Owner, Props, {Item, move, from, Self, to, BodyPart, on, body_part, type, BodyPartType}})
   when Self == self() andalso
        is_pid(Item),
        is_pid(BodyPart) ->
-    {succeed, true, Props};
+    Log = [{item, Item},
+           {type, move},
+           {source, Self},
+           {target, BodyPart},
+           {body_part_type, BodyPartType}],
+    {succeed, true, Props, Log};
 %% TODO I suspect the name _Room means that it is expected that the source will be a room; is this so?
-attempt({_Owner, Props, {Item, move, from, _Room, to, Self}})
+attempt({_Owner, Props, {Item, move, from, Room, to, Self}})
   when Self == self() andalso
        is_pid(Item) ->
-    {succeed, true, Props};
+    Log = [{item, Item},
+           {type, move},
+           {source, Room},
+           {target, Self}],
+    {succeed, true, Props, Log};
 attempt(_) ->
     undefined.
 
 succeed({Props, {Item, move, from, Source, to, Self}}) when Self == self() ->
-    log([{type, get_item}, {source, Source}, {target, Self}]),
+    Log = [{type, get_item},
+           {source, Source},
+           {target, Self}],
     erlmud_object:attempt(Item, {self(), set_child_property, character, self()}),
-    [{item, Item} | Props];
-succeed({Props, {Item, move, from, Self, to, _BodyPart, on, body_part, type, _BodyPartType}}) when Self == self() ->
-    lists:keydelete(Item, 2, Props);
+    {[{item, Item} | Props], Log};
+succeed({Props, {Item, move, from, Self, to, BodyPart, on, body_part, type, BodyPartType}}) when Self == self() ->
+    Log = [{item, Item},
+           {type, move},
+           {source, Self},
+           {target, BodyPart},
+           {body_part_type, BodyPartType}],
+    Props2 = lists:keydelete(Item, 2, Props),
+    {Props2, Log};
 succeed({Props, {Item, move, from, Self, to, Target}}) when Self == self() ->
-    clear_child_character(Props, Item, Target);
+    Log = [{item, Item},
+           {type, move},
+           {source, Self},
+           {target, Target}],
+    Props2 = clear_child_character(Props, Item, Target),
+    {Props2, Log};
 succeed({Props, _}) ->
     Props.
 

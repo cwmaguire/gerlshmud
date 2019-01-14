@@ -23,49 +23,64 @@
 attempt({#parents{}, Props, {Source, look, TargetName}})
   when Source =/= self(),
        is_binary(TargetName) ->
-    log([{type, name_match}, {source, Source}, {name, TargetName}]),
+    Log = [{type, look},
+           {source, Source}],
     SelfName = proplists:get_value(name, Props, <<>>),
     case re:run(SelfName, TargetName, [{capture, none}, caseless]) of
         match ->
+            Log2 = [{target, self()} | Log],
             NewMessage = {Source, look, self()},
-            {{resend, Source, NewMessage}, _ShouldSubscribe = ignored, Props};
+            {{resend, Source, NewMessage}, _ShouldSubscribe = ignored, Props, Log2};
         _ ->
-            log([{type, name_match},
-                 {source, Source},
-                 {self_name, SelfName},
-                 {name, TargetName},
-                 {result, no_match}]),
-            {succeed, false, Props}
+            Log2 = [{target, TargetName} | Log],
+            {succeed, false, Props, Log2}
     end;
 attempt({#parents{owner = Room},
          Props,
         _JustPlainLook = {SelfSource, look}})
   when SelfSource == self() ->
+    Log = [{source, SelfSource},
+           {type, look},
+           {target, Room}],
     NewMessage = {SelfSource, look, Room},
-    {{resend, SelfSource, NewMessage}, _ShouldSubscribe = ignored, Props};
+    {{resend, SelfSource, NewMessage}, _ShouldSubscribe = ignored, Props, Log};
 attempt({#parents{},
          Props,
-         {_Source, look, Self}}) when Self == self() ->
-    {succeed, true, Props};
+         {Source, look, Self}}) when Self == self() ->
+    Log = [{source, Source},
+           {type, look},
+           {target, Self}],
+    {succeed, true, Props, Log};
 attempt({#parents{owner = OwnerRoom},
          Props,
-         _DescFromParent = {_Source, describe, OwnerRoom, with, _RoomContext}}) ->
-    {succeed, true, Props};
+         _DescFromParent = {Source, describe, OwnerRoom, with, RoomContext}}) ->
+    Log = [{source, Source},
+           {type, describe},
+           {target, OwnerRoom},
+           {context, RoomContext}],
+    {succeed, true, Props, Log};
 attempt(_) ->
     undefined.
 
 succeed({Props, {Source, look, Self}}) when Self == self() ->
+    Log = [{source, Source},
+           {type, look},
+           {target, Self}],
     NoContext = <<>>,
     describe(Source, Props, NoContext, deep),
-    Props;
+    {Props, Log};
 succeed({Props, {Source, describe, Target, with, Context}}) ->
+    Log = [{source, Source},
+           {type, describe},
+           {target, Target},
+           {context, Context}],
     _ = case is_owner(Target, Props) of
             true ->
                 describe(Source, Props, Context, shallow);
             _ ->
                 ok
         end,
-    Props;
+    {Props, Log};
 succeed({Props, _}) ->
     Props.
 
@@ -91,19 +106,14 @@ is_owner(_, _) ->
 
 description(Props) when is_list(Props) ->
     DescTemplate = erlmud_config:desc_template(character),
-    log([{type, char_desc}, {template, DescTemplate}]),
     [[description_part(Props, Part)] || Part <- DescTemplate].
 
 description_part(_, RawText) when is_binary(RawText) ->
     RawText;
 description_part(Props, DescProp) ->
-    log([{type, char_desc_part}, {desc_prop, DescProp}, {props, Props}]),
     prop_description(proplists:get_value(DescProp, Props, <<"??">>)).
 
 prop_description(undefined) ->
     [];
 prop_description(Value) when not is_pid(Value) ->
     Value.
-
-log(Terms) ->
-    erlmud_event_log:log(debug, [{module, ?MODULE} | Terms]).
