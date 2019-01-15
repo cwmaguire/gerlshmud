@@ -17,7 +17,6 @@
 -export([code_change/3]).
 
 -record(state, {log_file :: file:io_device(),
-                html_file :: file:io_device(),
                 loggers = [] :: [function()]}).
 
 log(Level, Terms) when is_atom(Level) ->
@@ -47,15 +46,10 @@ init([]) ->
     io:format("Starting logger (~p)~n", [self()]),
     LogPath = get_log_path(),
     {ok, LogFile} = file:open(LogPath ++ "/erlmud.log", [append]),
-    {ok, HtmlFile} = file:open(LogPath ++ "/log.html", [append]),
 
-    Line = lists:duplicate(80, $=),
-    io:format(LogFile, "~n~n~s~n~p~n~s~n~n", [Line, os:timestamp(), Line]),
-    io:format(user, "Logger:~n\tLog file: ~p~n\tHTML File: ~p~n",
-              [LogFile, HtmlFile]),
+    io:format(user, "Logger:~n\tLog file: ~p~n", [LogFile]),
 
-    {ok, #state{log_file = LogFile,
-                html_file = HtmlFile}}.
+    {ok, #state{log_file = LogFile}}.
 
 handle_call(Request, From, State) ->
     io:format(user, "erlmud_event_log:handle_call(~p, ~p, ~p)~n",
@@ -88,14 +82,6 @@ handle_info(Info, State) ->
     io:format(user, "~p:handle_info(~p, State)~n", [?MODULE, Info]),
     {noreply, State}.
 
-terminate(_Reason, #state{html_file = HtmlFile}) ->
-    io:format(HtmlFile,
-              "<script language=\"JavaScript\">"
-              "createClassCheckboxes();"
-              "</script>\n"
-              "</body>\n</html>\n",
-              []),
-    ok;
 terminate(Reason, State) ->
     io:format(user, "Terminating erlmud_event_log: ~p~n~p~n", [Reason, State]).
 
