@@ -582,27 +582,34 @@ set_character(Config) ->
     Dog = val(character, stealth).
 
 log(_Config) ->
+    {ok, Cwd} = file:get_cwd(),
+    ct:pal("~p: Cwd~n\t~p~n", [?MODULE, Cwd]),
     LogFile = "../erlmud.log",
     start(?WORLD_7),
     ct:sleep(500),
     Player = erlmud_index:get(player),
-    erlmud_event_log:log(Player, debug, [atom_test]),
+
+    erlmud_event_log:log(Player, debug, [{foo, bar}]),
     ?WAIT100,
-    <<"atom_test">> = last_line(LogFile),
-    erlmud_event_log:log(Player, debug, ["string_test"]),
+    ct:pal("JSON: ~p~n", [jsx:decode(last_line(LogFile))]),
+    [{<<"process">>, _},
+     {<<"level">>, <<"debug">>},
+     {<<"foo">>, <<"bar">>}] = jsx:decode(last_line(LogFile)),
+
+    erlmud_event_log:log(Player, debug, [{foo, bar}, {props, [{player, Player}, {baz, 1}]}]),
     ?WAIT100,
-    <<"string_test">> = last_line(LogFile),
-    erlmud_event_log:log(Player, debug, [<<"binary_test">>]),
+    ct:pal("JSON: ~p~n", [jsx:decode(last_line(LogFile))]),
+    [{<<"process">>, _},
+     {<<"level">>, <<"debug">>},
+     {<<"foo">>, <<"bar">>},
+     {<<"props">>, [[<<"player">>, _],[<<"baz">>, 1]]}] = jsx:decode(last_line(LogFile)),
+
+    erlmud_event_log:log(Player, debug, [{foo, [1, <<"a">>, 2.0]}]),
     ?WAIT100,
-    <<"binary_test">> = last_line(LogFile),
-    erlmud_event_log:log(Player, debug, [1]),
-    ?WAIT100,
-    <<"1">> = last_line(LogFile),
-    erlmud_event_log:log(Player, debug, [<<"pid_test ">>, Player]),
-    ?WAIT100,
-    PidBin = list_to_binary(pid_to_list(Player)),
-    PidBinSize = size(PidBin),
-    <<"pid_test {player: ", PidBin:PidBinSize/binary, _/binary>> = last_line(LogFile).
+    ct:pal("JSON: ~p~n", [jsx:decode(last_line(LogFile))]),
+    [{<<"process">>, _},
+     {<<"level">>, <<"debug">>},
+     {<<"foo">>, [1, <<"a">>, 2.0]}] = jsx:decode(last_line(LogFile)).
 
 last_line(Filename) ->
     {ok, Data} = file:read_file(Filename),

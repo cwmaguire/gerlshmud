@@ -20,10 +20,6 @@
                 html_file :: file:io_device(),
                 loggers = [] :: [function()]}).
 
--define(DIV(X), "<div>"X"</div>").
--define(SPAN(Class), "<span class=\"" Class "\">~p</span>").
--define(SPAN, ?SPAN("~p")).
-
 log(Level, Terms) when is_atom(Level) ->
     Self = self(),
     log(Self, Level, Terms).
@@ -31,10 +27,11 @@ log(Level, Terms) when is_atom(Level) ->
 log(Pid, Level, Terms) when is_atom(Level) ->
     case whereis(?MODULE) of
         undefined ->
-            io:format(user,
-                      "erlmud_event_log process not found~n"
-                      "Pid: ~p, Level: ~p, Terms: ~p~n",
-                      [Pid, Level, Terms]);
+            %io:format(user,
+                      %"erlmud_event_log process not found~n"
+                      %"Pid: ~p, Level: ~p, Terms: ~p~n",
+                      %[Pid, Level, Terms]);
+            ok;
         _ ->
             gen_server:cast(?MODULE, {log, Pid, Level, Terms})
     end.
