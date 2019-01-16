@@ -1,0 +1,67 @@
+BODY {
+  background-color: lightgrey;
+}
+DIV {
+  /* something to do with resizing to contain the span inside */
+  height: auto;
+  overflow: auto;
+}
+SPAN {
+  display: inline-block;
+}
+IMG {
+  display: inline-block;
+  vertical-align: center;
+  margin-left: auto;
+  margin-right: auto;
+  position: relative;
+  top: 8px;
+}
+.room {
+  border: 12px solid green;
+  padding: 5px;
+}
+.room_title {
+  position: relative;
+  top: -20px;
+  left: -58px;
+  color: white;
+  margin-right: -35px
+}
+
+.event_parent {
+  border: 1px solid #403065;
+  padding: 8px;
+  margin: 3px;
+}
+
+.source {
+  border: 2px dashed grey;
+  padding: 4px;
+  margin: 3px;
+}
+
+.target {
+  border: 2px dashed grey;
+  padding: 4px;
+  margin: 3px;
+}
+
+.succeed {
+  background-color: green;
+  color: white;
+  padding: 3px;
+}
+
+.fail {
+  background-color: red;
+  color: white;
+  padding: 3px;
+}
+
+.subscribe {
+  background-color: blue;
+  color: white;
+  padding: 3px;
+}
+
