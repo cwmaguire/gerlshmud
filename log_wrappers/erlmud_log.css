@@ -8,6 +8,7 @@ DIV {
 }
 SPAN {
   display: inline-block;
+  margin: 3px;
 }
 IMG {
   display: inline-block;
@@ -17,16 +18,33 @@ IMG {
   position: relative;
   top: 8px;
 }
+
+SVG {
+  width: 20px;
+  height: 20px;
+  vertical-align: middle;
+}
+
 .room {
-  border: 12px solid green;
-  padding: 5px;
+  border: 6px solid green;
+  padding: 3px;
 }
 .room_title {
   position: relative;
   top: -20px;
   left: -58px;
   color: white;
-  margin-right: -35px
+  margin-right: -35px;
+  font-size: 8px;
+}
+
+.log_process_1 {
+  margin-left: 15px;
+  margin-right: 0px;
+}
+
+.log_process_2 {
+  margin-left: 0px;
 }
 
 .event_parent {
