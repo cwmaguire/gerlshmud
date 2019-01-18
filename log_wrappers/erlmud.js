@@ -7,78 +7,108 @@ for(let log of logs){
 function add_log_line(log){
   let logDiv = div();
 
+  add_stage(logDiv, log);
+  add_room(logDiv, log);
+  add_source_image(logDiv, log);
+  add_target_image(logDiv, log);
+  add_log_process(logDiv, log);
+  add_handler(logDiv, log);
+
+  let eventSpan = span(log.type);
+  add_source(eventSpan, log);
+  add_event_name(eventSpan, log);
+  add_target(eventSpan, log);
+
+  add_result(logDiv, log);
+  add_subscription(logDiv, log);
+
+  logDiv.appendChild(eventSpan);
+  document.body.appendChild(logDiv);
+
+  add_log_text(document.body, log);
+}
+
+function add_stage(parent, log){
   let svg1 = svg_circle('#FFFFFF', '#000000');
-  logDiv.appendChild(svg1);
+  parent.appendChild(svg1);
+}
 
+function add_room(parent, log){
   let roomSpan = span(prop(log, 'room', 'no room'), 'room');
-
   let roomTitleSpan = span('room', 'room_title');
+  parent.appendChild(roomSpan);
+  parent.appendChild(roomTitleSpan);
+}
 
+function add_source_image(parent, log){
   let sourceImage = img();
-  let targetImage = img();
+  parent.appendChild(sourceImage);
+}
 
+function add_target_image(parent, log){
+  let targetImage = img();
+  parent.appendChild(targetImage);
+}
+
+function add_log_process(parent, log){
   let logProcessChar1Span = span(prop(log, 'process', 'P'), 'log_process_1');
   let logProcessChar2Span = span(prop(log, 'process', '?'), 'log_process_2');
+  parent.appendChild(logProcessChar1Span);
+  parent.appendChild(logProcessChar2Span);
+}
 
+function add_handler(parent, log){
   let handlerSpan = span(prop(log, 'module', 'no handler'));
+  parent.appendChild(handlerSpan);
+}
 
-  let eventParentSpan = span(log.type);
-
+function add_source(parent, log){
   let sourceSpan = span();
   let sourceNameSpan = span(prop(log, 'name', 'no name'));
   let sourceProcChar1Span = span(prop(log, 'source', 'no source'));
   let sourceProcChar2Span = span(prop(log, 'source', 'no source'));
 
-  let eventNameSpan = span();
+  sourceSpan.appendChild(sourceNameSpan);
+  sourceSpan.appendChild(sourceProcChar1Span);
+  sourceSpan.appendChild(sourceProcChar2Span);
 
+  parent.appendChild(sourceSpan);
+}
+
+function add_target(parent, log){
   let targetSpan = span();
   let targetNameSpan = span(prop(log, 'name'));
   let targetProcChar1Span = span(prop(log, 'target'));
   let targetProcChar2Span = span(prop(log, 'target'));
 
-  let resultSpan = span(prop(log, 'stage'));
-  let subscriptionSpan = span(prop(log, 'subscribe'));
-
-  sourceSpan.appendChild(sourceNameSpan);
-  sourceSpan.appendChild(sourceProcChar1Span);
-  sourceSpan.appendChild(sourceProcChar2Span);
-
   targetSpan.appendChild(targetNameSpan);
   targetSpan.appendChild(targetProcChar1Span);
   targetSpan.appendChild(targetProcChar2Span);
 
-  eventParentSpan.appendChild(sourceSpan);
-  eventParentSpan.appendChild(eventNameSpan);
-  eventParentSpan.appendChild(targetSpan);
-
-  logDiv.appendChild(roomSpan);
-  logDiv.appendChild(roomTitleSpan);
-  logDiv.appendChild(sourceImage);
-  logDiv.appendChild(targetImage);
-  logDiv.appendChild(logProcessChar1Span);
-  logDiv.appendChild(logProcessChar2Span);
-  logDiv.appendChild(handlerSpan);
-  logDiv.appendChild(eventParentSpan);
-
-  document.body.appendChild(logDiv);
-
-  let plainDiv = div();
-  let logText = serialize(log);
-  plainDiv.innerText = logText;
-  document.body.appendChild(plainDiv);
+  parent.appendChild(targetSpan);
 }
 
-function prop(log, key, def = ''){
-  if(log.hasOwnProperty('props')){
-    for(let [k, v] of log.props){
-      if(k== key){
-        //console.log('prop(log, ' + k+ ') -> ' + v);
-        //console.log(log.props);
-        return v;
-      }
-    }
-  }
-  return def;
+function add_event_name(parent, log){
+  let eventNameSpan = span();
+  parent.appendChild(eventNameSpan);
+}
+
+function add_result(parent, log){
+  let resultSpan = span(prop(log, 'stage'));
+  parent.appendChild(resultSpan);
+}
+
+function add_subscription(parent, log){
+  let subscriptionSpan = span(prop(log, 'subscribe'));
+  parent.appendChild(subscriptionSpan);
+}
+
+function add_log_text(parent, log){
+  let logText = serialize(log);
+  let plainDiv = div();
+  plainDiv.innerText = logText;
+  parent.appendChild(plainDiv);
+
 }
 
 function span(html, className){
@@ -98,6 +128,17 @@ function img(){
 
 function div(){
   return document.createElement('DIV');
+}
+
+function prop(log, key, def = ''){
+  if(log.hasOwnProperty('props')){
+    for(let [k, v] of log.props){
+      if(k== key){
+        return v;
+      }
+    }
+  }
+  return def;
 }
 
 function serialize(o){
