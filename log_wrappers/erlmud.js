@@ -1,20 +1,30 @@
 "use strict";
 
-for(let log of logs){
-  add_log_line(log);
+function load(){
+  let handlers = [];
+
+  for(let log of logs){
+    handlers.push(add_log_line(log));
+  }
+
+  for(let [d, h] of handlers){
+    h(d.clientHeight);
+  }
 }
 
 function add_log_line(log){
   let logDiv = div();
+  logDiv.style.border = '1px solid black';
+
+  let eventSpan = span(log.type);
 
   add_stage(logDiv, log);
   add_room(logDiv, log);
   add_source_image(logDiv, log);
   add_target_image(logDiv, log);
   add_log_process(logDiv, log);
-  add_handler(logDiv, log);
+  let heightListener = add_handler(logDiv, log);
 
-  let eventSpan = span(log.type);
   add_source(eventSpan, log);
   add_event_name(eventSpan, log);
   add_target(eventSpan, log);
@@ -26,6 +36,8 @@ function add_log_line(log){
   document.body.appendChild(logDiv);
 
   add_log_text(document.body, log);
+
+  return [logDiv, heightListener];
 }
 
 function add_stage(parent, log){
@@ -58,8 +70,28 @@ function add_log_process(parent, log){
 }
 
 function add_handler(parent, log){
-  let handlerSpan = span(prop(log, 'module', 'no handler'));
+  let handler = prop(log, 'module');
+  let handlerSpan = span(handler);
+  handlerSpan.style.position = 'relative';
+  handlerSpan.style.width = '20px';
+  handlerSpan.style.height = '20px';
+  handlerSpan.style.border = '2px dashed purple';
   parent.appendChild(handlerSpan);
+
+  let handlerFun;
+  if(!handler){
+    handlerFun =
+      function(parentHeight){
+        let parentHeightInt = parseInt(parentHeight);
+        let heightInt = parseInt(handlerSpan.style.height);
+        let top = (parentHeightInt - heightInt) / 2 - 2;
+        handlerSpan.style.top = top + 'px';
+      }
+  }else{
+    handlerFun = function(){}
+  }
+
+  return handlerFun;
 }
 
 function add_source(parent, log){
