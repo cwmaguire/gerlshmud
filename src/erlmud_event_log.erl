@@ -57,10 +57,11 @@ handle_call(Request, From, State) ->
     {reply, ignored, State}.
 
 handle_cast({log, Pid, Level, Props}, State) when is_list(Props) ->
+    Props2 = [{process, Pid}, {level, Level} | Props],
+    NamedProps = add_proc_names(Props2),
+    BinProps = [{K, json_friendly(V)} || {K, V} <- NamedProps],
     JSON2 =
     try
-        Props2 = [{process, Pid}, {level, Level} | Props],
-        BinProps = [{K, json_friendly(V)} || {K, V} <- Props2],
         JSON = jsx:encode(BinProps),
         ok = file:write(State#state.log_file, <<JSON/binary, "\n">>),
         JSON
@@ -137,6 +138,20 @@ json_friendly(Pid) when is_pid(Pid) ->
     p2b(Pid);
 json_friendly(Any) ->
     Any.
+
+add_proc_names(Props) ->
+    lists:foldl(fun add_proc_names/2, [], Props).
+
+add_proc_names({Key, Pid}, NamedProps) when is_pid(Pid) ->
+    case erlmud_index:get(Pid) of
+        undefined ->
+            NamedProps;
+        Name ->
+            NameKey = list_to_atom(atom_to_list(Key) ++ "_name"),
+            [{Key, Pid}, {NameKey, Name} | NamedProps]
+    end;
+add_proc_names(Prop, NamedProps) ->
+    [Prop | NamedProps].
 
 is_string([]) ->
     true;

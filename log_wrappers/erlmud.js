@@ -73,13 +73,13 @@ function add_handler(parent, log){
   let handler = prop(log, 'module');
   let handlerSpan = span(handler);
   handlerSpan.style.position = 'relative';
-  handlerSpan.style.width = '20px';
   handlerSpan.style.height = '20px';
   handlerSpan.style.border = '2px dashed purple';
   parent.appendChild(handlerSpan);
 
   let handlerFun;
   if(!handler){
+    handlerSpan.style.width = '20px';
     handlerFun =
       function(parentHeight){
         let parentHeightInt = parseInt(parentHeight);
@@ -96,9 +96,11 @@ function add_handler(parent, log){
 
 function add_source(parent, log){
   let sourceSpan = span();
-  let sourceNameSpan = span(prop(log, 'name', 'no name'));
-  let sourceProcChar1Span = span(prop(log, 'source', 'no source'));
-  let sourceProcChar2Span = span(prop(log, 'source', 'no source'));
+  let sourceNameSpan = span(prop(log, 'source_name', 'no name'));
+  sourceNameSpan.style.border = '1px solid pink';
+  //sourceNameSpan.style.width = '10px';
+  let sourceProcChar1Span = span(prop(log, 'source', 'N'), 'process');
+  let sourceProcChar2Span = span(prop(log, 'source', 'S'), 'process');
 
   sourceSpan.appendChild(sourceNameSpan);
   sourceSpan.appendChild(sourceProcChar1Span);
@@ -109,9 +111,9 @@ function add_source(parent, log){
 
 function add_target(parent, log){
   let targetSpan = span();
-  let targetNameSpan = span(prop(log, 'name'));
-  let targetProcChar1Span = span(prop(log, 'target'));
-  let targetProcChar2Span = span(prop(log, 'target'));
+  let targetNameSpan = span(prop(log, 'target_name'));
+  let targetProcChar1Span = span(prop(log, 'target', 'N'), 'process');
+  let targetProcChar2Span = span(prop(log, 'target', 'T'), 'process');
 
   targetSpan.appendChild(targetNameSpan);
   targetSpan.appendChild(targetProcChar1Span);
@@ -163,8 +165,12 @@ function div(){
 }
 
 function prop(log, key, def = ''){
+  if(log.hasOwnProperty(key)){
+    return log[key];
+  }
   if(log.hasOwnProperty('props')){
     for(let [k, v] of log.props){
+      console.log('Key: ' + k + ', Val: ' + v);
       if(k== key){
         return v;
       }

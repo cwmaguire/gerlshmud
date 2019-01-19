@@ -592,24 +592,27 @@ log(_Config) ->
     erlmud_event_log:log(Player, debug, [{foo, bar}]),
     ?WAIT100,
     ct:pal("JSON: ~p~n", [jsx:decode(last_line(LogFile))]),
-    [{<<"process">>, _},
+    [{<<"foo">>, <<"bar">>},
      {<<"level">>, <<"debug">>},
-     {<<"foo">>, <<"bar">>}] = jsx:decode(last_line(LogFile)),
+     {<<"process">>, _},
+     {<<"process_name">>, <<"player">>}] = jsx:decode(last_line(LogFile)),
 
     erlmud_event_log:log(Player, debug, [{foo, bar}, {props, [{player, Player}, {baz, 1}]}]),
     ?WAIT100,
     ct:pal("JSON: ~p~n", [jsx:decode(last_line(LogFile))]),
-    [{<<"process">>, _},
-     {<<"level">>, <<"debug">>},
+    [{<<"props">>, [[<<"player">>, _], [<<"baz">>, 1]]},
      {<<"foo">>, <<"bar">>},
-     {<<"props">>, [[<<"player">>, _],[<<"baz">>, 1]]}] = jsx:decode(last_line(LogFile)),
+     {<<"level">>, <<"debug">>},
+     {<<"process">>, _},
+     {<<"process_name">>, <<"player">>}] = jsx:decode(last_line(LogFile)),
 
     erlmud_event_log:log(Player, debug, [{foo, [1, <<"a">>, 2.0]}]),
     ?WAIT100,
     ct:pal("JSON: ~p~n", [jsx:decode(last_line(LogFile))]),
-    [{<<"process">>, _},
+    [{<<"foo">>, [1, <<"a">>, 2.0]},
      {<<"level">>, <<"debug">>},
-     {<<"foo">>, [1, <<"a">>, 2.0]}] = jsx:decode(last_line(LogFile)).
+     {<<"process">>, _},
+     {<<"process_name">>, <<"player">>}] = jsx:decode(last_line(LogFile)).
 
 last_line(Filename) ->
     {ok, Data} = file:read_file(Filename),

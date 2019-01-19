@@ -47,6 +47,10 @@ SVG {
   margin-left: 0px;
 }
 
+.process {
+  margin: 0px;
+}
+
 .event_parent {
   border: 1px solid #403065;
   padding: 8px;
