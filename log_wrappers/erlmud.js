@@ -17,17 +17,18 @@ function add_log_line(log){
   logDiv.style.border = '1px solid black';
 
   let eventSpan = span(log.type);
+  eventSpan.className = 'event';
 
   add_stage(logDiv, log);
   add_room(logDiv, log);
   add_source_image(logDiv, log);
   add_target_image(logDiv, log);
-  add_log_process(logDiv, log);
+  add_pid('process', logDiv, log);
   let heightListener = add_handler(logDiv, log);
 
-  add_source(eventSpan, log);
+  add_pid('source', eventSpan, log);
   add_event_name(eventSpan, log);
-  add_target(eventSpan, log);
+  add_pid('target', eventSpan, log);
 
   add_result(logDiv, log);
   add_subscription(logDiv, log);
@@ -94,36 +95,45 @@ function add_handler(parent, log){
   return handlerFun;
 }
 
-function add_source(parent, log){
-  let sourceSpan = span();
-  let sourceNameSpan = span(prop(log, 'source_name', 'no name'));
-  sourceNameSpan.style.border = '1px solid pink';
-  //sourceNameSpan.style.width = '10px';
-  let sourceProcChar1Span = span(prop(log, 'source', 'N'), 'process');
-  let sourceProcChar2Span = span(prop(log, 'source', 'S'), 'process');
+function add_pid(typeKey, parent, log){
+  let nameKey = typeKey + '_name';
+  let pidSpan = span();
+  let nameSpan = span(prop(log, nameKey, 'no name'));
 
-  sourceSpan.appendChild(sourceNameSpan);
-  sourceSpan.appendChild(sourceProcChar1Span);
-  sourceSpan.appendChild(sourceProcChar2Span);
+  let defaultPid = '<0.0.0>';
+  let pid = prop(log, name, defaultPid);
+  let [charSpan1, charSpan2] = pid_char_spans(pid);
 
-  parent.appendChild(sourceSpan);
+  pidSpan.className = 'process';
+
+  pidSpan.appendChild(nameSpan);
+  pidSpan.appendChild(charSpan1);
+  pidSpan.appendChild(charSpan2);
+
+  parent.appendChild(pidSpan);
 }
 
-function add_target(parent, log){
-  let targetSpan = span();
-  let targetNameSpan = span(prop(log, 'target_name'));
-  let targetProcChar1Span = span(prop(log, 'target', 'N'), 'process');
-  let targetProcChar2Span = span(prop(log, 'target', 'T'), 'process');
+function pid_char_spans(pid){
+  let pidNum1 = pid.split('.')[1];
+  let pidNum2 = reverse_int(pidNum1);
+  let span1 = pid_span(pidNum1);
+  let span2 = pid_span(pidNum2);
+  span1.className = 'log_process_1';
+  span2.className = 'log_process_2';
+  return [span1, span2];
+}
 
-  targetSpan.appendChild(targetNameSpan);
-  targetSpan.appendChild(targetProcChar1Span);
-  targetSpan.appendChild(targetProcChar2Span);
-
-  parent.appendChild(targetSpan);
+function pid_span(i){
+  let letter_ = letter(i);
+  let color = color_from_int(i);
+  let span_ = span(letter_);
+  span_.style.color = color;
+  return span_;
 }
 
 function add_event_name(parent, log){
-  let eventNameSpan = span();
+  let event = prop(log, 'type');
+  let eventNameSpan = span(event);
   parent.appendChild(eventNameSpan);
 }
 
@@ -142,7 +152,6 @@ function add_log_text(parent, log){
   let plainDiv = div();
   plainDiv.innerText = logText;
   parent.appendChild(plainDiv);
-
 }
 
 function span(html, className){
@@ -170,7 +179,6 @@ function prop(log, key, def = ''){
   }
   if(log.hasOwnProperty('props')){
     for(let [k, v] of log.props){
-      console.log('Key: ' + k + ', Val: ' + v);
       if(k== key){
         return v;
       }
@@ -209,4 +217,29 @@ function svg_circle(fill = '#FFFFFF', stroke){
 
   svg.appendChild(circle);
   return svg;
+}
+
+function reverse_int(i){
+  return parseInt((123 + '').split('').reverse().join(''))
+}
+
+function letter(int){
+  return String.fromCharCode((int % 26) + 65);
+}
+
+function color_from_int(i){
+  let red = i % 255;
+  let green = i >> 1 % 255
+  let blue = i >> 2 % 255
+
+  return '#' + to_hex(red) + to_hex(green) + to_hex(blue);
+}
+
+function to_hex(i){
+  var str = Math.round(i).toString(16);
+  if(str.length == 1){
+    return "0" + str;
+  }else{
+    return str;
+  }
 }

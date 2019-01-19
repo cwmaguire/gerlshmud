@@ -31,10 +31,10 @@ SVG {
 }
 .room_title {
   position: relative;
-  top: -20px;
+  top: -18px;
   left: -58px;
   color: white;
-  margin-right: -35px;
+  margin-right: -20;
   font-size: 8px;
 }
 
@@ -49,6 +49,12 @@ SVG {
 
 .process {
   margin: 0px;
+  border: 2px dashed grey;
+}
+
+.event {
+  border: 1px solid blue;
+  padding: 2px;
 }
 
 .event_parent {
