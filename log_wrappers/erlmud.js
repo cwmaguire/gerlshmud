@@ -11,7 +11,8 @@ let icons = {
   clothing: 'shirt_icon.png',
   stat: 'stat_icon.png',
   weapon: 'weapons_icon.png',
-  none: 'white_icon.png'
+  none: 'white_icon.png',
+  unknown: 'question_mark_icon.png'
 }
 
 let nameIcons = {
@@ -33,7 +34,16 @@ let nameIcons = {
   scroll: icons.book,
   shoes: icons.clothing,
   bread: icons.food,
-  none: icons.none
+  dexterity0: icons.stat,
+  p_hp: icons.stat,
+  p_life: icons.stat,
+  p_stamina: icons.stat,
+  p_hand: icons.body_part,
+  p_fist: icons.body_part,
+  z_hp: icons.stat,
+  zombie: icons.person,
+  none: icons.none,
+  unknown: icons.unknown
 }
 
 let eventColors = {
@@ -117,7 +127,12 @@ function add_room(parent, log){
 function add_image(key, parent, log){
   let image = img();
   let id = prop(log, key, 'none');
-  let filename = nameIcons[id];
+  let filename;
+  if(nameIcons.hasOwnProperty(id)){
+    filename = nameIcons[id];
+  } else {
+    filename = nameIcons.unknown;
+  }
   let path = IMAGE_PATH + filename;
   image.src = path;
   image.style.height = '20px';
