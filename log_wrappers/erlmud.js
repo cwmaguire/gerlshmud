@@ -1,5 +1,41 @@
 "use strict";
 
+const IMAGE_PATH = 'images/';
+
+let icons = {
+  food: 'drumstick_icon.png',
+  book: 'book_icon.png',
+  body_part: 'hand_icon.png',
+  person: 'person_icon.png',
+  room: 'room_icon.png',
+  clothing: 'shirt_icon.png',
+  stat: 'stat_icon.png',
+  weapon: 'weapons_icon.png',
+  none: 'white_icon.png'
+}
+
+let nameIcons = {
+  room: icons.room,
+  giant: icons.person,
+  player: icons.person,
+  height0: icons.stat,
+  weight0: icons.stat,
+  gender0: icons.stat,
+  race0: icons.stat,
+  height1: icons.stat,
+  weight1: icons.stat,
+  gender1: icons.stat,
+  race1: icons.stat,
+  legs0: icons.clothing,
+  hands0: icons.body_part,
+  pants: icons.clothing,
+  sword: icons.weapon,
+  scroll: icons.book,
+  shoes: icons.clothing,
+  bread: icons.food,
+  none: icons.none
+}
+
 function load(){
   let handlers = [];
 
@@ -12,6 +48,17 @@ function load(){
   }
 }
 
+/*
+ * food  - Drumstick by Hea Poh Lin from the Noun Project
+ * person - person by Daniela Baptista from the Noun Project
+ * stat - bargraph by H Alberto Gongora from the Noun Project
+ * body_part - Hand by Jakob Vogel from the Noun Project
+ * clothing - Shirt by sarah from the Noun Project
+ * weapon - weapons by Luis Prado from the Noun Project
+ * book - Book by Carlos Ochoa from the Noun Project
+ * room by Pieter J. Smits from the Noun Project
+ */
+
 function add_log_line(log){
   let logDiv = div();
   logDiv.style.border = '1px solid black';
@@ -21,8 +68,8 @@ function add_log_line(log){
 
   add_stage(logDiv, log);
   add_room(logDiv, log);
-  add_source_image(logDiv, log);
-  add_target_image(logDiv, log);
+  add_image('source_name', logDiv, log);
+  add_image('target_name', logDiv, log);
   add_pid('process', logDiv, log);
   let heightListener = add_handler(logDiv, log);
 
@@ -53,14 +100,15 @@ function add_room(parent, log){
   parent.appendChild(roomTitleSpan);
 }
 
-function add_source_image(parent, log){
-  let sourceImage = img();
-  parent.appendChild(sourceImage);
-}
-
-function add_target_image(parent, log){
-  let targetImage = img();
-  parent.appendChild(targetImage);
+function add_image(key, parent, log){
+  let image = img();
+  let id = prop(log, key, 'none');
+  let filename = nameIcons[id];
+  let path = IMAGE_PATH + filename;
+  image.src = path;
+  image.style.height = '20px';
+  image.style.width = '20px';
+  parent.appendChild(image);
 }
 
 function add_log_process(parent, log){
