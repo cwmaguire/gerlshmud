@@ -17,6 +17,7 @@ IMG {
   margin-right: auto;
   position: relative;
   top: 8px;
+  margin-right: 2px;
 }
 
 SVG {
@@ -32,7 +33,6 @@ SVG {
 .room_title {
   position: relative;
   top: -18px;
-  left: -58px;
   color: white;
   margin-right: -20;
   font-size: 8px;
@@ -48,7 +48,7 @@ SVG {
 }
 
 .process {
-  margin: 0px;
+  margin: 2px;
   border: 2px dashed grey;
 }
 

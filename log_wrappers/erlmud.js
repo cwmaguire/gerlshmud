@@ -43,8 +43,9 @@ function load(){
     handlers.push(add_log_line(log));
   }
 
-  for(let [d, h] of handlers){
-    h(d.clientHeight);
+  for(let [d, h1, h2] of handlers){
+    h1(d.clientHeight);
+    h2();
   }
 }
 
@@ -61,13 +62,12 @@ function load(){
 
 function add_log_line(log){
   let logDiv = div();
-  logDiv.style.border = '1px solid black';
 
   let eventSpan = span();
   eventSpan.className = 'event';
 
   add_stage(logDiv, log);
-  add_room(logDiv, log);
+  let roomWidthListener = add_room(logDiv, log);
   add_image('source_name', logDiv, log);
   add_image('target_name', logDiv, log);
   add_pid('process', logDiv, log);
@@ -85,7 +85,7 @@ function add_log_line(log){
 
   add_log_text(document.body, log);
 
-  return [logDiv, heightListener];
+  return [logDiv, heightListener, roomWidthListener];
 }
 
 function add_stage(parent, log){
@@ -94,10 +94,17 @@ function add_stage(parent, log){
 }
 
 function add_room(parent, log){
-  let roomSpan = span(prop(log, 'room', 'no room'), 'room');
+  let roomSpan = span(prop(log, 'room', 'n/a'), 'room');
   let roomTitleSpan = span('room', 'room_title');
   parent.appendChild(roomSpan);
   parent.appendChild(roomTitleSpan);
+  let listener =
+    function(){
+      let roomWidth = roomSpan.offsetWidth;
+      let left = roomWidth - 5;
+      roomTitleSpan.style.left = -left;
+    };
+  return listener;
 }
 
 function add_image(key, parent, log){
@@ -123,7 +130,7 @@ function add_handler(parent, log){
   let handlerSpan = span(handler);
   handlerSpan.style.position = 'relative';
   handlerSpan.style.height = '20px';
-  handlerSpan.style.border = '2px dashed purple';
+  handlerSpan.style.border = '1px solid blue';
   parent.appendChild(handlerSpan);
 
   let handlerFun;
