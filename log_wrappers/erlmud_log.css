@@ -53,7 +53,7 @@ SVG {
 }
 
 .event {
-  border: 1px solid blue;
+  border: 1px solid brown;
   padding: 2px;
 }
 
@@ -93,3 +93,9 @@ SVG {
   padding: 3px;
 }
 
+.module {
+  height: 20px;
+  border: 1px solid blue;
+  position: relative;
+  padding: 3px;
+}

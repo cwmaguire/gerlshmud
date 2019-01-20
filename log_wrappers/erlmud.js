@@ -36,6 +36,11 @@ let nameIcons = {
   none: icons.none
 }
 
+let eventColors = {
+  populate: 'grey',
+  link: 'purple'
+}
+
 function load(){
   let handlers = [];
 
@@ -83,7 +88,9 @@ function add_log_line(log){
 
   document.body.appendChild(logDiv);
 
-  add_log_text(document.body, log);
+  // Keep this here in case I need to see what the props for an event are.
+  // I should make this a hover box.
+  //add_log_text(document.body, log);
 
   return [logDiv, heightListener, roomWidthListener];
 }
@@ -127,10 +134,7 @@ function add_log_process(parent, log){
 
 function add_handler(parent, log){
   let handler = prop(log, 'module');
-  let handlerSpan = span(handler);
-  handlerSpan.style.position = 'relative';
-  handlerSpan.style.height = '20px';
-  handlerSpan.style.border = '1px solid blue';
+  let handlerSpan = span(handler, 'module');
   parent.appendChild(handlerSpan);
 
   let handlerFun;
@@ -201,6 +205,8 @@ function pid_span(i){
 function add_event_name(parent, log){
   let event = prop(log, 'type');
   let eventNameSpan = span(event);
+  let color = eventColors[event];
+  eventNameSpan.style.color = color;
   parent.appendChild(eventNameSpan);
 }
 
@@ -268,8 +274,6 @@ function svg_circle(fill = '#FFFFFF', stroke){
 
   svg.setAttribute("aria-hidden","true");
   svg.setAttribute('viewbox', '0 0 20 20');
-  //svg.setAttribute('width', '20px');
-  //svg.setAttribute('height', '20px');
 
   circle.setAttribute('cx', '10');
   circle.setAttribute('cy', '10');
