@@ -16,7 +16,7 @@ function add_log_line(log){
   let logDiv = div();
   logDiv.style.border = '1px solid black';
 
-  let eventSpan = span(log.type);
+  let eventSpan = span();
   eventSpan.className = 'event';
 
   add_stage(logDiv, log);
@@ -29,11 +29,11 @@ function add_log_line(log){
   add_pid('source', eventSpan, log);
   add_event_name(eventSpan, log);
   add_pid('target', eventSpan, log);
+  logDiv.appendChild(eventSpan);
 
   add_result(logDiv, log);
   add_subscription(logDiv, log);
 
-  logDiv.appendChild(eventSpan);
   document.body.appendChild(logDiv);
 
   add_log_text(document.body, log);
@@ -98,10 +98,10 @@ function add_handler(parent, log){
 function add_pid(typeKey, parent, log){
   let nameKey = typeKey + '_name';
   let pidSpan = span();
-  let nameSpan = span(prop(log, nameKey, 'no name'));
+  let nameSpan = span(prop(log, nameKey, '__'));
 
   let defaultPid = '<0.0.0>';
-  let pid = prop(log, name, defaultPid);
+  let pid = prop(log, typeKey, defaultPid);
   let [charSpan1, charSpan2] = pid_char_spans(pid);
 
   pidSpan.className = 'process';
@@ -114,10 +114,22 @@ function add_pid(typeKey, parent, log){
 }
 
 function pid_char_spans(pid){
-  let pidNum1 = pid.split('.')[1];
-  let pidNum2 = reverse_int(pidNum1);
-  let span1 = pid_span(pidNum1);
-  let span2 = pid_span(pidNum2);
+  let span1;
+  let span2;
+  let pidNum1;
+  let pidNum2;
+
+  if(pid == '<0.0.0>'){
+    span1 = span('_');
+    span1.style.color = 'black';
+    span2 = span('_');
+    span2.style.color = 'black';
+  } else {
+    pidNum1 = parseInt(pid.split('.')[1]);
+    pidNum2 = reverse_int(pidNum1);
+    span1 = pid_span(pidNum1);
+    span2 = pid_span(pidNum2);
+  }
   span1.className = 'log_process_1';
   span2.className = 'log_process_2';
   return [span1, span2];
@@ -138,7 +150,7 @@ function add_event_name(parent, log){
 }
 
 function add_result(parent, log){
-  let resultSpan = span(prop(log, 'stage'));
+  let resultSpan = span(prop(log, 'result'));
   parent.appendChild(resultSpan);
 }
 
@@ -220,7 +232,7 @@ function svg_circle(fill = '#FFFFFF', stroke){
 }
 
 function reverse_int(i){
-  return parseInt((123 + '').split('').reverse().join(''))
+  return parseInt((i + '').split('').reverse().join(''))
 }
 
 function letter(int){
@@ -229,8 +241,8 @@ function letter(int){
 
 function color_from_int(i){
   let red = i % 255;
-  let green = i >> 1 % 255
-  let blue = i >> 2 % 255
+  let green = (i >> 1) % 255
+  let blue = (i >> 2) % 255
 
   return '#' + to_hex(red) + to_hex(green) + to_hex(blue);
 }
@@ -238,7 +250,7 @@ function color_from_int(i){
 function to_hex(i){
   var str = Math.round(i).toString(16);
   if(str.length == 1){
-    return "0" + str;
+    return '0' + str;
   }else{
     return str;
   }
