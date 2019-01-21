@@ -30,7 +30,10 @@
 -export([terminate/2]).
 -export([code_change/3]).
 
--record(state, {index = [] :: list()}).
+-record(entry, {pid :: pid(),
+                id :: atom(),
+                icon :: atom()}).
+-record(state, {index = [] :: list(#entry{})}).
 
 %% api
 
@@ -39,34 +42,62 @@ start_link() ->
 
 put(undefined, _) ->
     ok;
-put(Id, Pid) ->
-    gen_server:cast(erlmud_index, {put, Id, Pid}).
+put(Pid, Prop = {Key, Value})
+  when is_pid(Pid), is_atom(Key), is_atom(Value) ->
+    gen_server:cast(erlmud_index, {put, Pid, Prop}).
 
-get(Id) when is_atom(Id) ->
-    gen_server:call(erlmud_index, {get_pid, Id});
 get(Pid) when is_pid(Pid) ->
+    gen_server:call(erlmud_index, {get, Pid}).
+
+get_pid(Id) when is_atom(Id) ->
+    gen_server:call(erlmud_index, {get_pid, Id}).
+
+get_id(Pid) when is_pid(Pid) ->
     gen_server:call(erlmud_index, {get_id, Pid}).
 
+get_icon(Pid) when is_pid(Pid) ->
+    gen_server:call(erlmud_index, {get_icon, Pid}).
+
 del(Pid) when is_pid(Pid) ->
-    gen_server:cast(erlmud_index, {del_pid, Pid}).
+    gen_server:cast(erlmud_index, {del, Pid}).
 
 init([]) ->
     {ok, #state{}}.
 
+handle_call({get, Pid}, _From, State) ->
+    case lists:keyfind(Pid, 2, State#state.index) of
+        false ->
+            {reply, undefined, State};
+        #entry{id = Id, icon = Icon} ->
+            {reply, {Id, Icon}, State}
+    end;
 handle_call({get_pid, Id}, _From, State) ->
-    {reply, proplists:get_value(Id, State#state.index), State};
+    case lists:keyfind(Id, 3, State#state.index) of
+        false ->
+            {reply, undefined, State};
+        #entry{pid = Pid} ->
+            {reply, Pid, State}
+    end;
 handle_call({get_id, Pid}, _From, State) ->
     case lists:keyfind(Pid, 2, State#state.index) of
-        {Id, Pid} ->
-            {reply, Id, State};
         false ->
-            {reply, undefined, State}
+            {reply, undefined, State};
+        #entry{id = Id} ->
+            {reply, Id, State}
     end;
 handle_call(_Request, _From, State) ->
     {reply, ignored, State}.
 
-handle_cast({put, Id, Pid}, State = #state{index = Index}) ->
-    {noreply, State#state{index = [{Id, Pid} | remove(Id, Pid, Index)]}};
+handle_cast({put, Pid, {K, V}}, State = #state{index = Index}) ->
+    Index2 =
+    case lists:keyfind(Pid, 2, Index) of
+        false ->
+            [entry(Pid, K, V) | Index];
+        Record ->
+            Entry = update_entry(Record, K, V),
+            lists:keyreplace(Pid, 2, Index, Entry)
+    end,
+    {noreply, State#state{index = Index2}};
 handle_cast({del, Pid}, State = #state{index = Index}) ->
     {noreply, State#state{index = lists:keydelete(Pid, 2, Index)}};
 handle_cast(_Msg, State) ->
@@ -83,3 +114,13 @@ code_change(_OldVsn, State, _Extra) ->
 
 remove(Id, Pid, List) ->
     lists:keydelete(Id, 1, lists:keydelete(Pid, 2, List)).
+
+entry(Pid, id, Id) ->
+    #entry{pid = Pid, id = Id};
+entry(Pid, icon, Icon) ->
+    #entry{pid = Pid, icon = Icon}.
+
+update_entry(Entry, id, Id) ->
+    Entry#entry{id = Id};
+update_entry(Entry, icon, Icon) ->
+    Entry#entry{icon = Icon}.

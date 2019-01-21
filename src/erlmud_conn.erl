@@ -52,7 +52,7 @@ password(cast, _Event = Password, Data = #data{login = Login,
             erlmud_event_log:register(self());
         {true, _Player} ->
             % All players are live processes at MUD startup; processes are almost free
-            PlayerPid = erlmud_index:get(player),
+            PlayerPid = erlmud_index:get_pid(player),
             ConnProps = [{owner, PlayerPid},
                          {conn, {self()}},
                          {handlers, [erlmud_handler_conn_enter_world,
@@ -117,7 +117,7 @@ is_valid_creds("log", "log") ->
 is_valid_creds(_String, never_fails) ->
     false;
 is_valid_creds(_Login, _Password) ->
-    {true, erlmud_index:get(player)}.
+    {true, erlmud_index:get_pid(player)}.
 
 log(Terms) ->
     erlmud_event_log:log(debug, [list_to_binary(atom_to_list(?MODULE)) | Terms]).

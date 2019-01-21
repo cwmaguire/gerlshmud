@@ -11,39 +11,12 @@ let icons = {
   clothing: 'shirt_icon.png',
   stat: 'stat_icon.png',
   weapon: 'weapons_icon.png',
+  armor: 'armor_icon.png',
+  exit: 'exit_icon.png',
+  ammo: 'ammo_icon.png',
+  technology: 'technology_icon.png',
   none: 'white_icon.png',
   unknown: 'question_mark_icon.png'
-}
-
-let nameIcons = {
-  room: icons.room,
-  giant: icons.person,
-  player: icons.person,
-  height0: icons.stat,
-  weight0: icons.stat,
-  gender0: icons.stat,
-  race0: icons.stat,
-  height1: icons.stat,
-  weight1: icons.stat,
-  gender1: icons.stat,
-  race1: icons.stat,
-  legs0: icons.clothing,
-  hands0: icons.body_part,
-  pants: icons.clothing,
-  sword: icons.weapon,
-  scroll: icons.book,
-  shoes: icons.clothing,
-  bread: icons.food,
-  dexterity0: icons.stat,
-  p_hp: icons.stat,
-  p_life: icons.stat,
-  p_stamina: icons.stat,
-  p_hand: icons.body_part,
-  p_fist: icons.body_part,
-  z_hp: icons.stat,
-  zombie: icons.person,
-  none: icons.none,
-  unknown: icons.unknown
 }
 
 let eventColors = {
@@ -83,8 +56,8 @@ function add_log_line(log){
 
   add_stage(logDiv, log);
   let roomWidthListener = add_room(logDiv, log);
-  add_image('source_name', logDiv, log);
-  add_image('target_name', logDiv, log);
+  add_image('source_icon', logDiv, log);
+  add_image('target_icon', logDiv, log);
   add_pid('process', logDiv, log);
   let heightListener = add_handler(logDiv, log);
 
@@ -126,13 +99,9 @@ function add_room(parent, log){
 
 function add_image(key, parent, log){
   let image = img();
-  let id = prop(log, key, 'none');
+  let icon = prop(log, key, 'none');
   let filename;
-  if(nameIcons.hasOwnProperty(id)){
-    filename = nameIcons[id];
-  } else {
-    filename = nameIcons.unknown;
-  }
+  filename = icons[icon];
   let path = IMAGE_PATH + filename;
   image.src = path;
   image.style.height = '20px';
@@ -170,9 +139,9 @@ function add_handler(parent, log){
 }
 
 function add_pid(typeKey, parent, log){
-  let nameKey = typeKey + '_name';
+  let idKey = typeKey + '_id';
   let pidSpan = span();
-  let nameSpan = span(prop(log, nameKey, '__'));
+  let idSpan = span(prop(log, idKey, '__'));
 
   let defaultPid = '<0.0.0>';
   let pid = prop(log, typeKey, defaultPid);
@@ -180,7 +149,7 @@ function add_pid(typeKey, parent, log){
 
   pidSpan.className = 'process';
 
-  pidSpan.appendChild(nameSpan);
+  pidSpan.appendChild(idSpan);
   pidSpan.appendChild(charSpan1);
   pidSpan.appendChild(charSpan2);
 

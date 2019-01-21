@@ -58,7 +58,7 @@ handle_call(Request, From, State) ->
 
 handle_cast({log, Pid, Level, Props}, State) when is_list(Props) ->
     Props2 = [{process, Pid}, {level, Level} | Props],
-    NamedProps = add_proc_names(Props2),
+    NamedProps = add_index_details(Props2),
     BinProps = [{K, json_friendly(V)} || {K, V} <- NamedProps],
     JSON2 =
     try
@@ -139,18 +139,20 @@ json_friendly(Pid) when is_pid(Pid) ->
 json_friendly(Any) ->
     Any.
 
-add_proc_names(Props) ->
-    lists:foldl(fun add_proc_names/2, [], Props).
+add_index_details(Props) ->
+    lists:foldl(fun add_index_details/2, [], Props).
 
-add_proc_names({Key, Pid}, NamedProps) when is_pid(Pid) ->
+add_index_details({Key, Pid}, NamedProps) when is_pid(Pid) ->
     case erlmud_index:get(Pid) of
         undefined ->
             NamedProps;
-        Name ->
-            NameKey = list_to_atom(atom_to_list(Key) ++ "_name"),
-            [{Key, Pid}, {NameKey, Name} | NamedProps]
+        {Id, Icon} ->
+            IdKey = list_to_atom(atom_to_list(Key) ++ "_id"),
+            IconKey = list_to_atom(atom_to_list(Key) ++ "_icon"),
+            Props = [P || P = {_, V} <- [{IdKey, Id}, {IconKey, Icon}], V /= undefined],
+            [{Key, Pid} | Props] ++ NamedProps
     end;
-add_proc_names(Prop, NamedProps) ->
+add_index_details(Prop, NamedProps) ->
     [Prop | NamedProps].
 
 is_string([]) ->

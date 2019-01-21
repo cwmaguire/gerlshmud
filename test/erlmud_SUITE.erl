@@ -11,8 +11,8 @@
 
 %all() -> [look_player].
 %all() -> [player_drop_item].
-%all() -> [counterattack_behaviour].
-all() -> [log].
+all() -> [counterattack_behaviour].
+%all() -> [log].
 %all() ->
     %[player_move,
      %player_move_fail,
@@ -50,7 +50,7 @@ init_per_testcase(_, Config) ->
     {ok, _Started} = application:ensure_all_started(erlmud),
     {ok, _Pid} = erlmud_test_socket:start(),
     TestObject = spawn_link(fun mock_object/0),
-    erlmud_index:put("TestObject", TestObject),
+    erlmud_index:put(TestObject, {id, test_object}),
     [{test_object, TestObject} | Config].
 
 end_per_testcase(_, _Config) ->

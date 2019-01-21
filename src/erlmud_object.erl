@@ -54,7 +54,10 @@
 start_link(Id, Props) ->
     %ct:pal("erlmud_obj:start_link(~p, ~p, ~p)~n", [Id, Type, Props]),
     {ok, Pid} = gen_server:start_link(?MODULE, Props, []),
-    erlmud_index:put(id(Id, Pid, Props), Pid),
+    Id = id(Id, Pid, Props),
+    erlmud_index:put(Pid, {id, Id}),
+    Icon = proplists:get_value(icon, Props),
+    erlmud_index:put(Pid, {icon, Icon}),
     {ok, Pid}.
 
 id(_Id = undefined, Pid, Props) ->
