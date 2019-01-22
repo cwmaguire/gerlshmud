@@ -76,7 +76,7 @@ has(Val, Obj) ->
 get_props(undefined) ->
     [];
 get_props(Obj) when is_atom(Obj) ->
-    Pid = erlmud_index:get(Obj),
+    Pid = erlmud_index:get_pid(Obj),
     get_props(Pid);
 get_props(Pid) when is_pid(Pid) ->
     {_RecordName, Props} = sys:get_state(Pid),
@@ -87,9 +87,9 @@ player_move(Config) ->
     %erlmud_dbg:add(erlmud_object, populate),
     %erlmud_dbg:add(erlmud_object, handle_cast_),
     start(?WORLD_1),
-    Player = erlmud_index:get(player),
-    RoomNorth =  erlmud_index:get(room_nw),
-    RoomSouth =  erlmud_index:get(room_s),
+    Player = erlmud_index:get_pid(player),
+    RoomNorth =  erlmud_index:get_pid(room_nw),
+    RoomSouth =  erlmud_index:get_pid(room_s),
 
     RoomNorth = val(owner, Player),
     attempt(Config, Player, {Player, move, s}),
@@ -98,8 +98,8 @@ player_move(Config) ->
 
 player_move_fail(Config) ->
     start(?WORLD_1),
-    Player = erlmud_index:get(player),
-    RoomNorth =  erlmud_index:get(room_nw),
+    Player = erlmud_index:get_pid(player),
+    RoomNorth =  erlmud_index:get_pid(room_nw),
     RoomNorth = val(owner, Player),
     attempt(Config, Player, {Player, move, non_existent_exit}),
     ?WAIT100,
@@ -107,10 +107,10 @@ player_move_fail(Config) ->
 
 player_move_exit_locked(Config) ->
     start(?WORLD_1),
-    Player = erlmud_index:get(player),
-    RoomNorth =  erlmud_index:get(room_nw),
-    RoomEast =  erlmud_index:get(room_e),
-    ExitEastWest =  erlmud_index:get(exit_ew),
+    Player = erlmud_index:get_pid(player),
+    RoomNorth =  erlmud_index:get_pid(room_nw),
+    RoomEast =  erlmud_index:get_pid(room_e),
+    ExitEastWest =  erlmud_index:get_pid(exit_ew),
     RoomNorth = val(owner, Player),
     attempt(Config, Player, {Player, move, e}),
     ?WAIT100,
@@ -122,8 +122,8 @@ player_move_exit_locked(Config) ->
 
 player_get_item(Config) ->
     start(?WORLD_2),
-    Player = erlmud_index:get(player),
-    Sword = erlmud_index:get(sword),
+    Player = erlmud_index:get_pid(player),
+    Sword = erlmud_index:get_pid(sword),
     true = has(Sword, room),
     false = has(Sword, player),
     attempt(Config, Player, {Player, get, <<"sword">>}),
@@ -132,8 +132,8 @@ player_get_item(Config) ->
 
 player_drop_item(Config) ->
     start(?WORLD_2),
-    Player = erlmud_index:get(player),
-    Helmet = erlmud_index:get(helmet),
+    Player = erlmud_index:get_pid(player),
+    Helmet = erlmud_index:get_pid(helmet),
     true = has(Helmet, player),
     attempt(Config, Player, {Player, drop, <<"helmet">>}),
     ?WAIT100,
@@ -142,12 +142,12 @@ player_drop_item(Config) ->
 
 character_owner_add_remove(Config) ->
     start(?WORLD_10),
-    Player = erlmud_index:get(player),
-    Rifle = erlmud_index:get(rifle),
-    Suppressor = erlmud_index:get(suppressor),
-    Grip = erlmud_index:get(grip),
-    Clip = erlmud_index:get(clip),
-    Bullet = erlmud_index:get(bullet),
+    Player = erlmud_index:get_pid(player),
+    Rifle = erlmud_index:get_pid(rifle),
+    Suppressor = erlmud_index:get_pid(suppressor),
+    Grip = erlmud_index:get_pid(grip),
+    Clip = erlmud_index:get_pid(clip),
+    Bullet = erlmud_index:get_pid(bullet),
     attempt(Config, Player, {Player, get, <<"rifle">>}),
     ?WAIT100,
     true = has(Rifle, player),
@@ -173,7 +173,7 @@ character_owner_add_remove(Config) ->
 
 player_attack(Config) ->
     start(?WORLD_3),
-    Player = erlmud_index:get(player),
+    Player = erlmud_index:get_pid(player),
     attempt(Config, Player, {Player, attack, <<"zombie">>}),
     receive after 1000 -> ok end,
     false = val(is_alive, z_life),
@@ -181,10 +181,10 @@ player_attack(Config) ->
 
 player_resource_wait(Config) ->
     start(?WORLD_3),
-    Player = erlmud_index:get(player),
-    Fist = erlmud_index:get(p_fist),
-    Stamina = erlmud_index:get(p_stamina),
-    Zombie = erlmud_index:get(zombie),
+    Player = erlmud_index:get_pid(player),
+    Fist = erlmud_index:get_pid(p_fist),
+    Stamina = erlmud_index:get_pid(p_stamina),
+    Zombie = erlmud_index:get_pid(zombie),
     erlmud_object:set(Stamina, {current, 5}),
     erlmud_object:set(Stamina, {tick_time, 10000}),
     attempt(Config, Player, {Player, attack, <<"zombie">>}),
@@ -197,8 +197,8 @@ player_resource_wait(Config) ->
 
 one_sided_fight(Config) ->
     start(?WORLD_3),
-    Player = erlmud_index:get(player),
-    _Zombie = erlmud_index:get(zombie),
+    Player = erlmud_index:get_pid(player),
+    _Zombie = erlmud_index:get_pid(zombie),
     attempt(Config, Player, {Player, attack, <<"zombie">>}),
     WaitFun =
         fun() ->
@@ -225,15 +225,15 @@ one_sided_fight(Config) ->
 
 counterattack_behaviour(Config) ->
     start(?WORLD_3),
-    Player = erlmud_index:get(player),
+    Player = erlmud_index:get_pid(player),
     %erlmud_object:set(Player, {attack_wait, 20}),
-    %Zombie = erlmud_index:get(zombie),
+    %Zombie = erlmud_index:get_pid(zombie),
     %% Counterattack is now handled by items so we'll limit the attacks
     %% with the amount of stamina available
     Stamina = val(stamina, zombie),
     erlmud_object:set(Stamina, {current, 5}),
     erlmud_object:set(Stamina, {tick_time, 100000}),
-    Dexterity = erlmud_index:get(dexterity0),
+    Dexterity = erlmud_index:get_pid(dexterity0),
     erlmud_object:set(Dexterity, {defence_hit_modifier, 0}),
     ?WAIT100,
     attempt(Config, Player, {Player, attack, <<"zombie">>}),
@@ -257,10 +257,10 @@ counterattack_behaviour(Config) ->
 attack_with_modifiers(Config) ->
     erlmud_dbg:add(erlmud_handler_item_attack),
     start(?WORLD_8),
-    Room = erlmud_index:get(room1),
-    Player = erlmud_index:get(player),
+    Room = erlmud_index:get_pid(room1),
+    Player = erlmud_index:get_pid(player),
     %% TODO make sure that the giant is counterattacking
-    _Giant = erlmud_index:get(giant),
+    _Giant = erlmud_index:get_pid(giant),
     ?WAIT100,
     attempt(Config, Player, {<<"force field">>, move, from, Room, to, Player}),
     attempt(Config, Player, {<<"shield">>, move, from, Room, to, Player}),
@@ -294,19 +294,19 @@ attack_with_modifiers(Config) ->
 
 stop_attack_on_move(Config) ->
     start(?WORLD_8),
-    Room1 = erlmud_index:get(room1),
-    Room2 = erlmud_index:get(room2),
-    Player = erlmud_index:get(player),
+    Room1 = erlmud_index:get_pid(room1),
+    Room2 = erlmud_index:get_pid(room2),
+    Player = erlmud_index:get_pid(player),
 
     % TODO make sure the attack stops when the player leaves
     %  - leave
     %  - check that attack is stopped
 
-    _Giant = erlmud_index:get(giant),
+    _Giant = erlmud_index:get_pid(giant),
 
     %% Keep the attack going, but so that we can prove that it happened
     GiantHPAmt = 10000000,
-    GiantHP =  erlmud_index:get(g_hp),
+    GiantHP =  erlmud_index:get_pid(g_hp),
     erlmud_object:set(GiantHP, {hitpoints, GiantHPAmt}),
 
     ?WAIT100,
@@ -380,9 +380,9 @@ wait_loop(Fun, ExpectedResult, Count) ->
 
 player_wield(Config) ->
     start(?WORLD_4),
-    Player = erlmud_index:get(player),
-    Helmet = erlmud_index:get(helmet),
-    Head = erlmud_index:get(head1),
+    Player = erlmud_index:get_pid(player),
+    Helmet = erlmud_index:get_pid(helmet),
+    Head = erlmud_index:get_pid(head1),
     Helmet = val(item, Player),
     attempt(Config, Player, {<<"helmet">>, move, from, Player, to, <<"head">>}),
     ?WAIT100,
@@ -398,9 +398,9 @@ player_wield(Config) ->
 
 player_wield_first_available(Config) ->
     start(?WORLD_4),
-    Player = erlmud_index:get(player),
-    Head = erlmud_index:get(head1),
-    Helmet = erlmud_index:get(helmet),
+    Player = erlmud_index:get_pid(player),
+    Head = erlmud_index:get_pid(head1),
+    Helmet = erlmud_index:get_pid(helmet),
     attempt(Config, Player, {<<"helmet">>, move, from, Player, to, first_available_body_part}),
     ?WAIT100,
     undefined = val(item, Player),
@@ -409,9 +409,9 @@ player_wield_first_available(Config) ->
 
 player_wield_missing_body_part(Config) ->
     start(?WORLD_4),
-    Player = erlmud_index:get(player),
-    Head = erlmud_index:get(head1),
-    Helmet = erlmud_index:get(helmet),
+    Player = erlmud_index:get_pid(player),
+    Head = erlmud_index:get_pid(head1),
+    Helmet = erlmud_index:get_pid(helmet),
     attempt(Config, Player, {<<"helmet">>, move, from, Player, to, <<"finger">>}),
     ?WAIT100,
     undefined = val(item, head1),
@@ -424,9 +424,9 @@ player_wield_missing_body_part(Config) ->
 
 player_wield_wrong_body_part(Config) ->
     start(?WORLD_5),
-    Player = erlmud_index:get(player),
-    Head = erlmud_index:get(head1),
-    Helmet = erlmud_index:get(helmet),
+    Player = erlmud_index:get_pid(player),
+    Head = erlmud_index:get_pid(head1),
+    Helmet = erlmud_index:get_pid(helmet),
     attempt(Config, Player, {<<"helmet">>, move, from, Player, to, <<"finger">>}),
     ?WAIT100,
     undefined = val(item, head1),
@@ -439,11 +439,11 @@ player_wield_wrong_body_part(Config) ->
 
 player_wield_body_part_is_full(Config) ->
     start(?WORLD_6),
-    Player = erlmud_index:get(player),
-    Finger1 = erlmud_index:get(finger1),
-    Finger2 = erlmud_index:get(finger2),
-    Ring1 = erlmud_index:get(ring1),
-    Ring2 = erlmud_index:get(ring2),
+    Player = erlmud_index:get_pid(player),
+    Finger1 = erlmud_index:get_pid(finger1),
+    Finger2 = erlmud_index:get_pid(finger2),
+    Ring1 = erlmud_index:get_pid(ring1),
+    Ring2 = erlmud_index:get_pid(ring2),
     AllItems = [_, _] = all(item, player),
     true = lists:member(Ring1, AllItems),
     true = lists:member(Ring2, AllItems),
@@ -469,10 +469,10 @@ player_wield_body_part_is_full(Config) ->
 
 player_remove(Config) ->
     start(?WORLD_4),
-    Player = erlmud_index:get(player),
-    Head = erlmud_index:get(head1),
-    Helmet = erlmud_index:get(helmet),
-    DexBuff = erlmud_index:get(dex_buff),
+    Player = erlmud_index:get_pid(player),
+    Head = erlmud_index:get_pid(head1),
+    Helmet = erlmud_index:get_pid(helmet),
+    DexBuff = erlmud_index:get_pid(dex_buff),
     attempt(Config, Player, {<<"helmet">>, move, from, Player, to, <<"head">>}),
     ?WAIT100,
     undefined = val(item, player),
@@ -524,7 +524,7 @@ look_player_clothed(Config) ->
     start(?WORLD_7),
     erlmud_test_socket:send(<<"AnyLoginWillDo">>),
     erlmud_test_socket:send(<<"AnyPasswordWillDo">>),
-    Giant = erlmud_index:get(giant),
+    Giant = erlmud_index:get_pid(giant),
     attempt(Config, Giant, {<<"pants">>, move, from, Giant, to, <<"legs">>}),
     ?WAIT100,
     erlmud_test_socket:send(<<"look pete">>),
@@ -572,9 +572,9 @@ look_item(_Config) ->
 
 set_character(Config) ->
     start(?WORLD_9),
-    Room = erlmud_index:get(room),
-    Dog = erlmud_index:get(dog),
-    Collar = erlmud_index:get(collar),
+    Room = erlmud_index:get_pid(room),
+    Dog = erlmud_index:get_pid(dog),
+    Collar = erlmud_index:get_pid(collar),
     attempt(Config, Dog, {Collar, move, from, Room, to, Dog}),
     ?WAIT100,
     Dog = val(character, collar),
@@ -587,7 +587,7 @@ log(_Config) ->
     LogFile = "../erlmud.log",
     start(?WORLD_7),
     ct:sleep(500),
-    Player = erlmud_index:get(player),
+    Player = erlmud_index:get_pid(player),
 
     erlmud_event_log:log(Player, debug, [{foo, bar}]),
     ?WAIT100,

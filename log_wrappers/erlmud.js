@@ -73,7 +73,7 @@ function add_log_line(log){
 
   // Keep this here in case I need to see what the props for an event are.
   // I should make this a hover box.
-  //add_log_text(document.body, log);
+  add_log_text(document.body, log);
 
   return [logDiv, heightListener, roomWidthListener];
 }

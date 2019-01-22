@@ -258,6 +258,8 @@ attempt_(Msg,
       = ensure_log_props(
           ensure_message(Msg,
                          run_handlers({Parents, Props, Msg}))),
+    % TODO convert log properties to a list of tuples
+    % (in the JSON it's a list of 2 item lists)
     log([{stage, attempt},
          {object, self()},
          {message, Msg},
@@ -317,14 +319,21 @@ handle_attempt([Handler | Handlers], Attempt) ->
             {Handler, Result}
     end.
 
-ensure_message(Msg, {Handler, {A, B, C}}) ->
-    {Handler, {A, Msg, B, C}};
+ensure_message(Msg, {Handler, {Result, Sub, Props}})
+  when is_atom(Sub), is_list(Props) ->
+    {Handler, {Result, Msg, Sub, Props}};
+ensure_message(Msg, {Handler, {Result, Sub, Props, Log}})
+  when is_atom(Sub), is_list(Props), is_list(Log) ->
+    {Handler, {Result, Msg, Sub, Props, Log}};
 ensure_message(_, T) ->
+    io:format(user, "T = ~p~n", [T]),
     T.
 
-ensure_log_props({A, {B, {C, D, E}}}) ->
-    {A, {B, {C, D, E, []}}};
+ensure_log_props({Handler, {Result, Msg, Sub, Props}})
+  when is_atom(Sub), is_tuple(Msg), is_list(Props) ->
+    {Handler, {Result, Msg, Sub, Props, []}};
 ensure_log_props(WithLogProps) ->
+    io:format(user, "WithLogProps = ~p~n", [WithLogProps]),
     WithLogProps.
 
 
@@ -400,13 +409,23 @@ procs(Props) ->
                     Acc
                 end, [], Props).
 
-merge(_, _, {{resend, _, _, _}, _, _, _}, _) ->
+merge(_, _, {{resend, _, _, _}, _, _, _, _}, _) ->
     undefined;
-merge(_, _, {{broadcast, _}, _, _, _}, _) ->
+merge(_, _, {{broadcast, _}, _, _, _, _}, _) ->
     undefined;
-merge(Self, IsRoom = true, Results, Procs = #procs{room = undefined}) ->
+merge(Self,
+      IsRoom = true,
+      Results,
+      Procs = #procs{room = undefined}) ->
     merge(Self, IsRoom, Results, Procs#procs{room = Self});
-merge(Self, _, {_, _, ShouldSubscribe, Props}, Procs = #procs{}) ->
+merge(Self,
+      _,
+      {_,
+       _,
+       ShouldSubscribe,
+       Props,
+       _},
+      Procs = #procs{}) ->
     merge_(Self,
            sub(Procs, ShouldSubscribe),
            procs(Props)).

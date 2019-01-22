@@ -19,6 +19,9 @@
 -export([start_link/0]).
 -export([put/2]).
 -export([get/1]).
+-export([get_pid/1]).
+-export([get_id/1]).
+-export([get_icon/1]).
 -export([del/1]).
 
 %% gen_server
