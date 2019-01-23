@@ -205,10 +205,11 @@ function add_subscription(parent, log){
 }
 
 function add_log_text(parent, log){
-  let logText = serialize(log);
-  let plainDiv = div();
-  plainDiv.innerText = logText;
-  parent.appendChild(plainDiv);
+  for(let k in log){
+    let d = div();
+    d.innerText = k + ': ' + log[k];
+    parent.appendChild(d);
+  }
 }
 
 function span(html, className){

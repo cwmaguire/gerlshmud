@@ -126,8 +126,8 @@ handle_cast_({populate, ProcIds}, State = #state{props = Props}) ->
     log([{stage, none},
          {object, self()},
          {type, populate},
-         {source, self()},
-         {props, Props}]),
+         {source, self()} |
+         Props]),
     {noreply, State#state{props = populate_(Props, ProcIds)}};
 handle_cast_({set, Prop = {K, _}}, State = #state{props = Props}) ->
     {noreply, State#state{props = lists:keystore(K, 1, Props, Prop)}};
@@ -142,19 +142,17 @@ handle_cast_({fail, Reason, Msg, LogProps}, State) ->
             log([{stage, fail_stop},
                  {object, self()},
                  {owner, proplists:get_value(owner, Props)},
-                 {props, Props},
                  {message, Msg},
                  {stop_reason, Reason} |
-                 ParentsList ++ LogProps]),
+                 Props ++ ParentsList ++ LogProps]),
             {stop, {shutdown, Reason}, State#state{props = Props}};
         {Props, LogProps} ->
             {_, ParentsList} = parents(Props),
             log([{stage, fail},
                  {object, self()},
-                 {props, Props},
                  {message, Msg},
                  {stop_reason, Reason} |
-                 ParentsList ++ LogProps]),
+                 Props ++ ParentsList ++ LogProps]),
             {noreply, State#state{props = Props}}
     end;
 handle_cast_({succeed, Msg}, State) ->
@@ -163,18 +161,16 @@ handle_cast_({succeed, Msg}, State) ->
             {_, ParentsList} = parents(Props),
             log([{stage, succed_stop},
                  {object, self()},
-                 {props, Props},
                  {message, Msg},
                  {stop_reason, Reason} |
-                 ParentsList ++ LogProps]),
+                 Props ++ ParentsList ++ LogProps]),
             {stop, {shutdown, Reason}, State#state{props = Props}};
         {Props, LogProps} ->
             {_, ParentsList} = parents(Props),
             log([{stage, succeed},
                  {object, self()},
-                 {props, Props},
                  {message, Msg} |
-                 ParentsList ++ LogProps]),
+                 Props ++ ParentsList ++ LogProps]),
             {noreply, State#state{props = Props}}
     end.
 
@@ -183,9 +179,8 @@ handle_info({'EXIT', From, Reason}, State = #state{props = Props}) ->
     log([{type, exit},
          {object, self()},
          {source, From},
-         {reason, Reason},
-         {props, Props} |
-         ParentsList]),
+         {reason, Reason} |
+         Props ++ ParentsList]),
     Props2 = lists:keydelete(From, 2, Props),
     {noreply, State#state{props = Props2}};
 handle_info({Pid, Msg}, State) ->
@@ -195,18 +190,16 @@ handle_info(Unknown, State = #state{props = Props}) ->
     {_, ParentsList} = parents(Props),
     log([{type, unknown_message},
          {object, self()},
-         {props, Props},
          {message, Unknown} |
-         ParentsList]),
+         Props ++ ParentsList]),
     {noreply, State}.
 
 terminate(Reason, _State = #state{props = Props}) ->
     {_, ParentsList} = parents(Props),
     log([{type, shutdown},
          {object, self()},
-         {reason, Reason},
-         {props, Props} |
-         ParentsList]),
+         {reason, Reason} |
+         Props ++ ParentsList]),
     erlmud_index:del(self()),
     ok.
 
@@ -258,15 +251,15 @@ attempt_(Msg,
       = ensure_log_props(
           ensure_message(Msg,
                          run_handlers({Parents, Props, Msg}))),
-    % TODO convert log properties to a list of tuples
-    % (in the JSON it's a list of 2 item lists)
     log([{stage, attempt},
          {object, self()},
          {message, Msg},
          {handler, Handler},
-         {subscribe, ShouldSubscribe},
-         {props, Props2} |
-         ParentsList ++ LogProps ++ result_tuples(Result)]),
+         {subscribe, ShouldSubscribe} |
+         Props2] ++
+         ParentsList ++
+         LogProps ++
+         result_tuples(Result)),
     MergedProcs = merge(self(), is_room(Props), Results, Procs),
     _ = handle(Result, Msg2, MergedProcs, Props2),
     State#state{props = Props2}.
@@ -333,7 +326,6 @@ ensure_log_props({Handler, {Result, Msg, Sub, Props}})
   when is_atom(Sub), is_tuple(Msg), is_list(Props) ->
     {Handler, {Result, Msg, Sub, Props, []}};
 ensure_log_props(WithLogProps) ->
-    io:format(user, "WithLogProps = ~p~n", [WithLogProps]),
     WithLogProps.
 
 
@@ -493,5 +485,17 @@ prop(Prop, Props, Fun, Default) ->
             Default
     end.
 
-log(Props) ->
+log(Props0) ->
+    Props = flatten(Props0),
     erlmud_event_log:log(debug, [{module, ?MODULE} | Props]).
+
+flatten(Props) ->
+    Flattened = flatten(Props, []),
+    lists:ukeysort(1, Flattened).
+
+flatten([], List) ->
+    List;
+flatten([{K, [{K2, V} | L]} | Rest], Out) ->
+    flatten([{K, L} | Rest], [{K2, V} | Out]);
+flatten([T | Rest], Out) when is_tuple(T) ->
+    flatten(Rest, [T | Out]).
