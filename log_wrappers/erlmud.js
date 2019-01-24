@@ -2,6 +2,24 @@
 
 const IMAGE_PATH = 'images/';
 
+let filters = (
+  [{id: 'cb_has_type',
+    label: 'has type',
+    filter: has_type,
+    initial: false},
+
+   {id: 'cb_not_link',
+    label: 'not link',
+    filter: not_link,
+    initial: true},
+
+   {id: 'cb_not_populate',
+    label: 'not populate',
+    filter: not_populate,
+    initial: true}
+  ]
+);
+
 let icons = {
   food: 'drumstick_icon.png',
   book: 'book_icon.png',
@@ -17,17 +35,36 @@ let icons = {
   technology: 'technology_icon.png',
   none: 'white_icon.png',
   unknown: 'question_mark_icon.png'
-}
+};
 
 let eventColors = {
   populate: 'grey',
   link: 'purple'
 }
 
-function load(){
+function initial_filters(filters, filter){
+  if(filter.initial){
+    return filters.concat(filter.id);
+  }else{
+    return filters;
+  }
+}
+
+function initial_load(){
+  let initial = filters.reduce(initial_filters, []);
+  load(initial);
+}
+
+function load(filterIds = []){
   let handlers = [];
 
-  for(let log of logs){
+  add_filters();
+
+  let filtersToApply = filters.filter(f => filterIds.includes(f.id));
+  filtersToApply.map(f => elem(f.id).checked = true)
+  let filteredLogs = filtersToApply.reduce((logs, f) => logs.filter(f.filter), logs);
+
+  for(let log of filteredLogs){
     handlers.push(add_log_line(log));
   }
 
@@ -37,16 +74,61 @@ function load(){
   }
 }
 
-/*
- * food  - Drumstick by Hea Poh Lin from the Noun Project
- * person - person by Daniela Baptista from the Noun Project
- * stat - bargraph by H Alberto Gongora from the Noun Project
- * body_part - Hand by Jakob Vogel from the Noun Project
- * clothing - Shirt by sarah from the Noun Project
- * weapon - weapons by Luis Prado from the Noun Project
- * book - Book by Carlos Ochoa from the Noun Project
- * room by Pieter J. Smits from the Noun Project
- */
+function has_type(obj){
+  return obj.hasOwnProperty('type');
+}
+
+function not_link(obj){
+  return !obj.hasOwnProperty('type') || obj.type != 'link';
+}
+
+function not_populate(obj){
+  return !obj.hasOwnProperty('type') || obj.type != 'populate';
+}
+
+function add_filters(initial){
+  let filtersDiv = div();
+
+  for(let filter of filters){
+    let filterSpan = span();
+    let label = span(filter.label);
+    let checkbox = document.createElement('INPUT');
+    checkbox.type = 'checkbox';
+    checkbox.id = filter.id;
+    checkbox.checked = initial && filter.initial;
+    checkbox.addEventListener('change', filter_checkbox_change);
+
+    filterSpan.appendChild(checkbox);
+    filterSpan.appendChild(label);
+    filtersDiv.appendChild(filterSpan);
+  }
+  document.body.appendChild(filtersDiv);
+}
+
+function filter_checkbox_change(event){
+  let filterIds = filters.reduce(applied_filters, []);
+  reload(filterIds);
+}
+
+function applied_filters(applied, filter){
+  if(elem(filter.id).checked){
+    return applied.concat(filter.id);
+  }else{
+    return applied;
+  }
+}
+
+function reload(filterIds){
+  clear();
+  load(filterIds);
+}
+
+function clear(){
+  while(document.body.childElementCount > 0){
+    document.body.children[0].remove()
+  }
+}
+
 
 function add_log_line(log){
   let logDiv = div();
@@ -298,4 +380,8 @@ function to_hex(i){
   }else{
     return str;
   }
+}
+
+function elem(id){
+  return document.getElementById(id);
 }
