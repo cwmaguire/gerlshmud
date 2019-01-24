@@ -33,9 +33,9 @@ attempt({#parents{character = Character,
                   top_item = TopItem = #top_item{item = Item}},
          Props,
          {Character, calc, Hit, on, Target, with, Item}}) ->
-    Log = [{type, calc_hit},
-           {source, Character},
-           {target, Target},
+    Log = [{?EVENT, calc_hit},
+           {?SOURCE, Character},
+           {?TARGET, Target},
            {hit, Hit},
            {item, Item}],
     case is_interested(TopItem, Props) of
@@ -57,9 +57,9 @@ attempt({#parents{character = Character,
                   top_item = TopItem = #top_item{item = Item}},
          Props,
          {Character, damage, Damage, to, Target, with, Item}}) ->
-    Log = [{type, damage},
-           {source, Character},
-           {target, Target},
+    Log = [{?EVENT, damage},
+           {?SOURCE, Character},
+           {?TARGET, Target},
            {damage, Damage},
            {item, Item}],
     case is_interested(TopItem, Props) of
@@ -83,9 +83,9 @@ attempt({#parents{character = Character,
                   top_item = TopItem = #top_item{item = Item}},
          Props,
          {Attacker, calc, Hit, on, Character, with, Item}}) ->
-    Log = [{type, calc_hit},
-           {source, Attacker},
-           {target, Character},
+    Log = [{?EVENT, calc_hit},
+           {?SOURCE, Attacker},
+           {?TARGET, Character},
            {hit, Hit},
            {item, Item}],
     case is_interested(TopItem, Props) of
@@ -107,9 +107,9 @@ attempt({#parents{character = Character,
                   top_item = TopItem = #top_item{item = Item}},
          Props,
          {Target, damage, Damage, to, Character, with, Item}}) ->
-    Log = [{type, damage},
-           {source, Target},
-           {target, Character},
+    Log = [{?EVENT, damage},
+           {?SOURCE, Target},
+           {?TARGET, Character},
            {item, Item}],
     case is_interested(TopItem, Props) of
         true ->
@@ -131,9 +131,9 @@ attempt({#parents{character = Character,
 attempt({#parents{character = Character},
          Props,
          {Attacker, calc, Hit, on, Character, with, Item}}) ->
-    Log = [{type, calc_hit},
-           {source, Attacker},
-           {target, Character},
+    Log = [{?EVENT, calc_hit},
+           {?SOURCE, Attacker},
+           {?TARGET, Character},
            {item, Item}],
     case is_interested(not_an_item, Props) of
         true ->
@@ -153,9 +153,9 @@ attempt({#parents{character = Character},
 attempt({#parents{character = Character},
          Props,
          {Attacker, damage, Damage, to, Character, with, Item}}) ->
-    Log = [{type, damage},
-           {source, Attacker},
-           {target, Character},
+    Log = [{?EVENT, damage},
+           {?SOURCE, Attacker},
+           {?TARGET, Character},
            {item, Item}],
     case is_interested(not_an_item, Props) of
         true ->

@@ -28,9 +28,9 @@ attempt({#parents{owner = Owner},
   when Self == self(),
        is_pid(Item) ->
     Log = [{item, Item},
-           {type, move},
-           {source, Self},
-           {target, Owner}],
+           {?EVENT, move},
+           {?SOURCE, Self},
+           {?TARGET, Owner}],
     {succeed, has_item_with_ref(Item, Props), Props, Log};
 attempt({#parents{owner = Owner},
          Props,
@@ -38,9 +38,9 @@ attempt({#parents{owner = Owner},
   when Self == self(),
        is_pid(Item) ->
     Log = [{item, Item},
-           {type, move},
-           {source, Owner},
-           {target, Self}],
+           {?EVENT, move},
+           {?SOURCE, Owner},
+           {?TARGET, Self}],
     NewMessage = {Item, move, from, Owner, to, self(), limited, to, item_body_parts},
     Result = {resend, Owner, NewMessage},
     {Result, _Subscribe = true, Props, Log};
@@ -53,9 +53,9 @@ attempt({#parents{owner = Owner},
        is_pid(Item),
        is_list(ItemBodyParts) ->
     Log = [{item, Item},
-           {type, move},
-           {source, Owner},
-           {target, Self}],
+           {?EVENT, move},
+           {?SOURCE, Owner},
+           {?TARGET, Self}],
     case can(add, Props, ItemBodyParts) of
         {false, Reason} ->
             Log2 = [{limited, ItemBodyParts} | Log],
@@ -89,19 +89,19 @@ attempt({#parents{owner = Owner},
   when is_pid(Item),
        is_list(ItemBodyParts) ->
     Log = [{item, Item},
-           {type, move},
-           {source, Owner}],
+           {?EVENT, move},
+           {?SOURCE, Owner}],
     case can(add, Props, ItemBodyParts) of
         true ->
             BodyPartType = proplists:get_value(body_part, Props, undefined),
-            Log2 = [{target, self()},
+            Log2 = [{?TARGET, self()},
                     {body_part_type, BodyPartType}
                     | Log],
             NewMessage = {Item, move, from, Owner, to, self(), on, body_part, type, BodyPartType},
             Result = {resend, Owner, NewMessage},
             {Result, _Subscribe = true, Props, Log2};
         _ ->
-            Log2 = [{target, first_available_body_part},
+            Log2 = [{?TARGET, first_available_body_part},
                     {limited, ItemBodyParts}
                     | Log],
             {succeed, _Subscribe = false, Props, Log2}
@@ -111,9 +111,9 @@ attempt({#parents{owner = Owner},
          {Item, move, from, Owner, to, Self, on, body_part, type, BodyPartType}})
   when Self == self() ->
     Log = [{item, Item},
-           {type, move},
-           {source, Owner},
-           {target, Self},
+           {?EVENT, move},
+           {?SOURCE, Owner},
+           {?TARGET, Self},
            {body_part_type, BodyPartType}],
     {succeed, true, Props, Log};
 attempt(_) ->
@@ -121,10 +121,10 @@ attempt(_) ->
 
 succeed({Props, {Item, move, from, OldOwner, to, Self, on, body_part, type, BodyPartType}})
   when Self == self() ->
-    Log = [{type, get_item},
+    Log = [{?EVENT, get_item},
            {item, Item},
-           {source, OldOwner},
-           {target, Self},
+           {?SOURCE, OldOwner},
+           {?TARGET, Self},
            {body_part_type, BodyPartType}],
     ItemRef = make_ref(),
     erlmud_object:attempt(Item, {self(), set_child_property, body_part,
@@ -135,9 +135,9 @@ succeed({Props, {Item, move, from, OldOwner, to, Self, on, body_part, type, Body
 succeed({Props, {Item, move, from, Self, to, NewOwner}})
   when Self == self() ->
     Log = [{item, Item},
-           {type, move},
-           {source, Self},
-           {target, NewOwner}],
+           {?EVENT, move},
+           {?SOURCE, Self},
+           {?TARGET, NewOwner}],
     Props2 = clear_child_body_part(Props, Item, NewOwner),
     {Props2, Log};
 %% TODO I'm not sure if this gets used: _ItemBodyParts indicates this is an intermediate event
@@ -172,10 +172,10 @@ can_add(Props, ItemBodyParts) ->
             true).
 
 can_add([], _, _, Result) ->
-    log([{type, can_add}, {result, Result}]),
+    log([{?EVENT, can_add}, {result, Result}]),
     Result;
 can_add(_, _, _, {false, Reason}) ->
-    log([{type, can_add}, {result, false}, {reason, Reason}]),
+    log([{?EVENT, can_add}, {result, false}, {reason, Reason}]),
     {false, Reason};
 can_add([Fun | Funs], Props, ItemBodyParts, true) ->
     can_add(Funs, Props, ItemBodyParts, Fun(Props, ItemBodyParts)).
@@ -197,7 +197,7 @@ has_matching_body_part(Props, ItemBodyParts) ->
 has_space(Props, _) ->
     NumItems = length(proplists:get_all_values(item, Props)),
     MaxItems = proplists:get_value(max_items, Props, infinite),
-    log([{type, has_space}, {num_items, NumItems}, {max_items, MaxItems}]),
+    log([{?EVENT, has_space}, {num_items, NumItems}, {max_items, MaxItems}]),
     case proplists:get_value(max_items, Props, infinite) of
         infinite ->
             true;
@@ -208,7 +208,7 @@ has_space(Props, _) ->
     end.
 
 clear_child_body_part(Props, Item, Target) ->
-    log([{type, give_item}, {to, Target}, {props, Props}]),
+    log([{?EVENT, give_item}, {to, Target}, {props, Props}]),
     BodyPartType = proplists:get_value(body_part, Props, undefined),
     ItemRef = item_ref(Item, Props),
     erlmud_object:attempt(Item, {Target,

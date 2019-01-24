@@ -23,56 +23,56 @@
 attempt({#parents{}, Props, {Source, look, TargetName}})
   when Source =/= self(),
        is_binary(TargetName) ->
-    Log = [{type, look},
-           {source, Source}],
+    Log = [{?EVENT, look},
+           {?SOURCE, Source}],
     SelfName = proplists:get_value(name, Props, <<>>),
     case re:run(SelfName, TargetName, [{capture, none}, caseless]) of
         match ->
-            Log2 = [{target, self()} | Log],
+            Log2 = [{?TARGET, self()} | Log],
             NewMessage = {Source, look, self()},
             {{resend, Source, NewMessage}, _ShouldSubscribe = ignored, Props, Log2};
         _ ->
-            Log2 = [{target, TargetName} | Log],
+            Log2 = [{?TARGET, TargetName} | Log],
             {succeed, false, Props, Log2}
     end;
 attempt({#parents{owner = Room},
          Props,
         _JustPlainLook = {SelfSource, look}})
   when SelfSource == self() ->
-    Log = [{source, SelfSource},
-           {type, look},
-           {target, Room}],
+    Log = [{?SOURCE, SelfSource},
+           {?EVENT, look},
+           {?TARGET, Room}],
     NewMessage = {SelfSource, look, Room},
     {{resend, SelfSource, NewMessage}, _ShouldSubscribe = ignored, Props, Log};
 attempt({#parents{},
          Props,
          {Source, look, Self}}) when Self == self() ->
-    Log = [{source, Source},
-           {type, look},
-           {target, Self}],
+    Log = [{?SOURCE, Source},
+           {?EVENT, look},
+           {?TARGET, Self}],
     {succeed, true, Props, Log};
 attempt({#parents{owner = OwnerRoom},
          Props,
          _DescFromParent = {Source, describe, OwnerRoom, with, RoomContext}}) ->
-    Log = [{source, Source},
-           {type, describe},
-           {target, OwnerRoom},
+    Log = [{?SOURCE, Source},
+           {?EVENT, describe},
+           {?TARGET, OwnerRoom},
            {context, RoomContext}],
     {succeed, true, Props, Log};
 attempt(_) ->
     undefined.
 
 succeed({Props, {Source, look, Self}}) when Self == self() ->
-    Log = [{source, Source},
-           {type, look},
-           {target, Self}],
+    Log = [{?SOURCE, Source},
+           {?EVENT, look},
+           {?TARGET, Self}],
     NoContext = <<>>,
     describe(Source, Props, NoContext, deep),
     {Props, Log};
 succeed({Props, {Source, describe, Target, with, Context}}) ->
-    Log = [{source, Source},
-           {type, describe},
-           {target, Target},
+    Log = [{?SOURCE, Source},
+           {?EVENT, describe},
+           {?TARGET, Target},
            {context, Context}],
     _ = case is_owner(Target, Props) of
             true ->

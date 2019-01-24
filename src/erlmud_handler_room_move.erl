@@ -18,17 +18,19 @@
 -export([succeed/1]).
 -export([fail/1]).
 
+-include("include/erlmud.hrl").
+
 attempt({_Owner, Props, {Obj, move, from, Source, to, Target, via, Exit}})
   when Source == self(); Target == self() ->
-    Log = [{source, Obj},
-           {type, move},
+    Log = [{?SOURCE, Obj},
+           {?EVENT, move},
            {from, Source},
            {to, Target},
            {exit, Exit}],
     {succeed, true, Props, Log};
 attempt({_Owner, Props, {Obj, enter_world, in, Self, with, Conn}}) when Self == self() ->
-    Log = [{source, Obj},
-           {type, enter_world},
+    Log = [{?SOURCE, Obj},
+           {?EVENT, enter_world},
            {room, Self},
            {conn, Conn}],
     {succeed, true, Props, Log};
@@ -36,24 +38,24 @@ attempt(_) ->
     undefined.
 
 succeed({Props, {Obj, move, from, Self, to, Target, via, Exit}}) when Self == self() ->
-    Log = [{source, Obj},
-           {type, move},
+    Log = [{?SOURCE, Obj},
+           {?EVENT, move},
            {from, Self},
            {to, Target},
            {exit, Exit}],
     Props2 = lists:keydelete(Obj, 2, Props),
     {Props2, Log};
 succeed({Props, {Obj, move, from, Source, to, Self, via, Exit}}) when Self == self() ->
-    Log = [{source, Obj},
-           {type, move},
+    Log = [{?SOURCE, Obj},
+           {?EVENT, move},
            {from, Source},
            {to, Self},
            {exit, Exit}],
     Props2 = [{character, Obj} | Props],
     {Props2, Log};
 succeed({Props, {Obj, enter_world, in, Self, with, Conn}}) when Self == self() ->
-    Log = [{source, Obj},
-           {type, enter_world},
+    Log = [{?SOURCE, Obj},
+           {?EVENT, enter_world},
            {room, Self},
            {conn, Conn}],
     Props2 = [{character, Obj} | Props],
@@ -62,14 +64,14 @@ succeed({Props, _}) ->
     Props.
 
 fail({Props, _Reason, {Obj, move, from, Self, to, Target}}) when Self == self() ->
-    Log = [{source, Obj},
-           {type, move},
+    Log = [{?SOURCE, Obj},
+           {?EVENT, move},
            {from, Self},
            {to, Target}],
     {Props, Log};
 fail({Props, _Reason, {Obj, move, from, Source, to, Target, via, Exit}}) when Source == self(); Target == self() ->
-    Log = [{source, Obj},
-           {type, move},
+    Log = [{?SOURCE, Obj},
+           {?EVENT, move},
            {from, Source},
            {to, Target},
            {exit, Exit}],

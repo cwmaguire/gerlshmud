@@ -17,35 +17,37 @@
 -export([succeed/1]).
 -export([fail/1]).
 
+-include("include/erlmud.hrl").
+
 attempt({_Parents,
          Props,
          {Self, enter_world, in, room, with, Conn}}) when Self == self() ->
-    Log = [{source, Self},
-           {type, enter_world},
+    Log = [{?SOURCE, Self},
+           {?EVENT, enter_world},
            {conn, Conn}],
     case proplists:get_value(room, Props) of
         undefined ->
-            Log2 = [{target, undefined} | Log],
+            Log2 = [{?TARGET, undefined} | Log],
             {succeed, false, Props, Log2};
         Room ->
-            Log2 = [{target, Room} | Log],
+            Log2 = [{?TARGET, Room} | Log],
             NewMessage = {Self, enter_world, in, Room, with, Conn},
             {{resend, Self, NewMessage}, true, Props, Log2}
     end;
 attempt({_Parents,
          Props,
          {Self, enter_world, in, Room, with, _Conn}}) when Self == self(), is_pid(Room) ->
-    Log = [{source, Self},
-           {type, enter_world},
-           {target, Room}],
+    Log = [{?SOURCE, Self},
+           {?EVENT, enter_world},
+           {?TARGET, Room}],
     {succeed, true, Props, Log};
 attempt(_) ->
     undefined.
 
 succeed({Props, {Player, enter_world, in, Room, with, Conn}}) ->
-    Log = [{type, char_enter_world},
-           {source, Player},
-           {target, Room},
+    Log = [{?EVENT, char_enter_world},
+           {?SOURCE, Player},
+           {?TARGET, Room},
            {conn, Conn}],
     Props2 = lists:foldl(fun keyreplace/2, Props, [{conn_object, Conn}]),
     {Props2, Log};
@@ -53,8 +55,8 @@ succeed({Props, _Other}) ->
     Props.
 
 fail({Props, Reason, {Player, enter_world}}) ->
-    Log = [{source, Player},
-           {type, enter_world}],
+    Log = [{?SOURCE, Player},
+           {?EVENT, enter_world}],
     Conn = proplists:get_value(conn, Props),
     Conn ! {disconnect, Reason},
     {Props, Log};

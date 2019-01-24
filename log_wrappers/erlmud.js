@@ -75,15 +75,15 @@ function load(filterIds = []){
 }
 
 function has_type(obj){
-  return obj.hasOwnProperty('type');
+  return obj.hasOwnProperty('event_type');
 }
 
 function not_link(obj){
-  return !obj.hasOwnProperty('type') || obj.type != 'link';
+  return !obj.hasOwnProperty('event_type') || obj.event_type != 'link';
 }
 
 function not_populate(obj){
-  return !obj.hasOwnProperty('type') || obj.type != 'populate';
+  return !obj.hasOwnProperty('event_type') || obj.event_type != 'populate';
 }
 
 function add_filters(initial){
@@ -138,14 +138,14 @@ function add_log_line(log){
 
   add_stage(logDiv, log);
   let roomWidthListener = add_room(logDiv, log);
-  add_image('source_icon', logDiv, log);
-  add_image('target_icon', logDiv, log);
+  add_image('event_source_icon', logDiv, log);
+  add_image('event_target_icon', logDiv, log);
   add_pid('process', logDiv, log);
   let heightListener = add_handler(logDiv, log);
 
-  add_pid('source', eventSpan, log);
+  add_pid('event_source', eventSpan, log);
   add_event_name(eventSpan, log);
-  add_pid('target', eventSpan, log);
+  add_pid('event_target', eventSpan, log);
   logDiv.appendChild(eventSpan);
 
   add_result(logDiv, log);
@@ -269,7 +269,7 @@ function pid_span(i){
 }
 
 function add_event_name(parent, log){
-  let event = prop(log, 'type');
+  let event = prop(log, 'event_type');
   let eventNameSpan = span(event);
   let color = eventColors[event];
   eventNameSpan.style.color = color;

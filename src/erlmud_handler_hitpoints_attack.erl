@@ -24,9 +24,9 @@
 attempt({#parents{owner = Owner},
          Props,
          {Character, does, Damage, to, Owner, with, AttackVector}}) ->
-    Log = [{type, damage},
-           {source, Character},
-           {target, Owner},
+    Log = [{?EVENT, damage},
+           {?SOURCE, Character},
+           {?TARGET, Owner},
            {damage, Damage},
            {vector, AttackVector}],
     {succeed, true, Props, Log};
@@ -34,8 +34,8 @@ attempt(_) ->
     undefined.
 
 succeed({Props, _Msg = {Attacker, does, Damage, to, Owner, with, AttackVector}}) ->
-    Log = [{type, damage},
-           {target, Owner},
+    Log = [{?EVENT, damage},
+           {?TARGET, Owner},
            {from, Attacker},
            {damage, Damage},
            {vector, AttackVector}],

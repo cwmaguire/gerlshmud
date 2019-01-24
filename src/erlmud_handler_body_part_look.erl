@@ -21,31 +21,31 @@
 -export([fail/1]).
 
 attempt({#parents{}, Props, {Source, describe, Self, with, Context}}) when Self == self() ->
-    Log = [{source, Source},
-           {type, describe},
-           {target, Self},
+    Log = [{?SOURCE, Source},
+           {?EVENT, describe},
+           {?TARGET, Self},
            {context, Context}],
     {succeed, true, Props, Log};
 attempt({#parents{owner = Owner}, Props, {Source, describe, Owner, with, Context}}) ->
-    Log = [{source, Source},
-           {type, describe},
-           {target, Owner},
+    Log = [{?SOURCE, Source},
+           {?EVENT, describe},
+           {?TARGET, Owner},
            {context, Context}],
     {succeed, true, Props, Log};
 attempt(_) ->
     undefined.
 
 succeed({Props, {Source, describe, Self, with, Context}}) when Self == self() ->
-    Log = [{source, Source},
-           {type, describe},
-           {target, Self},
+    Log = [{?SOURCE, Source},
+           {?EVENT, describe},
+           {?TARGET, Self},
            {context, Context}],
     Props2 = describe(Source, Props, Context, deep),
     {Props2, Log};
 succeed({Props, {Source, describe, Target, with, Context}}) ->
-    Log = [{source, Source},
-           {type, describe},
-           {target, Target},
+    Log = [{?SOURCE, Source},
+           {?EVENT, describe},
+           {?TARGET, Target},
            {context, Context}],
     _ = case is_owner(Target, Props) of
             true ->
@@ -79,14 +79,14 @@ send_description(Source, Props, Context) ->
 
 description(Props) when is_list(Props) ->
     DescTemplate = erlmud_config:desc_template(body_part),
-    log([{type, body_part_desc}, {template, DescTemplate}]),
+    log([{?EVENT, body_part_desc}, {template, DescTemplate}]),
     [[description_part(Props, Part)] || Part <- DescTemplate].
 
 description_part(_, RawText) when is_binary(RawText) ->
-    log([{type, body_part_desc}, {desc_part, RawText}]),
+    log([{?EVENT, body_part_desc}, {desc_part, RawText}]),
     RawText;
 description_part(Props, DescProp) ->
-    log([{type, body_part_desc}, {desc_prop, DescProp}, {props, Props}]),
+    log([{?EVENT, body_part_desc}, {desc_prop, DescProp}, {props, Props}]),
     prop_description(proplists:get_value(DescProp, Props, <<"??">>)).
 
 prop_description(undefined) ->

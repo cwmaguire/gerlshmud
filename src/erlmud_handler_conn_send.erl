@@ -20,8 +20,8 @@
 -export([fail/1]).
 
 attempt({#parents{owner = Owner}, Props, {send, Owner, Message}}) ->
-    Log = [{type, send},
-           {target, Owner},
+    Log = [{?EVENT, send},
+           {?TARGET, Owner},
            {player_message, Message}],
     {succeed, true, Props, Log};
 attempt(_) ->
@@ -29,8 +29,8 @@ attempt(_) ->
 
 
 succeed({Props, {send, Player, Message}}) ->
-    Log = [{type, send},
-           {target, Player},
+    Log = [{?EVENT, send},
+           {?TARGET, Player},
            {player_message, Message}],
     {Conn} = proplists:get_value(conn, Props),
     erlmud_conn:handle(Conn, {send, Message}),

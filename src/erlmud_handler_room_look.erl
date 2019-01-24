@@ -18,15 +18,17 @@
 -export([succeed/1]).
 -export([fail/1]).
 
+-include("include/erlmud.hrl").
+
 attempt({_Owner, Props, {_Source, look, Self}}) when Self == self() ->
     {succeed, true, Props};
 attempt(_) ->
     undefined.
 
 succeed({Props, {Player, look, Self}}) when Self == self() ->
-    Log = [{source, Player},
-           {type, look},
-           {target, Self}],
+    Log = [{?SOURCE, Player},
+           {?EVENT, look},
+           {?TARGET, Self}],
     describe(Player, Props),
     Name = proplists:get_value(name, Props, <<"room with no name">>),
     RoomContext = <<Name/binary, " -> ">>,

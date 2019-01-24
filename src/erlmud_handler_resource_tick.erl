@@ -29,8 +29,8 @@
 
 attempt({#parents{}, Props, {Self, tick, Ref, with, Count}})
   when Self == self() ->
-    Log = [{source, Self},
-           {type, tick},
+    Log = [{?SOURCE, Self},
+           {?EVENT, tick},
            {ref, Ref},
            {count, Count}],
     case proplists:get_value(tick, Props, undefined) of
@@ -45,8 +45,8 @@ attempt(_) ->
 
 succeed({Props, {Self, tick, Ref, with, Count}})
   when Self == self() ->
-    Log = [{source, Self},
-           {type, tick},
+    Log = [{?SOURCE, Self},
+           {?EVENT, tick},
            {ref, Ref},
            {count, Count}],
     Current = proplists:get_value(current, Props, 0),

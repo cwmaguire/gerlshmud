@@ -125,7 +125,7 @@ handle_cast(Msg, State) ->
 handle_cast_({populate, ProcIds}, State = #state{props = Props}) ->
     log([{stage, none},
          {object, self()},
-         {type, populate},
+         {?EVENT, populate},
          {source, self()} |
          Props]),
     {noreply, State#state{props = populate_(Props, ProcIds)}};
@@ -176,7 +176,7 @@ handle_cast_({succeed, Msg}, State) ->
 
 handle_info({'EXIT', From, Reason}, State = #state{props = Props}) ->
     {_, ParentsList} = parents(Props),
-    log([{type, exit},
+    log([{?EVENT, exit},
          {object, self()},
          {source, From},
          {reason, Reason} |
@@ -188,7 +188,7 @@ handle_info({Pid, Msg}, State) ->
     {noreply, State};
 handle_info(Unknown, State = #state{props = Props}) ->
     {_, ParentsList} = parents(Props),
-    log([{type, unknown_message},
+    log([{?EVENT, unknown_message},
          {object, self()},
          {message, Unknown} |
          Props ++ ParentsList]),
@@ -196,7 +196,7 @@ handle_info(Unknown, State = #state{props = Props}) ->
 
 terminate(Reason, _State = #state{props = Props}) ->
     {_, ParentsList} = parents(Props),
-    log([{type, shutdown},
+    log([{?EVENT, shutdown},
          {object, self()},
          {reason, Reason} |
          Props ++ ParentsList]),
@@ -381,7 +381,7 @@ proc(MaybeId, IdPids) when is_atom(MaybeId) ->
     MaybePid = proplists:get_value(MaybeId, IdPids, MaybeId),
     case is_pid(MaybePid) of
         true ->
-            log([{type, link}, {target, MaybePid}]),
+            log([{?EVENT, link}, {target, MaybePid}]),
             link(MaybePid);
         false ->
             ok

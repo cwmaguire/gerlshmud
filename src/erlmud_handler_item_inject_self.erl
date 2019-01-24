@@ -18,7 +18,7 @@
 -export([succeed/1]).
 -export([fail/1]).
 
-%attempt({_Owner, Props, {Action, Obj, ItemName, BodyPart}})
+-include("include/erlmud.hrl").
 
 attempt({_Owner, Props, Message = {Object, Action, ItemName}})
   when is_binary(ItemName) andalso
@@ -26,7 +26,7 @@ attempt({_Owner, Props, Message = {Object, Action, ItemName}})
     case is_name(Props, ItemName) of
         true ->
             NewMessage = {Object, Action, self()},
-            log([{type, inject_self},
+            log([{?EVENT, inject_self},
                  {object, self()},
                  {action, Action},
                  {name, ItemName},
@@ -47,7 +47,7 @@ attempt({_Owner, Props, Message = {ItemName, move, from, Source, to, Target}})
     case is_name(Props, ItemName) of
         true ->
             NewMessage = {self(), move, from, Source, to, Target},
-            log([{type, inject_self},
+            log([{?EVENT, inject_self},
                  {sub_type, move},
                  {object, self()},
                  {name, ItemName},

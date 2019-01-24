@@ -19,6 +19,8 @@
 -export([succeed/1]).
 -export([fail/1]).
 
+-include("include/erlmud.hrl").
+
 %% Exit might not be a cardinal direction like "south", so saying "Direction"
 %% doesn't always make sense. e.g. "portal" is not a direction.
 attempt({_Owner, Props, {Obj, move, Exit, from, Room}}) when is_atom(Exit) ->
@@ -30,15 +32,15 @@ attempt({_Owner, Props, {Obj, move, Exit, from, Room}}) when is_atom(Exit) ->
     %% to try and go from room A through an exit back to A.
     %% So, find the exit that leads to the "FromRoom", which we're trying to
     %% leave, so we don't go back there.
-    Log = [{type, move},
-           {source, Obj},
+    Log = [{?EVENT, move},
+           {?SOURCE, Obj},
            {exit, Exit},
            {from, Room}],
     Rooms = [R || R = {_, Room_} <- Props, Room_ == Room],
     move(Props, Obj, Rooms, Exit, Log);
 attempt({_Owner, Props, {Mover, move, from, Source, to, Target, via, Self}}) when Self == self() ->
-    Log = [{type, move},
-           {source, Mover},
+    Log = [{?EVENT, move},
+           {?SOURCE, Mover},
            {from, Source},
            {to, Target},
            {exit, Self}],
@@ -52,7 +54,7 @@ attempt(_) ->
     undefined.
 
 succeed({Props, Msg}) ->
-    Log = [{source, self()}, {message, Msg}, {result, succeed}],
+    Log = [{?SOURCE, self()}, {message, Msg}, {result, succeed}],
     {Props, Log}.
 
 fail({Props, _Result, _Msg}) ->

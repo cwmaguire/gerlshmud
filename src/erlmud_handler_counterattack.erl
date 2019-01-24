@@ -21,30 +21,30 @@
 -include("include/erlmud.hrl").
 
 attempt({#parents{}, Props, {Attacker, attack, Self}}) when Self == self() ->
-    Log = [{type, attack},
-           {source, Attacker},
-           {target, Self}],
+    Log = [{?EVENT, attack},
+           {?SOURCE, Attacker},
+           {?TARGET, Self}],
     {succeed, true, Props, Log};
 
 attempt({#parents{}, Props, {Self, attack, Target}}) when Self == self() ->
-    Log = [{type, attack},
-           {source, Self},
-           {target, Target}],
+    Log = [{?EVENT, attack},
+           {?SOURCE, Self},
+           {?TARGET, Target}],
     {succeed, true, Props, Log};
 
 attempt({#parents{}, _, _}) ->
     undefined.
 
 succeed({Props, {Character, stop_attack}}) ->
-    Log = [{source, Character},
-           {type, stop_attack}],
+    Log = [{?SOURCE, Character},
+           {?EVENT, stop_attack}],
     Props = lists:keystore(is_attacking, 1, Props, {is_attacking, false}),
     {Props, Log};
 
 succeed({Props, {Attacker, attack, Target}}) ->
-    Log = [{source, Attacker},
-           {type, attack},
-           {target, Target}],
+    Log = [{?SOURCE, Attacker},
+           {?EVENT, attack},
+           {?TARGET, Target}],
     case proplists:get_value(owner, Props) of
         Attacker ->
             Props = lists:keystore(is_attacking, 1, Props, {is_attacking, true}),
@@ -62,15 +62,15 @@ succeed({Props, {Attacker, attack, Target}}) ->
     end;
 
 succeed({Props, {Self, counter_attack, Target}}) ->
-    Log = [{source, Self},
-           {type, counter_attack},
-           {target, Target}],
+    Log = [{?SOURCE, Self},
+           {?EVENT, counter_attack},
+           {?TARGET, Target}],
     erlmud_object:attempt(self(), {self(), attack, Target}),
     {Props, Log};
 succeed({Props, _}) ->
     Props.
 
 fail({Props, _Result, _Msg}) ->
-    Log = [{type, attack},
-           {target, self()}],
+    Log = [{?EVENT, attack},
+           {?TARGET, self()}],
     {Props, Log}.

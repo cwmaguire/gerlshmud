@@ -25,11 +25,11 @@
 attempt({#parents{owner = Owner}, Props, Msg = {Source, killed, Owner, with, _AttackVector}}) ->
     log([<<"attempt: ">>, Msg, <<", props: ">>, Props]),
                 log([{stage, attempt},
-                     {type, killed},
+                     {?EVENT, killed},
                      {object, self()},
                      {props, Props},
-                     {source, Source},
-                     {target, Owner},
+                     {?SOURCE, Source},
+                     {?TARGET, Owner},
                      {message, Msg},
                      {sub, true}]),
     {succeed, _Subscribe = true, Props};
@@ -37,10 +37,10 @@ attempt({#parents{owner = Owner}, Props, Msg = {Source, killed, Owner, with, _At
 %% We have died
 attempt({#parents{owner = Owner}, Props, Msg = {Owner, die}}) ->
     log([{stage, attempt},
-         {type, die},
+         {?EVENT, die},
          {object, self()},
          {props, Props},
-         {target, Owner},
+         {?TARGET, Owner},
          {message, Msg},
          {sub, true}]),
     {succeed, _Subscribe = true, Props};
@@ -48,11 +48,11 @@ attempt({#parents{owner = Owner}, Props, Msg = {Owner, die}}) ->
 %% Something is attack us and we are dead
 attempt({#parents{owner = Owner}, Props, Msg = {Attacker, calc, Hit, on, Owner, with, AttackVector}}) ->
     log([{stage, attempt},
-         {type, calc_hit},
+         {?EVENT, calc_hit},
          {object, self()},
          {props, Props},
-         {source, Attacker},
-         {target, Owner},
+         {?SOURCE, Attacker},
+         {?TARGET, Owner},
          {hit, Hit},
          {attack_vector, AttackVector},
          {message, Msg},
@@ -65,11 +65,11 @@ attempt({#parents{owner = Owner}, Props, Msg = {Attacker, calc, Hit, on, Owner, 
     end;
 attempt({#parents{owner = Owner}, Props, Msg = {Attacker, calc, Damage, to, Owner, with, AttackVector}}) ->
     log([{stage, attempt},
-         {type, calc_damage},
+         {?EVENT, calc_damage},
          {object, self()},
          {props, Props},
-         {source, Attacker},
-         {target, Owner},
+         {?SOURCE, Attacker},
+         {?TARGET, Owner},
          {damage, Damage},
          {attack_vector, AttackVector},
          {message, Msg},
@@ -88,21 +88,21 @@ attempt(_) ->
 
 succeed({Props, {Source, killed, Owner, with, AttackVector}}) ->
     log([{stage, succeed},
-         {type, killed},
+         {?EVENT, killed},
          {object, self()},
          {props, Props},
-         {source, Source},
-         {target, Owner},
+         {?SOURCE, Source},
+         {?TARGET, Owner},
          {attack_vector, AttackVector}]),
     erlmud_object:attempt(self(), {Owner, die}),
     Props;
 
 succeed({Props, {Owner, die}}) ->
     log([{stage, succeed},
-         {type, die},
+         {?EVENT, die},
          {object, self()},
          {props, Props},
-         {target, Owner}]),
+         {?TARGET, Owner}]),
     CorpseCleanupMilis = application:get_env(erlmud, corpse_cleanup_milis, 10 * 60 * 1000),
     erlmud_object:attempt_after(CorpseCleanupMilis, self(), {cleanup, Owner}),
     lists:keystore(is_alive, 1, Props, {is_alive, false});

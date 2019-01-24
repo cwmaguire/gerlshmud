@@ -29,11 +29,11 @@ attempt({#parents{}, Props, Msg = {Source, look, TargetName}})
         match ->
             NewMessage = {Source, look, self()},
             log([{stage, attempt},
-                 {type, inject_self},
+                 {?EVENT, inject_self},
                  {sub_type, look},
                  {object, self()},
                  {props, Props},
-                 {source, Source},
+                 {?SOURCE, Source},
                  {name, TargetName},
                  {sub, ignored},
                  {message, Msg},
@@ -49,18 +49,18 @@ attempt({#parents{}, Props, Msg = {Source, look, TargetName}})
             {succeed, false, Props}
     end;
 attempt({#parents{}, Props, {Source, look, Self}}) when Self == self() ->
-    log([{type, look},
-         {source, Source} ]),
+    log([{?EVENT, look},
+         {?SOURCE, Source} ]),
     {succeed, true, Props};
 attempt({#parents{},
          Props,
          {Source, describe, Self, with, Context}}) when Self == self() ->
     log([{stage, attempt},
-         {type, describe},
+         {?EVENT, describe},
          {object, Self},
          {props, Props},
-         {source, Source},
-         {target, Self},
+         {?SOURCE, Source},
+         {?TARGET, Self},
          {context, Context},
          {sub, true}]),
     {succeed, true, Props};
@@ -68,11 +68,11 @@ attempt({#parents{owner = Owner},
          Props,
          {Source, describe, Owner, with, Context}}) ->
     log([{stage, attempt},
-         {type, describe},
+         {?EVENT, describe},
          {object, self()},
          {props, Props},
-         {source, Source},
-         {target, Owner},
+         {?SOURCE, Source},
+         {?TARGET, Owner},
          {context, Context},
          {sub, true}]),
     {succeed, true, Props};
@@ -81,11 +81,11 @@ attempt(_) ->
 
 succeed({Props, Msg = {Source, look, Self}}) when Self == self() ->
     log([{stage, succeed},
-         {type, look},
+         {?EVENT, look},
          {object, Self},
          {props, Props},
-         {source, Source},
-         {target, Self},
+         {?SOURCE, Source},
+         {?TARGET, Self},
          {message, Msg}]),
     describe(Source, Props, <<>>, deep),
     Props;
@@ -93,11 +93,11 @@ succeed({Props, Msg = {Source, describe, Target, with, Context}}) ->
     _ = case is_owner(Target, Props) of
             true ->
                 log([{stage, succeed},
-                     {type, describe},
+                     {?EVENT, describe},
                      {object, Target},
                      {props, Props},
-                     {source, Source},
-                     {target, self()},
+                     {?SOURCE, Source},
+                     {?TARGET, self()},
                      {message, Msg},
                      {context, Context}]),
                 describe(Source, Props, Context, shallow);

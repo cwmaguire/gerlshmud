@@ -115,9 +115,6 @@ terminate(_Reason, _State) ->
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
-remove(Id, Pid, List) ->
-    lists:keydelete(Id, 1, lists:keydelete(Pid, 2, List)).
-
 entry(Pid, id, Id) ->
     #entry{pid = Pid, id = Id};
 entry(Pid, icon, Icon) ->

@@ -20,3 +20,7 @@
 -record(body_part, {body_part :: pid(),
                     type :: atom(),
                     ref :: reference()}).
+
+-define(EVENT, event_type).
+-define(SOURCE, event_source).
+-define(TARGET, event_target).

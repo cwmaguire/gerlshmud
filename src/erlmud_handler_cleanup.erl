@@ -18,14 +18,15 @@
 -export([succeed/1]).
 -export([fail/1]).
 
+-include("include/erlmud.hrl").
 
 attempt(_) ->
     undefined.
 
 succeed({Props, {Self, cleanup, self}}) when Self == self() ->
-    Log = [{source, Self},
-           {type, cleanup},
-           {target, Self}],
+    Log = [{?SOURCE, Self},
+           {?EVENT, cleanup},
+           {?TARGET, Self}],
     %% TODO: kill/disconnect all connected processes
     %% TODO: drop all objects
     {stop, cleanup_succeeded, Props, Log};

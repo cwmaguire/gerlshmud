@@ -21,8 +21,8 @@
 -export([fail/1]).
 
 attempt({#parents{}, Props, {Self, move, Direction}}) when Self == self() ->
-    Log = [{source, Self},
-           {type, move},
+    Log = [{?SOURCE, Self},
+           {?EVENT, move},
            {direction, Direction}],
     case proplists:get_value(owner, Props) of
         undefined ->
@@ -32,14 +32,14 @@ attempt({#parents{}, Props, {Self, move, Direction}}) when Self == self() ->
             {{resend, Self, {Self, move, Direction, from, Room}}, false, Props, Log2}
     end;
 attempt({#parents{}, Props, {Self, move, Dir, from, From}}) when Self == self() ->
-    Log = [{source, Self},
-           {type, move},
+    Log = [{?SOURCE, Self},
+           {?EVENT, move},
            {direction, Dir},
            {from, From}],
     {succeed, true, Props, Log};
 attempt({#parents{}, Props, {Self, move, from, From, to, To, via, Exit}}) when Self == self() ->
-    Log = [{source, Self},
-           {type, move},
+    Log = [{?SOURCE, Self},
+           {?EVENT, move},
            {from, From},
            {to, To},
            {exit, Exit}],
@@ -48,8 +48,8 @@ attempt(_) ->
     undefined.
 
 succeed({Props, {Self, move, from, Source, to, Target, via, Exit}}) when Self == self() ->
-    Log = [{type, move},
-           {source, Self},
+    Log = [{?EVENT, move},
+           {?SOURCE, Self},
            {from, Source},
            {to, Target},
            {exit, Exit}],
@@ -64,8 +64,8 @@ succeed({Props, {Self, move, from, Source, to, Target, via, Exit}}) when Self ==
 succeed({Props, {Self, move, Direction, from, Source}}) when Self == self(), is_atom(Direction) ->
     % erlmud_handler_exit_move should have turned this into:
     % {Self, move, from, Source, to, Target, via, Exit}
-    Log = [{type, move},
-           {source, Self},
+    Log = [{?EVENT, move},
+           {?SOURCE, Self},
            {direction, Direction},
            {from, Source}],
     % TODO Let the player know they didn't get anywhere: "There is no exit <Direction> here."

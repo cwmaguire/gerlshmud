@@ -25,18 +25,18 @@ attempt({#parents{character = Character},
          Props,
          {Attacker, attack, Target}})
   when Attacker == Character ->
-    Log = [{source, Attacker},
-           {type, attack},
-           {target, Target}],
+    Log = [{?SOURCE, Attacker},
+           {?EVENT, attack},
+           {?TARGET, Target}],
     {succeed, true, Props, Log};
 
 attempt({#parents{character = Character},
          Props,
          {Character, counter_attack, Target}}) ->
     IsAttacking = proplists:get_value(is_attacking, Props, false),
-    Log = [{type, attack},
-           {source, Character},
-           {target, Target},
+    Log = [{?EVENT, attack},
+           {?SOURCE, Character},
+           {?TARGET, Target},
            {is_attacking, IsAttacking}],
     case IsAttacking of
         false ->
@@ -53,9 +53,9 @@ attempt({#parents{character = Character},
          Props,
          {Character, attack, Target, with, Self}})
   when Self == self() ->
-    Log = [{source, Character},
-           {type, attack},
-           {target, Target},
+    Log = [{?SOURCE, Character},
+           {?EVENT, attack},
+           {?TARGET, Target},
            {item, Self}],
     case should_attack(Props) of
         true ->
@@ -68,22 +68,22 @@ attempt({#parents{},
          Props,
          {allocate, Required, 'of', Type, to, Self}})
   when Self == self() ->
-    Log = [{type, allocate},
+    Log = [{?EVENT, allocate},
            {amount, Required},
            {resource_type, Type},
-           {target, Self}],
+           {?TARGET, Self}],
     {succeed, true, Props, Log};
 
 attempt({#parents{},
          Props,
          {Attacker, killed, Target, with, AttackVector}}) ->
-    Log = [{source, Attacker},
-           {type, killed},
-           {source, Target},
+    Log = [{?SOURCE, Attacker},
+           {?EVENT, killed},
+           {?SOURCE, Target},
            {vector, AttackVector}],
     case proplists:get_value(target, Props) of
         Target ->
-            Log2 = [{target, Target} | Log],
+            Log2 = [{?TARGET, Target} | Log],
             {succeed, true, Props, Log2};
         _ ->
             {succeed, false, Props, Log}
@@ -97,10 +97,10 @@ attempt({#parents{},
 attempt({#parents{character = Character},
          Props,
          {Attacker, calc, Hit, on, Character, with, AttackVector}}) ->
-    Log = [{source, Attacker},
-           {type, calc_hit},
+    Log = [{?SOURCE, Attacker},
+           {?EVENT, calc_hit},
            {hit, Hit},
-           {target, Character},
+           {?TARGET, Character},
            {vector, AttackVector}],
     case should_defend(Props) of
         true ->
@@ -120,10 +120,10 @@ attempt({#parents{character = Character},
 attempt({#parents{character = Character},
          Props,
          {Attacker, calc, Damage, to, Character, with, AttackVector}}) ->
-    Log = [{source, Attacker},
-           {type, calc_damage},
+    Log = [{?SOURCE, Attacker},
+           {?EVENT, calc_damage},
            {damage, Damage},
-           {target, Character},
+           {?TARGET, Character},
            {vector, AttackVector}],
     case should_defend(Props) of
         true ->
@@ -142,28 +142,28 @@ attempt({#parents{character = Character},
     end;
 
 attempt({#parents{character = Character}, Props, {Character, stop_attack}}) ->
-    Log = [{source, Character},
-           {type, stop_attack}],
+    Log = [{?SOURCE, Character},
+           {?EVENT, stop_attack}],
     {succeed, true, Props, Log};
 
 attempt({#parents{character = Character},
          Props,
          {die, Character}}) ->
-    Log = [{source, Character},
-           {type, die}],
+    Log = [{?SOURCE, Character},
+           {?EVENT, die}],
     {succeed, true, Props, Log};
 
 attempt({_, _, _Msg}) ->
     undefined.
 
 succeed({Props, {Attacker, killed, Target, with, AttackVector}}) ->
-    Log = [{type, killed},
-           {source, Attacker},
-           {target, Target},
+    Log = [{?EVENT, killed},
+           {?SOURCE, Attacker},
+           {?TARGET, Target},
            {vector, AttackVector}],
     Character = proplists:get_value(character, Props),
     unreserve(Character, Props),
-    Props2 = lists:keystore(target, 1, Props, {target, undefined}),
+    Props2 = lists:keystore(target, 1, Props, {?TARGET, undefined}),
     Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, false}),
     {Props3, Log};
 
@@ -183,9 +183,9 @@ succeed({Props, {Attacker, killed, Target, with, AttackVector}}) ->
 %% distinct, but similar, event.
 
 succeed({Props, {Attacker, attack, Target}}) when is_pid(Target) ->
-    Log = [{type, attack},
-           {source, Attacker},
-           {target, Target}],
+    Log = [{?EVENT, attack},
+           {?SOURCE, Attacker},
+           {?TARGET, Target}],
     Character = proplists:get_value(character, Props),
     IsAttacking = proplists:get_value(is_attacking, Props, false),
     case {Character, IsAttacking} of
@@ -200,9 +200,9 @@ succeed({Props, {Attacker, attack, Target}}) when is_pid(Target) ->
     {Props, Log};
 
 succeed({Props, {Attacker, counter_attack, Target}}) when is_pid(Target) ->
-    Log = [{source, Attacker},
-           {type, counter_attack},
-           {target, Target}],
+    Log = [{?SOURCE, Attacker},
+           {?EVENT, counter_attack},
+           {?TARGET, Target}],
     Character = proplists:get_value(character, Props),
     IsAttacking = proplists:get_value(is_attacking, Props, false),
     case {Character, IsAttacking} of
@@ -218,21 +218,21 @@ succeed({Props, {Attacker, counter_attack, Target}}) when is_pid(Target) ->
 %% An attack by our character has been successfully instigated using this process:
 %% we'll register for resources and implement the attack when we have them.
 succeed({Props, {Character, attack, Target, with, Self}}) ->
-    Log = [{type, attack},
-           {source, Character},
-           {target, Target},
+    Log = [{?EVENT, attack},
+           {?SOURCE, Character},
+           {?TARGET, Target},
            {item, Self}],
     reserve(Character, Props),
-    Props2 = lists:keystore(target, 1, Props, {target, Target}),
+    Props2 = lists:keystore(target, 1, Props, {?TARGET, Target}),
     Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, true}),
     {Props3, Log};
 
 succeed({Props, {allocate, Amt, 'of', Type, to, Self}})
   when Self == self() ->
-    Log = [{type, allocate},
+    Log = [{?EVENT, allocate},
            {amount, Amt},
            {resource_type, Type},
-           {target, Self}],
+           {?TARGET, Self}],
     Allocated = update_allocated(Amt, Type, Props),
     Required = proplists:get_value(resources, Props, []),
     HasResources = has_resources(Allocated, Required),
@@ -252,10 +252,10 @@ succeed({Props, {Character, calc, Hit, on, Target, with, Self}})
        Self == self(),
        Hit > 0 ->
     Damage = proplists:get_value(attack_damage_modifier, Props, 1),
-    Log = [{source, Character},
-           {type, calc_hit},
+    Log = [{?SOURCE, Character},
+           {?EVENT, calc_hit},
            {hit, Hit},
-           {target, Target},
+           {?TARGET, Target},
            {item, Self}],
     erlmud_object:attempt(self(), {Character, calc, Damage, to, Target, with, Self}),
     {Props, Log};
@@ -263,9 +263,9 @@ succeed({Props, {Character, calc, Hit, on, Target, with, Self}})
 succeed({Props, {Character, calc, Miss, on, Target, with, Self}})
   when is_pid(Target),
        Self == self() ->
-    Log = [{source, Character},
-           {type, calc_hit},
-           {target, Target},
+    Log = [{?SOURCE, Character},
+           {?EVENT, calc_hit},
+           {?TARGET, Target},
            {hit, Miss}],
     % TODO: say "you missed!"
     {Props, Log};
@@ -273,12 +273,12 @@ succeed({Props, {Character, calc, Miss, on, Target, with, Self}})
 succeed({Props, {Character, calc, Damage, to, Target, with, Self}})
   when Self == self(),
        Damage > 0 ->
-    log([{type, calc_damage},
+    log([{?EVENT, calc_damage},
          {object, Self},
          {props, Props},
          {character, Character},
          {damage, Damage},
-         {target, Target},
+         {?TARGET, Target},
          {result, succeed}]),
     erlmud_object:attempt(self(), {Character, does, Damage, to, Target, with, Self}),
     Props;
@@ -289,26 +289,26 @@ succeed({Props, {Character, calc, NoDamage, to, Target, with, Self}})
     %% TODO: output something to the client like
     %% "You manage to hit <target> but fail to do any damage"
     %%       _if_ this is a player
-    Log = [{source, Character},
-           {type, calc_damage},
+    Log = [{?SOURCE, Character},
+           {?EVENT, calc_damage},
            {damage, NoDamage},
-           {target, Target},
+           {?TARGET, Target},
            {item, Self}],
     {Props, Log};
 
 succeed({Props, {Character, stop_attack}}) ->
-    Log = [{source, Character},
-           {type, stop_attack}],
+    Log = [{?SOURCE, Character},
+           {?EVENT, stop_attack}],
     unreserve(Character, Props),
-    Props2 = lists:keystore(target, 1, Props, {target, undefined}),
+    Props2 = lists:keystore(target, 1, Props, {?TARGET, undefined}),
     Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, false}),
     {Props3, Log};
 
 succeed({Props, {Character, die}}) ->
-    Log = [{source, Character},
-           {type, die}],
+    Log = [{?SOURCE, Character},
+           {?EVENT, die}],
     unreserve(Character, Props),
-    Props2 = lists:keystore(target, 1, Props, {target, undefined}),
+    Props2 = lists:keystore(target, 1, Props, {?TARGET, undefined}),
     Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, false}),
     {Props3, Log};
 

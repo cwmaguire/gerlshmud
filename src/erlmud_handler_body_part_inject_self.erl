@@ -25,15 +25,15 @@ attempt({#parents{owner = Owner},
          {Item, move, from, Owner, to, BodyPartName}})
   when is_binary(BodyPartName) ->
     Log = [{item, Item},
-           {type, move},
-           {source, Owner}],
+           {?EVENT, move},
+           {?SOURCE, Owner}],
     case is_match(Props, BodyPartName) of
         true ->
             NewMessage = {Item, move, from, Owner, to, self()},
             Result = {resend, Owner, NewMessage},
-            {Result, _Subscribe = true, Props, [{target, self()} | Log]};
+            {Result, _Subscribe = true, Props, [{?TARGET, self()} | Log]};
         _ ->
-            {succeed, _Subscribe = false, Props, [{target, BodyPartName} | Log]}
+            {succeed, _Subscribe = false, Props, [{?TARGET, BodyPartName} | Log]}
     end;
 attempt({#parents{owner = Owner},
          Props,
@@ -41,32 +41,32 @@ attempt({#parents{owner = Owner},
   when is_pid(Item) andalso
        is_binary(BodyPartName) ->
     Log = [{item, Item},
-           {type, move},
-           {target, Owner}],
+           {?EVENT, move},
+           {?TARGET, Owner}],
     case is_match(Props, BodyPartName) of
         true ->
-            Log2 = [{source, self()} | Log],
+            Log2 = [{?SOURCE, self()} | Log],
             NewMessage = {Item, move, from, self(), to, Owner},
             Result = {resend, Owner, NewMessage},
             {Result, _Subscribe = true, Props, Log2};
         _ ->
-            Log2 = [{source, BodyPartName} | Log],
+            Log2 = [{?SOURCE, BodyPartName} | Log],
             {succeed, _Subscribe = false, Props, Log2}
     end;
 attempt({#parents{owner = Owner},
          Props,
          {Item, move, from, current_body_part, to, Owner}}) ->
     Log = [{item, Item},
-           {type, move},
-           {target, Owner}],
+           {?EVENT, move},
+           {?TARGET, Owner}],
     case [Item_ || {item, {Item_, _Ref}} <- Props, Item_ == Item] of
         [_ | _] ->
-            Log2 = [{source, self()} | Log],
+            Log2 = [{?SOURCE, self()} | Log],
             NewMessage = {Item, move, from, self(), to, Owner},
             Result = {resend, Owner, NewMessage},
             {Result, _Subscribe = true, Props, Log2};
         _ ->
-            Log2 = [{source, current_body_part} | Log],
+            Log2 = [{?SOURCE, current_body_part} | Log],
             {succeed, _Subscribe = false, Props, Log2}
     end;
 attempt(_) ->

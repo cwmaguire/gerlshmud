@@ -22,8 +22,8 @@
 attempt({#parents{owner = Owner},
          Props,
          {Owner, enter_world, in, Room, with, Self}}) when Self == self(), is_pid(Room) ->
-    Log = [{source, Owner},
-           {type, enter_world},
+    Log = [{?SOURCE, Owner},
+           {?EVENT, enter_world},
            {room, Room},
            {conn, Self}],
     {succeed, _Subscribe = true, Props, Log};
@@ -31,8 +31,8 @@ attempt(_) ->
     undefined.
 
 succeed({Props, {Player, enter_world, in, Room, with, Conn}}) ->
-    Log = [{type, enter_world},
-           {source, self()},
+    Log = [{?EVENT, enter_world},
+           {?SOURCE, self()},
            {conn, Conn},
            {room, Room}],
     {[{owner, Player} | lists:keydelete(owner, 1, Props)], Log};
@@ -41,8 +41,8 @@ succeed({Props, _Other}) ->
 
 %% TODO test that failing to enter the world disconnects the player
 fail({Props, Reason, {Player, enter_world}}) ->
-    Log = [{source, Player},
-           {type, enter_world}],
+    Log = [{?SOURCE, Player},
+           {?EVENT, enter_world}],
     Conn = proplists:get_value(conn, Props),
     Conn ! {disconnect, Reason},
     {Props, Log};

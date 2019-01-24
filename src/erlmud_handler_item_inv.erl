@@ -99,12 +99,12 @@ succeed({Props, {Self, move, from, _OldOwner, to, NewOwner}})
 
 %% gaining an item
 succeed({Props, {Item, move, from, Source, to, Self}}) when Self == self() ->
-    log([{type, move},
+    log([{?EVENT, move},
          {object, Self},
          {props, Props},
          {item, Item},
-         {source, Source},
-         {target, Self},
+         {?SOURCE, Source},
+         {?TARGET, Self},
          {result, succeed}]),
     set_child_properties(Item, Props),
     [{item, Item} | Props];
@@ -141,12 +141,12 @@ set_child_properties(Child, Props) ->
     erlmud_object:attempt(Child, {self(), set_child_properties, ChildProps}).
 
 clear_child_top_item(Props, Item, Target) ->
-    log([{type, give},
+    log([{?EVENT, give},
          {object, self()},
          {props, Props},
          {item, Item},
-         {source, self()},
-         {target, Target},
+         {?SOURCE, self()},
+         {?TARGET, Target},
          {result, succeed}]),
     TopItem = top_item(Props),
     Message = {Target, clear_child_property, top_item, 'if', TopItem},

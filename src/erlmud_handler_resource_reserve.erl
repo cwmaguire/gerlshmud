@@ -23,22 +23,22 @@
 % If something reserves us and we have the same owner (character).
 attempt({#parents{owner = Owner}, Props, {Owner, reserve, Amount, 'of', Self, for, Proc}})
   when Self == self() ->
-    Log = [{source, Owner},
-           {type, reserve},
+    Log = [{?SOURCE, Owner},
+           {?EVENT, reserve},
            {amount, Amount},
-           {target, Self},
+           {?TARGET, Self},
            {for, Proc}],
     {succeed, true, Props, Log};
 attempt({#parents{owner = Owner}, Props, {Owner, unreserve, Self, for, Proc}})
   when Self == self() ->
-    Log = [{source, Owner},
-           {type, unreserve},
-           {target, Self},
+    Log = [{?SOURCE, Owner},
+           {?EVENT, unreserve},
+           {?TARGET, Self},
            {for, Proc}],
     {succeed, true, Props, Log};
 attempt({#parents{}, Props, {Self, update_tick}}) when Self == self() ->
-    Log = [{source, Self},
-           {type, update_tick}],
+    Log = [{?SOURCE, Self},
+           {?EVENT, update_tick}],
     {succeed, false, Props, Log};
 
 attempt(_) ->
@@ -46,10 +46,10 @@ attempt(_) ->
 
 succeed({Props, {Character, reserve, Amount, 'of', Self, for, Proc}})
   when Self == self() ->
-    Log = [{source, Character},
-           {type, reserve},
+    Log = [{?SOURCE, Character},
+           {?EVENT, reserve},
            {amount, Amount},
-           {target, Self},
+           {?TARGET, Self},
            {for, Proc}],
     Reservations = proplists:get_value(reservations, Props, []),
     Props2 = case lists:member({Proc, Amount}, Reservations) of
@@ -63,9 +63,9 @@ succeed({Props, {Character, reserve, Amount, 'of', Self, for, Proc}})
     {Props3, Log};
 succeed({Props, {Character, unreserve, Self, for, Proc}})
   when Self == self() ->
-    Log = [{source, Character},
-           {type, unreserve},
-           {target, Self},
+    Log = [{?SOURCE, Character},
+           {?EVENT, unreserve},
+           {?TARGET, Self},
            {for, Proc}],
     Reservations = proplists:get_value(reservations, Props, []),
     Props2 = lists:keystore(reservations, 1, Props, {reservations, lists:keydelete(Proc, 1, Reservations)}),

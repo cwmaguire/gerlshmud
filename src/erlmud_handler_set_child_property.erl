@@ -38,8 +38,8 @@
 attempt({#parents{owner = Owner},
          Props,
          {Owner, set_child_property, Key, Value}}) ->
-    Log = [{source, Owner},
-           {type, set_child_property},
+    Log = [{?SOURCE, Owner},
+           {?EVENT, set_child_property},
            {key, Key},
            {value, Value}],
     NewMessage = {self(), set_child_property, Key, Value},
@@ -48,8 +48,8 @@ attempt({#parents{owner = Owner},
 attempt({#parents{owner = Owner},
          Props,
          {Owner, set_child_properties, ParentProps}}) ->
-    Log = [{source, Owner},
-           {type, set_child_properties}],
+    Log = [{?SOURCE, Owner},
+           {?EVENT, set_child_properties}],
     NewMessage = {self(), set_child_properties, ParentProps},
     Props2 = lists:foldl(fun apply_parent_prop/2, Props, ParentProps),
     {{broadcast, NewMessage}, false, Props2, Log};
@@ -57,8 +57,8 @@ attempt({#parents{owner = Owner},
          Props,
          {Owner, clear_child_property, Key = top_item,
           'if', TopItem = #top_item{item = Item, ref = Ref}}}) ->
-    Log = [{source, Owner},
-           {type, clear_child_property},
+    Log = [{?SOURCE, Owner},
+           {?EVENT, clear_child_property},
            {key, Key}],
     NewMessage = {self(), clear_child_property, top_item, 'if', TopItem},
     %% Only clear the top item if our #top_item{} has the same ref.
@@ -77,8 +77,8 @@ attempt({#parents{owner = Owner},
 attempt({#parents{owner = Owner},
          Props,
          {Owner, clear_child_property, Key, 'if', Value}}) ->
-    Log = [{source, Owner},
-           {type, clear_child_property},
+    Log = [{?SOURCE, Owner},
+           {?EVENT, clear_child_property},
            {key, Key},
            {value, Value}],
     NewMessage = {self(), clear_child_property, Key, 'if', Value},
@@ -90,7 +90,7 @@ attempt({#parents{owner = Owner},
              end,
     {{broadcast, NewMessage}, false, Props2, Log};
 attempt({_, Props, {_, set_child_property, _, _}}) ->
-    Log = [{type, set_child_property}],
+    Log = [{?EVENT, set_child_property}],
     {{fail, not_a_child}, _Subscribe = false, Props, Log};
 attempt(_) ->
     undefined.

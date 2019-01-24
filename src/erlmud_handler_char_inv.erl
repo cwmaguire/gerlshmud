@@ -18,6 +18,8 @@
 -export([succeed/1]).
 -export([fail/1]).
 
+-include("include/erlmud.hrl").
+
 %% Injects the room, which might indicate this should be in ...room_inject_self,
 %% except the character has a 'room' property, which is faster.
 %% Also, characters can only be owned by rooms. This wouldn't work
@@ -27,9 +29,9 @@ attempt({_Owner, Props, {Self, Action, Item}})
   when Self == self() andalso
        is_pid(Item) andalso
        Action == get; Action == drop ->
-    Log = [{source, Self},
-           {type, Action},
-           {target, Item}],
+    Log = [{?SOURCE, Self},
+           {?EVENT, Action},
+           {?TARGET, Item}],
     case Action == get orelse erlmud_object:has_pid(Props, Item) of
         true ->
             Room = proplists:get_value(owner, Props),
@@ -48,18 +50,18 @@ attempt({_Owner, Props, {Item, move, from, Self, to, Room}})
        is_pid(Item),
        is_pid(Room) ->
     Log = [{item, Item},
-           {type, move},
-           {source, Self},
-           {target, Room}],
+           {?EVENT, move},
+           {?SOURCE, Self},
+           {?TARGET, Room}],
     {succeed, true, Props, Log};
 attempt({_Owner, Props, {Item, move, from, Self, to, BodyPart, on, body_part, type, BodyPartType}})
   when Self == self() andalso
        is_pid(Item),
        is_pid(BodyPart) ->
     Log = [{item, Item},
-           {type, move},
-           {source, Self},
-           {target, BodyPart},
+           {?EVENT, move},
+           {?SOURCE, Self},
+           {?TARGET, BodyPart},
            {body_part_type, BodyPartType}],
     {succeed, true, Props, Log};
 %% TODO I suspect the name _Room means that it is expected that the source will be a room; is this so?
@@ -67,32 +69,32 @@ attempt({_Owner, Props, {Item, move, from, Room, to, Self}})
   when Self == self() andalso
        is_pid(Item) ->
     Log = [{item, Item},
-           {type, move},
-           {source, Room},
-           {target, Self}],
+           {?EVENT, move},
+           {?SOURCE, Room},
+           {?TARGET, Self}],
     {succeed, true, Props, Log};
 attempt(_) ->
     undefined.
 
 succeed({Props, {Item, move, from, Source, to, Self}}) when Self == self() ->
-    Log = [{type, get_item},
-           {source, Source},
-           {target, Self}],
+    Log = [{?EVENT, get_item},
+           {?SOURCE, Source},
+           {?TARGET, Self}],
     erlmud_object:attempt(Item, {self(), set_child_property, character, self()}),
     {[{item, Item} | Props], Log};
 succeed({Props, {Item, move, from, Self, to, BodyPart, on, body_part, type, BodyPartType}}) when Self == self() ->
     Log = [{item, Item},
-           {type, move},
-           {source, Self},
-           {target, BodyPart},
+           {?EVENT, move},
+           {?SOURCE, Self},
+           {?TARGET, BodyPart},
            {body_part_type, BodyPartType}],
     Props2 = lists:keydelete(Item, 2, Props),
     {Props2, Log};
 succeed({Props, {Item, move, from, Self, to, Target}}) when Self == self() ->
     Log = [{item, Item},
-           {type, move},
-           {source, Self},
-           {target, Target}],
+           {?EVENT, move},
+           {?SOURCE, Self},
+           {?TARGET, Target}],
     Props2 = clear_child_character(Props, Item, Target),
     {Props2, Log};
 succeed({Props, _}) ->
@@ -102,7 +104,7 @@ fail({Props, _, _}) ->
     Props.
 
 clear_child_character(Props, Item, Target) ->
-    log([{type, give_item}, {source, self()}, {target, Target}, {props, Props}]),
+    log([{?EVENT, give_item}, {?SOURCE, self()}, {?TARGET, Target}, {props, Props}]),
     erlmud_object:attempt(Item, {Target, clear_child_property, character, 'if', self()}),
     lists:keydelete(Item, 2, Props).
 

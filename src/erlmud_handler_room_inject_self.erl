@@ -18,6 +18,8 @@
 -export([succeed/1]).
 -export([fail/1]).
 
+-include("include/erlmud.hrl").
+
 % attempt({_Parents,
 %          Props,
 %          {Char, enter_world, in, Room, with, Conn}})

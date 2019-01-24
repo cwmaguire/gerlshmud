@@ -18,10 +18,12 @@
 -export([succeed/1]).
 -export([fail/1]).
 
+-include("include/erlmud.hrl").
+
 attempt({_Owner, Props, {Item, move, from, Source, to, Target}})
   when Source == self(); Target == self() ->
-    Log = [{source, Item},
-           {type, move},
+    Log = [{?SOURCE, Item},
+           {?EVENT, move},
            {from, Source},
            {to, Target}],
     {succeed, true, Props, Log};
@@ -30,16 +32,16 @@ attempt(_Attempt) ->
 
 succeed({Props, {Item, move, from, Self, to, Target}}) when Self == self() ->
     log([<<"Process ">>, Target, <<" got ">>, Item, <<" from me">>]),
-    Log = [{source, Item},
-           {type, move},
+    Log = [{?SOURCE, Item},
+           {?EVENT, move},
            {from, Self},
            {to, Target}],
     Props2 = lists:keydelete(Item, 2, Props),
     {Props2, Log};
 succeed({Props, {Item, move, from, Target, to, Self}}) when Self == self() ->
     log([Item, <<" added to me from ">>, Target]),
-    Log = [{source, Item},
-           {type, move},
+    Log = [{?SOURCE, Item},
+           {?EVENT, move},
            {from, Target},
            {to, Self}],
     Props2 = [{item, Item} | Props],

@@ -24,18 +24,18 @@
 attempt({#parents{owner = Owner},
          Props,
          {Source, look, Owner, with, Context}}) ->
-    Log = [{source, Source},
-           {type, look},
-           {target, Owner},
+    Log = [{?SOURCE, Source},
+           {?EVENT, look},
+           {?TARGET, Owner},
            {context, Context}],
     {succeed, true, Props, Log};
 attempt(_) ->
     undefined.
 
 succeed({Props, {Source, look, Target, with, Context}}) ->
-    Log = [{source, Source},
-           {type, look},
-           {target, Target},
+    Log = [{?SOURCE, Source},
+           {?EVENT, look},
+           {?TARGET, Target},
            {context, Context}],
 
     _ = case is_owner(Target, Props) of

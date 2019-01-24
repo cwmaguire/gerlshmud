@@ -41,10 +41,10 @@
 attempt({#parents{top_item = TopItem},
          Props,
          {Character, calc, Hit, on, Target, with, TopItem}}) ->
-    Log = [{source, Character},
-           {type, calc_hit},
+    Log = [{?SOURCE, Character},
+           {?EVENT, calc_hit},
            {hit, Hit},
-           {target, Target},
+           {?TARGET, Target},
            {vector, TopItem}],
     case is_interested(Props) of
         true ->
@@ -60,10 +60,10 @@ attempt({#parents{top_item = TopItem},
 attempt({#parents{top_item = TopItem},
          Props,
          {Character, damage, Damage, to, Target, with, TopItem}}) ->
-    Log = [{source, Character},
-           {type, damage},
+    Log = [{?SOURCE, Character},
+           {?EVENT, damage},
            {damage, Damage},
-           {target, Target},
+           {?TARGET, Target},
            {vector, TopItem}],
     case is_interested(Props) of
         true ->
@@ -83,10 +83,10 @@ attempt({#parents{top_item = TopItem},
 attempt({#parents{character = Character},
          Props,
          {Attacker, calc, Hit, on, Character, with, AttackVector}}) ->
-    Log = [{source, Attacker},
-           {type, calc_hit},
+    Log = [{?SOURCE, Attacker},
+           {?EVENT, calc_hit},
            {hit, Hit},
-           {target, Character},
+           {?TARGET, Character},
            {vector, AttackVector}],
     case is_interested(Props) of
         true ->
@@ -102,10 +102,10 @@ attempt({#parents{character = Character},
 attempt({#parents{character = Character},
          Props,
          {Character, damage, Damage, to, Target, with, AttackVector}}) ->
-    Log = [{source, Character},
-           {type, damage},
+    Log = [{?SOURCE, Character},
+           {?EVENT, damage},
            {damage, Damage},
-           {target, Target},
+           {?TARGET, Target},
            {vector, AttackVector}],
     case is_interested(Props) of
         true ->
@@ -123,9 +123,9 @@ attempt({_, _, _Msg}) ->
     undefined.
 
 succeed({Props, {Character, attack, Target}}) when is_pid(Target) ->
-    Log = [{source, Character},
-           {type, attack},
-           {target, Target}],
+    Log = [{?SOURCE, Character},
+           {?EVENT, attack},
+           {?TARGET, Target}],
     erlmud_object:attempt(self(), {Character, attack, Target, with, self()}),
     {Props, Log};
 succeed({Props, _}) ->
