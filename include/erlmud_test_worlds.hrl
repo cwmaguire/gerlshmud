@@ -182,7 +182,7 @@
                             {character, player},
                             {attribute, dex_buff},
                             {body_parts, [head]},
-                            {icon, clothing},
+                            {icon, armor},
                             ?ITEM_HANDLERS]},
                   {dex_buff, [{name, <<"dex_buff">>},
                               {owner, helmet},
