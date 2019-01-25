@@ -3,7 +3,6 @@
 _rel
 deps
 ebin
-rel
 relx*
 logs
 .erlang.mk
