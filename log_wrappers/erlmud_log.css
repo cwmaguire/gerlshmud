@@ -81,13 +81,19 @@ SVG {
   padding: 3px;
 }
 
+.resend {
+  background-color: yellow;
+  color: black;
+  padding: 3px;
+}
+
 .fail {
   background-color: red;
   color: white;
   padding: 3px;
 }
 
-.subscribe {
+.should_subscribe {
   background-color: blue;
   color: white;
   padding: 3px;

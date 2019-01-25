@@ -6,7 +6,7 @@ let filters = (
   [{id: 'cb_has_type',
     label: 'has type',
     filter: has_type,
-    initial: false},
+    initial: true},
 
    {id: 'cb_not_link',
     label: 'not link',
@@ -275,12 +275,24 @@ function add_event_name(parent, log){
 }
 
 function add_result(parent, log){
-  let resultSpan = span(prop(log, 'result'));
+  let result = prop(log, 'result');
+  let resultSpan = span(result);
+  if(result == 'succeed'){
+    resultSpan.className = 'succeed';
+  }else if(result == 'fail'){
+    resultSpan.className = 'fail';
+  }else if(result == 'resend'){
+    resultSpan.className = 'resend';
+  }
   parent.appendChild(resultSpan);
 }
 
 function add_subscription(parent, log){
-  let subscriptionSpan = span(prop(log, 'subscribe'));
+  let shouldSub = prop(log, 'subscribe');
+  let subscriptionSpan = span(shouldSub);
+  if(shouldSub || shouldSub == 'true'){
+    subscriptionSpan.className = 'should_subscribe';
+  }
   parent.appendChild(subscriptionSpan);
 }
 
