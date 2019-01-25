@@ -156,6 +156,26 @@ handle_cast_({fail, Reason, Msg, LogProps}, State) ->
             {noreply, State#state{props = Props}}
     end;
 handle_cast_({succeed, Msg}, State) ->
+    % TODO figure out what this is
+    % no case clause matching
+    % [{handlers,[erlmud_handler_char_attack,
+    %             erlmud_handler_char_look,
+    %             erlmud_handler_char_inv,
+    %             erlmud_handler_char_move,
+    %             erlmud_handler_char_inject_self,
+    %             erlmud_handler_char_enter_world,
+    %             erlmud_handler_set_child_property]},
+    %  {icon,person},
+    %  {stamina,<0.279.0>},
+    %  {attack_types,[melee]},
+    %  {body_part,<0.275.0>},
+    %  {attribute,<0.278.0>},
+    %  {life,<0.277.0>},
+    %  {hitpoints,<0.276.0>},
+    %  {name,<<"zombie">>},
+    %  {attack_wait,10},
+    %  {owner,<0.266.0>}] in erlmud_object:handle_cast_/2 line 159
+
     case succeed(Msg, State) of
         {stop, Reason, Props, LogProps} ->
             {_, ParentsList} = parents(Props),
