@@ -153,9 +153,7 @@ function add_log_line(log){
 
   document.body.appendChild(logDiv);
 
-  // Keep this here in case I need to see what the props for an event are.
-  // I should make this a hover box.
-  add_log_text(document.body, log);
+  add_log_text(document.body, logDiv, log);
 
   return [logDiv, heightListener, roomWidthListener];
 }
@@ -286,12 +284,33 @@ function add_subscription(parent, log){
   parent.appendChild(subscriptionSpan);
 }
 
-function add_log_text(parent, log){
+function add_log_text(parent, logDiv, log){
+  let logTextDiv = div();
+  logTextDiv.style.display = 'none';
+  logTextDiv.style.fontSize = '8pt';
+  logTextDiv.style.zIndex = '2';
+  logTextDiv.style.position = 'fixed';
+  logTextDiv.style.left = '55%';
+
   for(let k in log){
     let d = div();
     d.innerText = k + ': ' + log[k];
-    parent.appendChild(d);
+    logTextDiv.appendChild(d);
   }
+  let mouseover = (
+    function(event){
+      logTextDiv.style.display = 'block';
+      logTextDiv.style.top = '10px';
+    }
+  )
+  let mouseout = (
+    function(event){
+      logTextDiv.style.display = 'none';
+    }
+  )
+  logDiv.addEventListener('mouseover', mouseover);
+  logDiv.addEventListener('mouseout', mouseout);
+  parent.appendChild(logTextDiv);
 }
 
 function span(html, className){
