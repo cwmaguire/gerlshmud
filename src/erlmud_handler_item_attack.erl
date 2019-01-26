@@ -244,8 +244,8 @@ succeed({Props, {allocate, Amt, 'of', Type, to, Self}})
             _ ->
                 Allocated
         end,
-    Props = lists:keystore(allocated_resources, 1, Props, {allocated_resources, RemainingAllocated}),
-    {Props, Log};
+    Props2 = lists:keystore(allocated_resources, 1, Props, {allocated_resources, RemainingAllocated}),
+    {Props2, Log};
 
 succeed({Props, {Character, calc, Hit, on, Target, with, Self}})
   when is_pid(Target),

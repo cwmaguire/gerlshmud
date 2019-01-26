@@ -156,26 +156,6 @@ handle_cast_({fail, Reason, Msg, LogProps}, State) ->
             {noreply, State#state{props = Props}}
     end;
 handle_cast_({succeed, Msg}, State) ->
-    % TODO figure out what this is
-    % no case clause matching
-    % [{handlers,[erlmud_handler_char_attack,
-    %             erlmud_handler_char_look,
-    %             erlmud_handler_char_inv,
-    %             erlmud_handler_char_move,
-    %             erlmud_handler_char_inject_self,
-    %             erlmud_handler_char_enter_world,
-    %             erlmud_handler_set_child_property]},
-    %  {icon,person},
-    %  {stamina,<0.279.0>},
-    %  {attack_types,[melee]},
-    %  {body_part,<0.275.0>},
-    %  {attribute,<0.278.0>},
-    %  {life,<0.277.0>},
-    %  {hitpoints,<0.276.0>},
-    %  {name,<<"zombie">>},
-    %  {attack_wait,10},
-    %  {owner,<0.266.0>}] in erlmud_object:handle_cast_/2 line 159
-
     case succeed(Msg, State) of
         {stop, Reason, Props, LogProps} ->
             {_, ParentsList} = parents(Props),
@@ -471,14 +451,27 @@ next(Procs = #procs{next = NextSet}) ->
 
 succeed(Message, #state{props = Props}) ->
     Handlers = proplists:get_value(handlers, Props),
-    {Result, _} = lists:foldl(fun handle_success/2, {Props, Message}, Handlers),
-    Result.
+    handle_success(Handlers, {Props, [], Message}).
 
-handle_success(_, {Result = {stop, _, _}, Message}) ->
-    {Result, Message};
-handle_success(HandlerModule, Success = {_, Message}) ->
-    Props = HandlerModule:succeed(Success),
-    {Props, Message}.
+handle_success(_NoMoreHandlers = [], {Props, LogProps, _Message}) ->
+    {Props, LogProps};
+handle_success([Handler | Handlers], {Props, LogProps, Message}) ->
+    case Handler:succeed({Props, Message}) of
+        {stop, Reason, Props2, LogProps2} ->
+            MergedLogProps = merge_log_props(LogProps, LogProps2),
+            {stop, Reason, Props2, MergedLogProps};
+        {Props2, LogProps2} ->
+            MergedLogProps = merge_log_props(LogProps, LogProps2),
+            handle_success(Handlers, {Props2, MergedLogProps, Message});
+        Props2 ->
+            handle_success(Handlers, {Props2, LogProps, Message})
+    end.
+
+merge_log_props(Logs1, Logs2) ->
+    lists:keymerge(1,
+                   lists:keysort(1, Logs1),
+                   lists:keysort(1, Logs2)).
+
 
 fail(Reason, Message, #state{props = Props}) ->
     Handlers = proplists:get_value(handlers, Props),

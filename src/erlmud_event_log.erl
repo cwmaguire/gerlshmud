@@ -62,6 +62,7 @@ handle_cast({log, Pid, Level, Props}, State) when is_list(Props) ->
     BinProps = [{K, json_friendly(V)} || {K, V} <- NamedProps],
     JSON2 =
     try
+        io:format(user, "BinProps = ~p~n", [BinProps]),
         JSON = jsx:encode(BinProps),
         ok = file:write(State#state.log_file, <<JSON/binary, "\n">>),
         JSON
@@ -134,6 +135,8 @@ json_friendly(Timestamp = {Meg, Sec, Mic})
     ts2b(Timestamp);
 json_friendly(Tuple) when is_tuple(Tuple) ->
     json_friendly(tuple_to_list(Tuple));
+json_friendly(Ref) when is_reference(Ref) ->
+    ref2b(Ref);
 json_friendly(Pid) when is_pid(Pid) ->
     p2b(Pid);
 json_friendly(Any) ->
@@ -165,6 +168,9 @@ is_string(_) ->
 
 l2b(List) when is_list(List) ->
     list_to_binary(List).
+
+ref2b(Ref) when is_reference(Ref) ->
+    list_to_binary(ref_to_list(Ref)).
 
 p2b(Pid) when is_pid(Pid) ->
     list_to_binary(pid_to_list(Pid)).

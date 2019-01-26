@@ -47,7 +47,7 @@ succeed({Props, {Item, move, from, Target, to, Self}}) when Self == self() ->
     Props2 = [{item, Item} | Props],
     {Props2, Log};
 succeed({Props, _}) ->
-    Props.
+    {Props, _LogProps = []}.
 
 fail({Props, _, _}) ->
     Props.
