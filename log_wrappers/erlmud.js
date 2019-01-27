@@ -159,7 +159,15 @@ function add_log_line(log){
 }
 
 function add_stage(parent, log){
-  let svg1 = svg_circle('#FFFFFF', '#000000');
+  let svg1;
+  let stage = prop(log, 'stage')
+  if(stage == 'attempt'){
+    svg1 = svg_circle('#1010FF', 'black');
+  }else if(stage == 'succeed'){
+    svg1 = svg_circle('#10A010', 'black');
+  }else{
+    svg1 = svg_circle('#FFFFFF', 'black');
+  }
   parent.appendChild(svg1);
 }
 
