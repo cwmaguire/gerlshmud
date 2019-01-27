@@ -59,7 +59,7 @@ handle_call(Request, From, State) ->
 handle_cast({log, Pid, Level, Props}, State) when is_list(Props) ->
     Props2 = [{process, Pid}, {level, Level} | Props],
     NamedProps = add_index_details(Props2),
-    BinProps = [{K, json_friendly(V)} || {K, V} <- NamedProps],
+    BinProps = [{json_friendly(K), json_friendly(V)} || {K, V} <- NamedProps],
     JSON2 =
     try
         io:format(user, "BinProps = ~p~n", [BinProps]),
