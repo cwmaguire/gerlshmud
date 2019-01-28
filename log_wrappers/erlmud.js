@@ -136,6 +136,8 @@ function add_log_line(log){
   let eventSpan = span();
   eventSpan.className = 'event';
 
+  add_log_text(document.body, logDiv, log);
+
   add_stage(logDiv, log);
   let roomWidthListener = add_room(logDiv, log);
   add_image('event_source_icon', logDiv, log);
@@ -143,17 +145,16 @@ function add_log_line(log){
   add_pid('process', logDiv, log);
   let heightListener = add_handler(logDiv, log);
 
-  add_pid('event_source', eventSpan, log);
+  add_maybe_pid('event_source', eventSpan, log);
   add_event_name(eventSpan, log);
-  add_pid('event_target', eventSpan, log);
+  add_maybe_pid('event_target', eventSpan, log);
   logDiv.appendChild(eventSpan);
 
   add_result(logDiv, log);
   add_subscription(logDiv, log);
+  add_message(logDiv, log);
 
   document.body.appendChild(logDiv);
-
-  add_log_text(document.body, logDiv, log);
 
   return [logDiv, heightListener, roomWidthListener];
 }
@@ -224,6 +225,15 @@ function add_handler(parent, log){
   }
 
   return handlerFun;
+}
+
+function add_maybe_pid(typeKey, parent, log){
+  let value = prop(log, typeKey);
+  if(is_pid(value)){
+    add_pid(typeKey, parent, log);
+  }else{
+    parent.appendChild(span(value));
+  }
 }
 
 function add_pid(typeKey, parent, log){
@@ -304,13 +314,22 @@ function add_subscription(parent, log){
   parent.appendChild(subscriptionSpan);
 }
 
+function add_message(parent, log){
+  let msg = message(prop(log, 'message'));
+  let msgSpan = span(msg)
+  parent.appendChild(msgSpan);
+}
+
 function add_log_text(parent, logDiv, log){
+  let logMouseoverSpan = span('Log');
+  logMouseoverSpan.style.fontSize = '8pt';
   let logTextDiv = div();
   logTextDiv.style.display = 'none';
   logTextDiv.style.fontSize = '8pt';
   logTextDiv.style.zIndex = '2';
   logTextDiv.style.position = 'fixed';
   logTextDiv.style.left = '55%';
+  logTextDiv.style.background = 'white';
 
   for(let k in log){
     let d = div();
@@ -328,8 +347,9 @@ function add_log_text(parent, logDiv, log){
       logTextDiv.style.display = 'none';
     }
   )
-  logDiv.addEventListener('mouseover', mouseover);
-  logDiv.addEventListener('mouseout', mouseout);
+  logMouseoverSpan.addEventListener('mouseover', mouseover);
+  logMouseoverSpan.addEventListener('mouseout', mouseout);
+  logDiv.appendChild(logMouseoverSpan);
   parent.appendChild(logTextDiv);
 }
 
@@ -421,6 +441,23 @@ function to_hex(i){
   }
 }
 
+function is_pid(maybePid){
+  let isPid =  maybePid.startsWith('<') && maybePid.endsWith('>');
+  return isPid;
+}
+
 function elem(id){
   return document.getElementById(id);
+}
+
+function message(msgProp){
+  let msg = '';
+  if(Array.isArray(msg)){
+    for(let e of msgProp){
+      msg += e;
+    }
+  }else{
+    msg = msgProp;
+  }
+  return msg;
 }
