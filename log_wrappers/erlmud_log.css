@@ -1,5 +1,6 @@
 BODY {
   background-color: lightgrey;
+  font-size: 8pt;
 }
 DIV {
   /* something to do with resizing to contain the span inside */
@@ -27,14 +28,14 @@ SVG {
 }
 
 .room {
-  border: 6px solid green;
+  border: 7px solid green;
   padding: 3px;
 }
 .room_title {
   position: relative;
-  top: -18px;
+  top: -15px;
   color: white;
-  margin-right: -20;
+  margin-right: -22;
   font-size: 8px;
 }
 
@@ -50,11 +51,13 @@ SVG {
 .process {
   margin: 2px;
   border: 2px dashed grey;
+  width: 90px;
 }
 
 .event {
   border: 1px solid brown;
   padding: 2px;
+  width: 270px;
 }
 
 .event_parent {
@@ -79,24 +82,28 @@ SVG {
   background-color: green;
   color: white;
   padding: 3px;
+  font-size: 8pt;
 }
 
 .resend {
   background-color: yellow;
   color: black;
   padding: 3px;
+  font-size: 8pt;
 }
 
 .fail {
   background-color: red;
   color: white;
   padding: 3px;
+  font-size: 8pt;
 }
 
 .should_subscribe {
   background-color: blue;
   color: white;
   padding: 3px;
+  font-size: 8pt;
 }
 
 .module {
@@ -104,4 +111,6 @@ SVG {
   border: 1px solid blue;
   position: relative;
   padding: 3px;
+  font-size: 8pt;
+  width: 150px;
 }

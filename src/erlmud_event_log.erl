@@ -62,7 +62,6 @@ handle_cast({log, Pid, Level, Props}, State) when is_list(Props) ->
     BinProps = [{json_friendly(K), json_friendly(V)} || {K, V} <- NamedProps],
     JSON2 =
     try
-        io:format(user, "BinProps = ~p~n", [BinProps]),
         JSON = jsx:encode(BinProps),
         ok = file:write(State#state.log_file, <<JSON/binary, "\n">>),
         JSON

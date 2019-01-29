@@ -133,8 +133,7 @@ function clear(){
 function add_log_line(log){
   let logDiv = div();
 
-  let eventSpan = span();
-  eventSpan.className = 'event';
+  let eventSpan = span(undefined, 'event');
 
   add_log_text(document.body, logDiv, log);
 
@@ -173,14 +172,18 @@ function add_stage(parent, log){
 }
 
 function add_room(parent, log){
-  let roomSpan = span(prop(log, 'room', 'n/a'), 'room');
+  let room = prop(log, 'room', 'n/a');
+  if(room = 'undefined'){
+    room = 'n/a';
+  }
+  let roomSpan = span(room, 'room');
   let roomTitleSpan = span('room', 'room_title');
   parent.appendChild(roomSpan);
   parent.appendChild(roomTitleSpan);
   let listener =
     function(){
       let roomWidth = roomSpan.offsetWidth;
-      let left = roomWidth - 5;
+      let left = roomWidth - 3;
       roomTitleSpan.style.left = -left;
     };
   return listener;
@@ -206,13 +209,14 @@ function add_log_process(parent, log){
 }
 
 function add_handler(parent, log){
-  let handler = prop(log, 'module');
+  let handler = prop(log, 'handler');
   let handlerSpan = span(handler, 'module');
   parent.appendChild(handlerSpan);
 
   let handlerFun;
   if(!handler){
-    handlerSpan.style.width = '20px';
+    handlerSpan.innerHTML = 'n/a';
+    //handlerSpan.style.width = '120px';
     handlerFun =
       function(parentHeight){
         let parentHeightInt = parseInt(parentHeight);
@@ -316,6 +320,10 @@ function add_subscription(parent, log){
 
 function add_message(parent, log){
   let msg = message(prop(log, 'message'));
+  let newMsg = prop(log, 'new_message');
+  if(newMsg){
+    msg += ' -> ' + newMsg;
+  }
   let msgSpan = span(msg)
   parent.appendChild(msgSpan);
 }

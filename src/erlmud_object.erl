@@ -255,7 +255,8 @@ attempt_(Msg,
          {object, self()},
          {message, Msg},
          {handler, Handler},
-         {subscribe, ShouldSubscribe} |
+         {subscribe, ShouldSubscribe},
+         {room, Procs#procs.room} |
          Props2] ++
          ParentsList ++
          LogProps ++
@@ -366,7 +367,6 @@ send(Pid, Msg) ->
 
 send_(Pid, Msg) ->
     gen_server:cast(Pid, Msg).
-
 
 populate_(Props, IdPids) ->
     {_, Props2} = lists:foldl(fun set_pid/2, {IdPids, []}, Props),
