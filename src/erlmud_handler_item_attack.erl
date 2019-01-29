@@ -223,7 +223,7 @@ succeed({Props, {Character, attack, Target, with, Self}}) ->
            {?TARGET, Target},
            {item, Self}],
     reserve(Character, Props),
-    Props2 = lists:keystore(target, 1, Props, {?TARGET, Target}),
+    Props2 = lists:keystore(target, 1, Props, {target, Target}),
     Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, true}),
     {Props3, Log};
 
@@ -300,7 +300,7 @@ succeed({Props, {Character, stop_attack}}) ->
     Log = [{?SOURCE, Character},
            {?EVENT, stop_attack}],
     unreserve(Character, Props),
-    Props2 = lists:keystore(target, 1, Props, {?TARGET, undefined}),
+    Props2 = lists:keystore(target, 1, Props, {target, undefined}),
     Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, false}),
     {Props3, Log};
 
@@ -308,7 +308,7 @@ succeed({Props, {Character, die}}) ->
     Log = [{?SOURCE, Character},
            {?EVENT, die}],
     unreserve(Character, Props),
-    Props2 = lists:keystore(target, 1, Props, {?TARGET, undefined}),
+    Props2 = lists:keystore(target, 1, Props, {target, undefined}),
     Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, false}),
     {Props3, Log};
 
