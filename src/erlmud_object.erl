@@ -134,7 +134,7 @@ handle_cast_({set, Prop = {K, _}}, State = #state{props = Props}) ->
 handle_cast_({attempt, Msg, Procs}, State = #state{props = Props}) ->
     IsExit = proplists:get_value(is_exit, Props, false),
     {noreply, maybe_attempt(Msg, Procs, IsExit, State)};
-handle_cast_({fail, Reason, Msg, LogProps}, State) ->
+handle_cast_({fail, Reason, Msg}, State) ->
     case fail(Reason, Msg, State) of
         {stop, Props, LogProps} ->
             {_, ParentsList} = parents(Props),
@@ -146,7 +146,7 @@ handle_cast_({fail, Reason, Msg, LogProps}, State) ->
                  {stop_reason, Reason} |
                  Props ++ ParentsList ++ LogProps]),
             {stop, {shutdown, Reason}, State#state{props = Props}};
-        {Props, LogProps} ->
+        {Props, _, _, LogProps} ->
             {_, ParentsList} = parents(Props),
             log([{stage, fail},
                  {object, self()},
@@ -475,14 +475,18 @@ merge_log_props(Logs1, Logs2) ->
 
 fail(Reason, Message, #state{props = Props}) ->
     Handlers = proplists:get_value(handlers, Props),
-    {Result, _, _} = lists:foldl(fun handle_fail/2, {Props, Reason, Message}, Handlers),
-    Result.
+    Acc = {Props, Reason, Message, _LogProps = []},
+    lists:foldl(fun handle_fail/2, Acc, Handlers).
 
-handle_fail(_, Response = {{stop, _}, _, _}) ->
+handle_fail(_, Response = {stop, _Props, _LogProps}) ->
     Response;
-handle_fail(HandlerModule, Failure = {_, Reason, Message}) ->
-    Props = HandlerModule:fail(Failure),
-    {Props, Reason, Message}.
+handle_fail(HandlerModule, {Props, Reason, Message, LogProps}) ->
+    case HandlerModule:fail({Props, Reason, Message}) of
+        {Props2, LogProps2} ->
+            {Props2, Reason, Message, LogProps ++ LogProps2};
+        Props2 ->
+            {Props2, Reason, Message, LogProps}
+    end.
 
 value(Prop, Props, integer) ->
     prop(Prop, Props, fun is_integer/1, 0);

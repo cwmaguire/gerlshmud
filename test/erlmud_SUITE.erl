@@ -11,8 +11,10 @@
 
 %all() -> [look_player].
 %all() -> [player_drop_item].
-all() -> [counterattack_behaviour].
+%all() -> [counterattack_behaviour].
 %all() -> [log].
+%all() -> [player_move].
+all() -> [player_move_exit_locked].
 %all() ->
     %[player_move,
      %player_move_fail,
@@ -40,6 +42,8 @@ all() -> [counterattack_behaviour].
 init_per_testcase(_, Config) ->
     %erlmud_dbg:add(erlmud_event_log, div_),
     %erlmud_dbg:add(erlmud_event_log),
+    %erlmud_dbg:add(erlmud_event_log, flatten),
+    %erlmud_dbg:add(erlmud_index, get),
 
     %dbg:tracer(),
     %dbg:tpl(erlmud_event_log, '_', '_', [{'_', [], [{exception_trace}]}]),
