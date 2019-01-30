@@ -59,7 +59,7 @@ handle_call(Request, From, State) ->
 handle_cast({log, Pid, Level, Props}, State) when is_list(Props) ->
     Props2 = [{process, Pid}, {level, Level} | Props],
     NamedProps = add_index_details(Props2),
-    BinProps = [{json_friendly(K), json_friendly(V)} || {K, V} <- NamedProps],
+    BinProps = [{flatten(json_friendly(K)), json_friendly(V)} || {K, V} <- NamedProps],
     JSON2 =
     try
         JSON = jsx:encode(BinProps),
@@ -122,6 +122,13 @@ call_logger(Logger, Level, JSON) ->
                       [?MODULE, Error])
     end.
 
+flatten([A1, A2]) when is_atom(A1), is_atom(A2) ->
+    B1 = atom_to_binary(A1, utf8),
+    B2 = atom_to_binary(A2, utf8),
+    <<B1/binary, "_", B2/binary>>;
+flatten(Other) ->
+    Other.
+
 json_friendly(List) when is_list(List) ->
     case is_string(List) of
         true ->
@@ -144,6 +151,14 @@ json_friendly(Any) ->
 add_index_details(Props) ->
     lists:foldl(fun add_index_details/2, [], Props).
 
+add_index_details({_Key = {Atom1, Atom2}, Pid}, NamedProps)
+  when is_pid(Pid),
+       is_atom(Atom1),
+       is_atom(Atom2) ->
+    Str1 = atom_to_list(Atom1),
+    Str2 = atom_to_list(Atom2),
+    Key = list_to_atom(Str1 ++ "_" ++ Str2),
+    add_index_details({Key, Pid}, NamedProps);
 add_index_details({Key, Pid}, NamedProps) when is_pid(Pid) ->
     case erlmud_index:get(Pid) of
         undefined ->
