@@ -305,6 +305,8 @@ function add_result(parent, log){
     resultSpan.className = 'fail';
   }else if(result == 'resend'){
     resultSpan.className = 'resend';
+  }else if(result == 'broadcast'){
+    resultSpan.className = 'broadcast';
   }
   parent.appendChild(resultSpan);
 }
@@ -324,7 +326,7 @@ function add_message(parent, log){
   if(newMsg){
     msg += ' -> ' + newMsg;
   }
-  let msgSpan = span(msg)
+  let msgSpan = span(msg, 'message')
   parent.appendChild(msgSpan);
 }
 

@@ -89,7 +89,12 @@ SVG {
   background-color: yellow;
   color: black;
   padding: 3px;
-  font-size: 8pt;
+}
+
+.broadcast {
+  background-color: white;
+  color: red;
+  padding: 3px;
 }
 
 .fail {
@@ -113,4 +118,8 @@ SVG {
   padding: 3px;
   font-size: 8pt;
   width: 150px;
+}
+
+.message {
+  word-wrap: normal;
 }
