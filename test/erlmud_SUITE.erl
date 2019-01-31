@@ -10,34 +10,29 @@
 % TODO test updating a skill when a target is killed with a weapon (or when damage is dealt, or both)
 
 %all() -> [look_player].
-%all() -> [player_drop_item].
-%all() -> [counterattack_behaviour].
-%all() -> [log].
-%all() -> [player_move].
-all() -> [player_move_exit_locked].
-%all() ->
-    %[player_move,
-     %player_move_fail,
-     %player_move_exit_locked,
-     %player_get_item,
-     %player_drop_item,
-     %character_owner_add_remove,
-     %player_attack,
-     %player_resource_wait,
-     %attack_with_modifiers,
-     %one_sided_fight,
-     %counterattack_behaviour,
-     %stop_attack_on_move,
-     %player_wield,
-     %player_wield_first_available,
-     %player_wield_missing_body_part,
-     %player_wield_wrong_body_part,
-     %player_wield_body_part_is_full,
-     %player_remove,
-     %look_player,
-     %look_room,
-     %look_item,
-     %set_character].
+all() ->
+    [player_move,
+     player_move_fail,
+     player_move_exit_locked,
+     player_get_item,
+     player_drop_item,
+     character_owner_add_remove,
+     player_attack,
+     player_resource_wait,
+     attack_with_modifiers,
+     one_sided_fight,
+     counterattack_behaviour,
+     stop_attack_on_move,
+     player_wield,
+     player_wield_first_available,
+     player_wield_missing_body_part,
+     player_wield_wrong_body_part,
+     player_wield_body_part_is_full,
+     player_remove,
+     look_player,
+     look_room,
+     look_item,
+     set_character].
 
 init_per_testcase(_, Config) ->
     %erlmud_dbg:add(erlmud_event_log, div_),
@@ -155,7 +150,7 @@ character_owner_add_remove(Config) ->
     attempt(Config, Player, {Player, get, <<"rifle">>}),
     ?WAIT100,
     true = has(Rifle, player),
-    %WaitFun = 
+    %WaitFun =
         %fun() ->
             %val(character, Rifle)
         %end,
@@ -289,7 +284,7 @@ attack_with_modifiers(Config) ->
             end
         end,
     true = wait_loop(WaitFun, true, 30),
-    WaitFun2 = 
+    WaitFun2 =
         fun() ->
             val('is_alive', g_hp)
         end,

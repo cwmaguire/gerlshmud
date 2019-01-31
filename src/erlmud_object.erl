@@ -54,16 +54,17 @@
 start_link(Id, Props) ->
     %ct:pal("erlmud_obj:start_link(~p, ~p, ~p)~n", [Id, Type, Props]),
     {ok, Pid} = gen_server:start_link(?MODULE, Props, []),
-    Id = id(Id, Pid, Props),
-    erlmud_index:put(Pid, {id, Id}),
+    Id2 = id(Id, Pid, Props),
+    erlmud_index:put(Pid, {id, Id2}),
     Icon = proplists:get_value(icon, Props),
     erlmud_index:put(Pid, {icon, Icon}),
     {ok, Pid}.
 
 id(_Id = undefined, Pid, Props) ->
-    _PidString = pid_to_list(Pid)
-                 ++ "_"
-                 ++ binary_to_list(proplists:get_value(name, Props, <<"no_name">>));
+    PidString = pid_to_list(Pid)
+                ++ "_"
+                ++ binary_to_list(proplists:get_value(name, Props, <<"no_name">>)),
+    list_to_atom(PidString);
 id(Id, _, _) ->
     Id.
 
@@ -283,6 +284,8 @@ parents(Props) ->
 is_room(Props) ->
     proplists:get_value(is_room, Props, false).
 
+result_tuples({fail, Reason}) when is_binary(Reason) ->
+    [{result, fail}, {reason, Reason}];
 result_tuples({fail, Reason}) when is_list(Reason) ->
     [{result, fail}, {reason, list_to_binary(Reason)}];
 result_tuples({fail, Reason}) when is_atom(Reason) ->
