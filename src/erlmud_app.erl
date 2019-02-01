@@ -29,6 +29,7 @@ start(_Type, _Args) ->
            end,
 
     Paths = [{"/", erlmud_websocket, ?NO_OPTIONS},
+             {"/log", erlmud_websocket_log, ?NO_OPTIONS},
              {"/[...]", cowboy_static, {priv_dir, erlmud, "static"}}],
     Routes = [{?ANY_HOST, Paths}],
     Dispatch = cowboy_router:compile(Routes),

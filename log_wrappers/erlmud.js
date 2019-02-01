@@ -471,3 +471,18 @@ function message(msgProp){
   }
   return msg;
 }
+
+function websocket_connect(){
+  let socket = new WebSocket("ws://localhost:8081/log");
+
+  socket.onopen = function (event) {
+    let connectResult = elem('connect_result');
+    connectResult.value = 'open'
+    console.dir(event);
+  };
+
+  socket.onmessage = function (event) {
+    add_log_line(event.data);
+  };
+
+}
