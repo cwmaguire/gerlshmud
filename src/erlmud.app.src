@@ -20,10 +20,9 @@
              {body_part, [<<"body part ">>, name]},
              {item, [<<"item ">>, name, <<": ">>, desc]},
              {room, [name, <<": ">>, desc]},
-             {gender, [<<"gender: ">>, value]},
-             {race, [<<"race: ">>, value]},
              {height, [value, <<"m tall">>]},
-             {weight, [value, <<"kg">>]}]},
+             {weight, [value, <<"kg">>]}
+          ]},
 
          {context_verbs, [{giant, [{hand, [{sword, <<"is wielding">>},
                                            {gloves, <<"is wearing">>}]},
