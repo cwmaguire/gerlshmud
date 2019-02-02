@@ -482,7 +482,8 @@ function websocket_connect(){
   };
 
   socket.onmessage = function (event) {
-    add_log_line(event.data);
+    let log = JSON.parse(event.data);
+    add_log_line(log);
   };
 
 }
