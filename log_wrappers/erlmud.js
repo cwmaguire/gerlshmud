@@ -130,7 +130,7 @@ function clear(){
 }
 
 
-function add_log_line(log){
+function add_log_line(log, beforeOrAfter = 'after'){
   let logDiv = div();
 
   let eventSpan = span(undefined, 'event');
@@ -153,7 +153,14 @@ function add_log_line(log){
   add_subscription(logDiv, log);
   add_message(logDiv, log);
 
-  document.body.appendChild(logDiv);
+  if(beforeOrAfter == 'after'){
+    document.body.appendChild(logDiv);
+  }else{
+    let firstLog = document.body.children[4];
+    document.body.insertBefore(logDiv, firstLog);
+
+    remove_overflow();
+  }
 
   return [logDiv, heightListener, roomWidthListener];
 }
@@ -483,7 +490,16 @@ function websocket_connect(){
 
   socket.onmessage = function (event) {
     let log = JSON.parse(event.data);
-    add_log_line(log);
+    add_log_line(log, 'before');
   };
+}
 
+function remove_overflow(){
+  let nodes = document.body.childNodes;
+  let length = nodes.length;
+  if(nodes.length > 10){
+    for(let i = length; i > 100; i--){
+      nodes[i].remove()
+    }
+  }
 }
