@@ -193,6 +193,7 @@ Jun 29, 2016 - ping items asynchronously for valid body parts
 Jul  3, 2016 - add broadcast message (send multiple messages at once)
 Jul  9, 2016 - attributes and items can modify attack hits and damage
 Jun 15, 2017 - uses resources to handle simultaneous attacks
+Feb  1, 2019 - logs are now JSON, added new logging web page
 
 How to run the tests: (Which is all I've been doing lately)
 
