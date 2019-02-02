@@ -57,6 +57,11 @@ function initial_load(){
 
 function load(filterIds = []){
   let handlers = [];
+  let logs = [];
+
+  if(typeof(testLogs) != 'undefined'){
+    logs = testLogs;
+  }
 
   add_filters();
 
@@ -497,7 +502,7 @@ function websocket_connect(){
 function remove_overflow(){
   let nodes = document.body.childNodes;
   let length = nodes.length;
-  if(nodes.length > 10){
+  if(nodes.length > 100){
     for(let i = length; i > 100; i--){
       nodes[i].remove()
     }
