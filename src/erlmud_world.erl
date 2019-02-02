@@ -33,9 +33,9 @@ start(Id, Props) ->
     Pid.
 
 move(IdPids) ->
-    Room1 = proplists:get_value(room1, IdPids),
-    Room2 = proplists:get_value(room2, IdPids),
-    Player1 = proplists:get_value(player1, IdPids),
+    Room1 = proplists:get_value(room_5_5, IdPids),
+    Room2 = proplists:get_value(room_5_4, IdPids),
+    Player1 = proplists:get_value(player, IdPids),
     Procs = {procs, undefined, [], [], []},
     gen_server:cast(Room1, {attempt, {move, Player1, Room1, Room2}, Procs}).
 
@@ -44,10 +44,11 @@ m(Dir) ->
     gen_server:cast(Player1, {attempt, {move, Player1, Dir}, {procs, undefined, [], [], []}}).
 
 s() ->
-    [io:format("~p: ~p ~p~n", [X, whereis(X), st(X)]) || X <- [player1, room1, room2, room3, exit1, exit2, item1, item2]].
+    Ids = [{Id, erlmud_index:get_pid(Id)} || {Id, _Prop} <- ?WORLD],
+    [io:format("~p: ~p~n", [Id, st(Pid)]) || {Id, Pid} <- Ids].
 
-st(Regname) ->
-    sys:get_state(Regname).
+st(Process) ->
+    sys:get_state(Process).
 
 t() ->
     dbg:start(),
