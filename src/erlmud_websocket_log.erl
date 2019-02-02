@@ -41,7 +41,6 @@ websocket_init(_Type, Req, _Opts) ->
     Self = self(),
     Fun =
     fun(_Level, JSON) ->
-        io:format("Sending JSON to ~p~n", [Self]),
         Self ! JSON
     end,
     erlmud_event_log:register(Fun),

@@ -51,8 +51,8 @@
                             ?EXIT_HANDLERS]},
 
                 {player, [{name, <<"Bob">>},
-                          {owner, room1},
-                          {room, room1},
+                          {owner, room_5_5},
+                          {room, room_5_5},
                           {hitpoints, p_hp},
                           {life, p_life},
                           {attribute, strength0},
@@ -62,7 +62,6 @@
                           {body_part, hand0},
                           {body_part, hand1},
                           {race, race0},
-                          {room, room_5_5},
                           ?CHARACTER_HANDLERS]},
 
                 {p_hp, [{hitpoints, 10},
