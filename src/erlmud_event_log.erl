@@ -6,6 +6,7 @@
 -export([log/2]).
 -export([log/3]).
 -export([register/1]).
+-export([flatten/1]).
 
 %% gen_server
 
@@ -18,6 +19,8 @@
 
 -record(state, {log_file :: file:io_device(),
                 loggers = [] :: [function()]}).
+
+%% API
 
 log(Level, Terms) when is_atom(Level) ->
     Self = self(),
@@ -38,8 +41,21 @@ log(Pid, Level, Terms) when is_atom(Level) ->
 register(Logger) when is_function(Logger) ->
     gen_server:cast(?MODULE, {register, Logger}).
 
+flatten(Props) ->
+    Flattened = flatten(Props, []),
+    lists:ukeysort(1, Flattened).
+
+flatten([], List) ->
+    List;
+flatten([{K, [{K2, V} | L]} | Rest], Out) ->
+    flatten([{K, L} | Rest], [{K2, V} | Out]);
+flatten([T | Rest], Out) when is_tuple(T) ->
+    flatten(Rest, [T | Out]).
+
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+
+%% gen_server
 
 init([]) ->
     process_flag(priority, max),
@@ -59,7 +75,7 @@ handle_call(Request, From, State) ->
 handle_cast({log, Pid, Level, Props}, State) when is_list(Props) ->
     Props2 = [{process, Pid}, {level, Level} | Props],
     NamedProps = add_index_details(Props2),
-    BinProps = [{flatten(json_friendly(K)), json_friendly(V)} || {K, V} <- NamedProps],
+    BinProps = [{flatten_key(json_friendly(K)), json_friendly(V)} || {K, V} <- NamedProps],
     JSON2 =
     try
         JSON = jsx:encode(BinProps),
@@ -89,14 +105,7 @@ terminate(Reason, State) ->
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
-%props(Pid) ->
-%    case erlmud_object:props(Pid) of
-%        undefined ->
-%            io:format(user, "Pid ~p has no props!", [Pid]),
-%            [];
-%        Props ->
-%            Props
-%    end.
+%% util
 
 get_log_path() ->
     case os:getenv("ERLMUD_LOG_PATH") of
@@ -106,11 +115,6 @@ get_log_path() ->
         Path ->
             Path
     end.
-
-% maybe_name(Pid) when is_pid(Pid) ->
-%     {Pid, erlmud_index:get(Pid)};
-% maybe_name(NotPid) ->
-%     NotPid.
 
 call_logger(Logger, Level, JSON) ->
     try
@@ -122,11 +126,11 @@ call_logger(Logger, Level, JSON) ->
                       [?MODULE, Error])
     end.
 
-flatten([A1, A2]) when is_atom(A1), is_atom(A2) ->
+flatten_key([A1, A2]) when is_atom(A1), is_atom(A2) ->
     B1 = atom_to_binary(A1, utf8),
     B2 = atom_to_binary(A2, utf8),
     <<B1/binary, "_", B2/binary>>;
-flatten(Other) ->
+flatten_key(Other) ->
     Other.
 
 json_friendly(List) when is_list(List) ->

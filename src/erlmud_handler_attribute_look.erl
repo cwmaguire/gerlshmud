@@ -90,7 +90,12 @@ is_owner(_, _) ->
 description(Props) when is_list(Props) ->
     Type = proplists:get_value(type, Props),
     DescTemplate = erlmud_config:desc_template(Type),
-    log([{desc_template, DescTemplate}, {props, Props}]),
+    log([{desc_template, DescTemplate},
+         {desc_type, Type},
+         {object, self()},
+         {handler, ?MODULE},
+         {target, self()}
+         | erlmud_event_log:flatten(Props)]),
     [[description_part(Props, Part)] || Part <- DescTemplate].
 
 description_part(_, RawText) when is_binary(RawText) ->

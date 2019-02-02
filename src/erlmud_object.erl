@@ -506,16 +506,5 @@ prop(Prop, Props, Fun, Default) ->
     end.
 
 log(Props0) ->
-    Props = flatten(Props0),
+    Props = erlmud_event_log:flatten(Props0),
     erlmud_event_log:log(debug, [{module, ?MODULE} | Props]).
-
-flatten(Props) ->
-    Flattened = flatten(Props, []),
-    lists:ukeysort(1, Flattened).
-
-flatten([], List) ->
-    List;
-flatten([{K, [{K2, V} | L]} | Rest], Out) ->
-    flatten([{K, L} | Rest], [{K2, V} | Out]);
-flatten([T | Rest], Out) when is_tuple(T) ->
-    flatten(Rest, [T | Out]).
