@@ -18,7 +18,6 @@
 %%       Room 5,5  --- Exit 5,5:w <-> 6,5:e --- Room 6,5
 
 -define(WORLD, [{room_5_5, [{is_room, true},
-                            {character, giant},
                             {item, shield},
                             {item, force_field},
                             {name, <<"room">>},
@@ -28,6 +27,7 @@
                             ?ROOM_HANDLERS]},
 
                 {room_5_4, [{exit, exit_5_5_and_5_4},
+                            {character, giant},
                             {icon, room},
                             ?ROOM_HANDLERS]},
 
@@ -174,6 +174,7 @@
                            ?BODY_PART_HANDLERS]},
 
                 {giant, [{owner, room_5_4},
+                         {room, room_5_4},
                          {name, <<"Pete">>},
                          {hitpoints, g_hp},
                          {life, g_life},
