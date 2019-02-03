@@ -16,47 +16,26 @@
 
 <html>
 <head>
-  <script language="javascript">
-    var socket;
-    function send(){
-      socket.send(elem_value("command"));
-      elem_clear("command");
+  <script src="websocket.js"></script>
+  <style>
+    .input {
+      top: 90%;
+      position: fixed;
+      height: 10%;
     }
-
-    function elem_value(elem_id){
-      var elem = document.getElementById(elem_id);
-      return elem.value;
+    .results {
+      overflow: scroll;
+      height: 90%;
     }
-
-    function elem_clear(elem_id){
-      var elem = document.getElementById(elem_id);
-      elem.value = "";
-    }
-  </script>
+  </style>
 </head>
-<body>
-  <div id=results></div>
+<body onload="load();">
+  <div id=results class="results"></div>
   <form onsubmit="send(); return false;" action="">
-    <br>Command: <input id=command type=text value="">
-    <br><input type=submit value="Send">
+    <div class="input">
+      <input id=command type=text value="">
+      <input type=submit value="Send">
+    </div>
   </form>
-
-  <script language="javascript">
-    var socket = new WebSocket("ws://localhost:8081/");
-
-    socket.onopen = function (event) {
-      var div = document.getElementById("results");
-      innerHtml = div.innerHTML;
-      div.innerHTML = innerHtml + "<br>OPEN! event.data: " + event.data;
-      console.dir("Dumping event");
-      console.dir(event);
-    };
-
-    socket.onmessage = function (event) {
-      var div = document.getElementById("results");
-      innerHtml = div.innerHTML;
-      div.innerHTML = innerHtml + "<br>" + event.data;
-    };
-  </script>
 </body>
 </html>
