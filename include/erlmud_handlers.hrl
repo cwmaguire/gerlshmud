@@ -36,6 +36,7 @@
                                         ?UNIVERSAL_HANDLERS]}).
 
 -define(EXIT_HANDLERS, {handlers, [erlmud_handler_exit_move,
+                                   erlmud_handler_exit_look,
                                    ?UNIVERSAL_HANDLERS]}).
 
 -define(HITPOINTS_HANDLERS, {handlers, [erlmud_handler_hitpoints_attack,
