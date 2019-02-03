@@ -1,4 +1,4 @@
-%% Copyright (c) 2015, Chris Maguire <cwmaguire@gmail.com>
+%% Copyright (c) 2015, Chris Maguire <cwmaguire@protonmail.com>
 %%
 %% Permission to use, copy, modify, and/or distribute this software for any
 %% purpose with or without fee is hereby granted, provided that the above
@@ -18,18 +18,30 @@
 parse(Player, <<"n">>) ->
     log([<<"Moving n">>]),
     {Player, move, n};
+parse(Player, <<"s">>) ->
+    log([<<"Moving s">>]),
+    {Player, move, s};
+parse(Player, <<"e">>) ->
+    log([<<"Moving e">>]),
+    {Player, move, e};
+parse(Player, <<"w">>) ->
+    log([<<"Moving w">>]),
+    {Player, move, w};
+
 parse(Player, <<"get ", Item/binary>>) ->
     log([<<"Getting ">>, Item]),
     {Player, get, Item};
 parse(Player, <<"drop ", Item/binary>>) ->
     log([<<"Dropping ">>, Item]),
     {Player, drop, Item};
+
 parse(Player, <<"look">>) ->
     log([<<"Looking ">>]),
     {Player, look};
 parse(Player, <<"look ", Object/binary>>) ->
     log([<<"Looking ">>, Object]),
     {Player, look, Object};
+
 parse(_, _) ->
     {error, <<"Huh?">>}.
 
