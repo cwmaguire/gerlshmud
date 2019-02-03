@@ -140,7 +140,7 @@ function add_log_line(log, beforeOrAfter = 'after'){
 
   let eventSpan = span(undefined, 'event');
 
-  add_log_text(document.body, logDiv, log);
+  add_log_text(logDiv, logDiv, log);
 
   add_stage(logDiv, log);
   let roomWidthListener = add_room(logDiv, log);
@@ -503,8 +503,10 @@ function remove_overflow(){
   let nodes = document.body.childNodes;
   let length = nodes.length;
   if(nodes.length > 100){
-    for(let i = length; i > 100; i--){
-      nodes[i].remove()
+    console.log('document.body.childNodes.length > 100');
+    for(let i = length - 1; i > 100; i--){
+      console.log('removing nodes[' + i + ']');
+      nodes[i].remove();
     }
   }
 }
