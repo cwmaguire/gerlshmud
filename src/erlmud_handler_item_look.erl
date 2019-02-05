@@ -130,14 +130,26 @@ send_description(Source, Props, Context) ->
 
 description(Props) when is_list(Props) ->
     DescTemplate = erlmud_config:desc_template(item),
-    log([<<"item desc template: ">>, DescTemplate]),
+    log([{desc_template, DescTemplate},
+         {object, self()},
+         {handler, ?MODULE},
+         {target, self()}
+         | erlmud_event_log:flatten(Props)]),
     [[description_part(Props, Part)] || Part <- DescTemplate].
 
 description_part(_, RawText) when is_binary(RawText) ->
     RawText;
 description_part(Props, DescProp) ->
-    log([<<"body part description_part DescProp: ">>, DescProp, <<" from Props: ">>, Props]),
-    prop_description(proplists:get_value(DescProp, Props, <<"??">>)).
+    log([{item_desc_part, DescProp},
+         {object, self()},
+         {handler, ?MODULE},
+         {target, self()},
+         {props, Props}]),
+    prop_description(proplists:get_value(DescProp,
+                                         Props,
+                                         <<"?? !",
+                                           (atom_to_binary(DescProp, utf8))/binary,
+                                           " ??">>)).
 
 prop_description(undefined) ->
     [];

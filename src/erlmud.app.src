@@ -21,7 +21,8 @@
              {item, [<<"item ">>, name, <<": ">>, desc]},
              {room, [name, <<": ">>, desc]},
              {height, [value, <<"m tall">>]},
-             {weight, [value, <<"kg">>]}
+             {weight, [value, <<"kg">>]},
+             {race, [<<"race: ">>, desc]}
           ]},
 
          {context_verbs, [{giant, [{hand, [{sword, <<"is wielding">>},

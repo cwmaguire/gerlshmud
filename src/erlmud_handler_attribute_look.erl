@@ -101,11 +101,21 @@ description(Props) when is_list(Props) ->
 description_part(_, RawText) when is_binary(RawText) ->
     RawText;
 description_part(Props, DescProp) ->
-    log([{char_desc_part, DescProp}, {props, Props}]),
-    prop_description(proplists:get_value(DescProp, Props, <<"??">>)).
+    log([{attribute_desc_part, DescProp},
+         {object, self()},
+         {handler, ?MODULE},
+         {target, self()}
+         | erlmud_event_log:flatten(Props)]),
+    prop_description(proplists:get_value(DescProp,
+                                         Props,
+                                         <<"?? !",
+                                           (atom_to_binary(DescProp, utf8))/binary,
+                                           " ??">>)).
 
 prop_description(undefined) ->
     [];
+prop_description(Int) when is_integer(Int) ->
+    integer_to_binary(Int);
 prop_description(Value) when not is_pid(Value) ->
     Value.
 
