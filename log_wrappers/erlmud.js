@@ -500,11 +500,12 @@ function websocket_connect(){
 }
 
 function remove_overflow(){
+  let maxNodes = 300;
   let nodes = document.body.childNodes;
   let length = nodes.length;
-  if(nodes.length > 100){
-    console.log('document.body.childNodes.length > 100');
-    for(let i = length - 1; i > 100; i--){
+  if(nodes.length > maxNodes){
+    console.log('document.body.childNodes.length > ' + maxNodes);
+    for(let i = length - 1; i > maxNodes; i--){
       console.log('removing nodes[' + i + ']');
       nodes[i].remove();
     }
