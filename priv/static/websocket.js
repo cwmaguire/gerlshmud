@@ -35,11 +35,19 @@ function load(){
   socket = new WebSocket("ws://localhost:8081/");
 
   socket.onopen = function (event) {
-    let div = document.getElementById("results");
-    innerHtml = div.innerHTML;
-    div.innerHTML = innerHtml + "<br>OPEN! event.data: " + event.data;
-    console.dir("Dumping event");
-    console.dir(event);
+    let div = document.getElementById('results');
+    let canvas_ = document.createElement('CANVAS');
+    canvas_.id = 'canvas1';
+    div.appendChild(canvas_);
+    let ctx = canvas_.getContext('2d');
+    canvas_.width = '30';
+    canvas_.height = '30';
+    ctx.strokeStyle = 'green';
+    ctx.fillStyle = 'green';
+    ctx.lineWidth = '8px';
+    ctx.beginPath();
+    ctx.ellipse(15, 15, 14, 14, Math.PI * 2, 0, 2 * Math.PI);
+    ctx.fill();
   };
 
   socket.onmessage = function (event) {

@@ -46,7 +46,7 @@ login(cast, Event, Data) ->
 
 password(cast, _Event = Password, Data = #data{login = Login,
                                                attempts = Attempts,
-                                               socket = _Socket}) ->
+                                               socket = Socket}) ->
     case is_valid_creds(Login, Password) of
         {true, logger} ->
             erlmud_event_log:register(self());
@@ -58,6 +58,7 @@ password(cast, _Event = Password, Data = #data{login = Login,
                          {handlers, [erlmud_handler_conn_enter_world,
                                      erlmud_handler_conn_send]}],
 
+            Socket ! {send, <<"Login successful.">>},
             {ok, ConnObjPid} = supervisor:start_child(erlmud_object_sup, [_Id = undefined, ConnProps]),
             % TODO Player is supposed to enter in a room
             Message = {PlayerPid, enter_world, in, room, with, ConnObjPid},
@@ -105,6 +106,8 @@ live(Type, Event, Data) ->
 %% gen_statem
 
 init(Socket) ->
+    Socket ! {send, <<"Welcome to Erlmud!">>},
+    Socket ! {send, <<"Currently any login and password will do.">>},
     {ok, login, #data{socket = Socket}}.
 
 callback_mode() ->
