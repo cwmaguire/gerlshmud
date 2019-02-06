@@ -20,16 +20,16 @@
 
 -include("include/erlmud.hrl").
 
-attempt({_Owner, Props, {Obj, move, from, Source, to, Target, via, Exit}})
+attempt({_Owner, Props, {Char, move, from, Source, to, Target, via, Exit}})
   when Source == self(); Target == self() ->
-    Log = [{?SOURCE, Obj},
+    Log = [{?SOURCE, Char},
            {?EVENT, move},
            {from, Source},
            {to, Target},
            {exit, Exit}],
     {succeed, true, Props, Log};
-attempt({_Owner, Props, {Obj, enter_world, in, Self, with, Conn}}) when Self == self() ->
-    Log = [{?SOURCE, Obj},
+attempt({_Owner, Props, {Char, enter_world, in, Self, with, Conn}}) when Self == self() ->
+    Log = [{?SOURCE, Char},
            {?EVENT, enter_world},
            {room, Self},
            {conn, Conn}],
@@ -37,40 +37,42 @@ attempt({_Owner, Props, {Obj, enter_world, in, Self, with, Conn}}) when Self == 
 attempt(_) ->
     undefined.
 
-succeed({Props, {Obj, move, from, Self, to, Target, via, Exit}}) when Self == self() ->
-    Log = [{?SOURCE, Obj},
+succeed({Props, {Char, move, from, Self, to, Target, via, Exit}}) when Self == self() ->
+    Log = [{?SOURCE, Char},
            {?EVENT, move},
            {from, Self},
            {to, Target},
            {exit, Exit}],
-    Props2 = lists:keydelete(Obj, 2, Props),
+    Props2 = lists:keydelete(Char, 2, Props),
     {Props2, Log};
-succeed({Props, {Obj, move, from, Source, to, Self, via, Exit}}) when Self == self() ->
-    Log = [{?SOURCE, Obj},
+succeed({Props, {Char, move, from, Source, to, Self, via, Exit}}) when Self == self() ->
+    Log = [{?SOURCE, Char},
            {?EVENT, move},
            {from, Source},
            {to, Self},
            {exit, Exit}],
-    Props2 = [{character, Obj} | Props],
+    erlmud_object:attempt(Self, {Char, look, Self}),
+    Props2 = [{character, Char} | Props],
     {Props2, Log};
-succeed({Props, {Obj, enter_world, in, Self, with, Conn}}) when Self == self() ->
-    Log = [{?SOURCE, Obj},
+succeed({Props, {Char, enter_world, in, Self, with, Conn}}) when Self == self() ->
+    Log = [{?SOURCE, Char},
            {?EVENT, enter_world},
            {room, Self},
            {conn, Conn}],
-    Props2 = [{character, Obj} | Props],
+    erlmud_object:attempt(Self, {Char, look, Self}),
+    Props2 = [{character, Char} | Props],
     {Props2, Log};
 succeed({Props, _}) ->
     Props.
 
-fail({Props, _Reason, {Obj, move, from, Self, to, Target}}) when Self == self() ->
-    Log = [{?SOURCE, Obj},
+fail({Props, _Reason, {Char, move, from, Self, to, Target}}) when Self == self() ->
+    Log = [{?SOURCE, Char},
            {?EVENT, move},
            {from, Self},
            {to, Target}],
     {Props, Log};
-fail({Props, _Reason, {Obj, move, from, Source, to, Target, via, Exit}}) when Source == self(); Target == self() ->
-    Log = [{?SOURCE, Obj},
+fail({Props, _Reason, {Char, move, from, Source, to, Target, via, Exit}}) when Source == self(); Target == self() ->
+    Log = [{?SOURCE, Char},
            {?EVENT, move},
            {from, Source},
            {to, Target},

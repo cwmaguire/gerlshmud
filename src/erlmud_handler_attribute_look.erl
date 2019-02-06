@@ -30,17 +30,6 @@ attempt({#parents{owner = Owner},
            {?TARGET, Owner},
            {context, Context}],
     {succeed, true, Props, Log};
-% TODO WHAT THE CRAP? This second pattern will never match
-% Remove and make sure tests pass
-attempt({#parents{owner = Owner},
-         Props,
-         {Source, describe, Owner, with, Context}}) ->
-    Log = [{?SOURCE, Source},
-           {?EVENT, describe},
-           {?TARGET, Owner},
-           {context, Context}],
-    ShouldSubscribe = _AttributeIsRace = race == proplists:get_value(type, Props),
-    {succeed, ShouldSubscribe, Props, Log};
 attempt(_) ->
     undefined.
 
