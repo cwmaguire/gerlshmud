@@ -15,11 +15,20 @@
                                         %erlmud_handler_counterattack,
                                         ?UNIVERSAL_HANDLERS]}).
 
--define(ITEM_HANDLERS, {handlers, [erlmud_handler_item_attack,
+-define(ITEM_HANDLERS, {handlers, [erlmud_handler_vector_attack,
                                    erlmud_handler_item_look,
                                    erlmud_handler_item_inv,
                                    erlmud_handler_item_inject_self,
                                    ?UNIVERSAL_HANDLERS]}).
+
+-define(SPELL_HANDLERS, {handlers, [erlmud_handler_spell_attack,
+                                    erlmud_handler_spell_inject_self,
+                                    ?UNIVERSAL_HANDLERS]}).
+
+-define(SPELL_EFFECT_HANDLERS,
+        {handlers, [erlmud_handler_spell_attack,
+                    erlmud_handler_spell_inject_self,
+                    ?UNIVERSAL_HANDLERS]}).
 
 -define(CONN_HANDLERS, {handlers, [erlmud_handler_conn_enter_world,
                                    erlmud_handler_conn_move,

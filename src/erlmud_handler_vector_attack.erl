@@ -11,7 +11,7 @@
 %% WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 %% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
--module(erlmud_handler_item_attack).
+-module(erlmud_handler_vector_attack).
 -behaviour(erlmud_handler).
 
 -export([attempt/1]).
@@ -42,7 +42,7 @@ attempt({#parents{character = Character},
         false ->
             {succeed, true, Props, Log};
         _ ->
-            %% If _other_ items aren't yet attacking the Target then they'll join in.
+            %% If _other_ vectors aren't yet attacking the Target then they'll join in.
             %% I'm not sure how that would happen unless the player can set what they're
             %% attacking with for each individual attack. In that case they'll need to
             %% set what their default counterattack is.
@@ -56,12 +56,12 @@ attempt({#parents{character = Character},
     Log = [{?SOURCE, Character},
            {?EVENT, attack},
            {?TARGET, Target},
-           {item, Self}],
+           {vector, Self}],
     case should_attack(Props) of
         true ->
             {succeed, true, Props, Log};
         false ->
-            {{fail, <<"Item is not wielded or is not activated">>}, false, Props, Log}
+            {{fail, <<"Vector is not activated">>}, false, Props, Log}
     end;
 
 attempt({#parents{},
@@ -167,21 +167,6 @@ succeed({Props, {Attacker, killed, Target, with, AttackVector}}) ->
     Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, false}),
     {Props3, Log};
 
-%% I feel like the character should kick off a counter-attack message when hit, but that means
-%% on _every_ hit I'm sending out a counter-attack message that's going to get ignored.
-%% If the _item_ sees the attack it can check if it's already engaged in a target.
-%% However, if the player decides to change targets, then I'd need a different event to
-%% differentiate from "Char attack Target (because it attacked us)" and "Char attack Target
-%% (because the player said so)".
-%%
-%% I think I'll assume that event messages are free. If I start letting optimization creep
-%% in (especially without measuring) this design is going to get gross fast.
-%%
-%% I'm probably going to need some counterattack logic at some point anyway.
-%%
-%% We only get one handler per event so if I need a counterattack handler I can give it a
-%% distinct, but similar, event.
-
 succeed({Props, {Attacker, attack, Target}}) when is_pid(Target) ->
     Log = [{?EVENT, attack},
            {?SOURCE, Attacker},
@@ -221,7 +206,7 @@ succeed({Props, {Character, attack, Target, with, Self}}) ->
     Log = [{?EVENT, attack},
            {?SOURCE, Character},
            {?TARGET, Target},
-           {item, Self}],
+           {vector, Self}],
     reserve(Character, Props),
     Props2 = lists:keystore(target, 1, Props, {target, Target}),
     Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, true}),
@@ -256,7 +241,7 @@ succeed({Props, {Character, calc, Hit, on, Target, with, Self}})
            {?EVENT, calc_hit},
            {hit, Hit},
            {?TARGET, Target},
-           {item, Self}],
+           {vector, Self}],
     erlmud_object:attempt(self(), {Character, calc, Damage, to, Target, with, Self}),
     {Props, Log};
 
@@ -293,7 +278,7 @@ succeed({Props, {Character, calc, NoDamage, to, Target, with, Self}})
            {?EVENT, calc_damage},
            {damage, NoDamage},
            {?TARGET, Target},
-           {item, Self}],
+           {vector, Self}],
     {Props, Log};
 
 succeed({Props, {Character, stop_attack}}) ->
