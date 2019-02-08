@@ -236,13 +236,13 @@ succeed({Props, {Character, calc, Hit, on, Target, with, Self}})
   when is_pid(Target),
        Self == self(),
        Hit > 0 ->
-    Damage = proplists:get_value(attack_damage_modifier, Props, 1),
+    Damage = proplists:get_value(attack_damage_modifier, Props, 0),
     Log = [{?SOURCE, Character},
            {?EVENT, calc_hit},
            {hit, Hit},
            {?TARGET, Target},
            {vector, Self}],
-    erlmud_object:attempt(self(), {Character, calc, Damage, to, Target, with, Self}),
+    erlmud_object:attempt(self(), {Character, calc, Types, damage, Damage, to, Target, with, Self}),
     {Props, Log};
 
 succeed({Props, {Character, calc, Miss, on, Target, with, Self}})
@@ -255,7 +255,7 @@ succeed({Props, {Character, calc, Miss, on, Target, with, Self}})
     % TODO: say "you missed!"
     {Props, Log};
 
-succeed({Props, {Character, calc, Damage, to, Target, with, Self}})
+succeed({Props, {Character, calc, Types, damage, Damage, to, Target, with, Self}})
   when Self == self(),
        Damage > 0 ->
     log([{?EVENT, calc_damage},
@@ -264,11 +264,12 @@ succeed({Props, {Character, calc, Damage, to, Target, with, Self}})
          {character, Character},
          {damage, Damage},
          {?TARGET, Target},
+         {damage_types, Types},
          {result, succeed}]),
     erlmud_object:attempt(self(), {Character, does, Damage, to, Target, with, Self}),
     Props;
 
-succeed({Props, {Character, calc, NoDamage, to, Target, with, Self}})
+succeed({Props, {Character, calc, Types, NoDamage, to, Target, with, Self}})
   when Self == self() ->
     %% Attack failed (No damage was done)
     %% TODO: output something to the client like
@@ -277,6 +278,7 @@ succeed({Props, {Character, calc, NoDamage, to, Target, with, Self}})
     Log = [{?SOURCE, Character},
            {?EVENT, calc_damage},
            {damage, NoDamage},
+           {damage_types, Types},
            {?TARGET, Target},
            {vector, Self}],
     {Props, Log};
@@ -306,8 +308,14 @@ fail({Props, _, _}) ->
 attack(Props) ->
     Character = proplists:get_value(character, Props),
     Target = proplists:get_value(target, Props),
-    Hit = proplists:get_value(attack_hit_modifier, Props, 1),
-    erlmud_object:attempt(self(), {Character, calc, Hit, on, Target, with, self()}).
+    Types = proplists:get_value(attack_types, Props, 0),
+    erlmud_object:attempt(self(), {Character, calc, Types, success, Success, on, Target, with, self()}).
+
+calc_base_success(Props) ->
+    SucessBase = proplists:get_value(attack_success_base, Props, 0),
+    SuccessModifier = proplists:get_value(attack_success_modifier, Props, 0),
+    random:seed(
+
 
 should_attack(Props) ->
     is_wielded(Props) andalso is_attack(Props).
