@@ -63,7 +63,10 @@ attempt({#parents{owner = Owner}, Props, Msg = {Attacker, calc, Hit, on, Owner, 
         _ ->
             {succeed, false, Props}
     end;
-attempt({#parents{owner = Owner}, Props, Msg = {Attacker, calc, Damage, to, Owner, with, AttackVector}}) ->
+attempt({#parents{owner = Owner},
+         Props,
+         Msg = {Attacker, calc, Damage, to, Owner, with, AttackVector}}) ->
+         Msg = {Character, calc, Types, success, Success, on, Target, with, self()}}) ->
     log([{stage, attempt},
          {?EVENT, calc_damage},
          {object, self()},

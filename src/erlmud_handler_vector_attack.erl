@@ -119,7 +119,7 @@ attempt({#parents{character = Character},
     end;
 attempt({#parents{character = Character},
          Props,
-         {Attacker, calc, Damage, to, Character, with, AttackVector}}) ->
+         {Attacker, calc, Types, damage, Damage, to, Character, with, AttackVector}}) ->
     Log = [{?SOURCE, Attacker},
            {?EVENT, calc_damage},
            {damage, Damage},
@@ -127,8 +127,8 @@ attempt({#parents{character = Character},
            {vector, AttackVector}],
     case should_defend(Props) of
         true ->
-            case proplists:get_value(defence_damage_modifier, Props) of
-                undefined ->
+            case erlmud_modifiers(Props, defence, damage, Types) of
+                0 ->
                     {succeed, false, Props, Log};
                 Amount ->
                     {succeed,
