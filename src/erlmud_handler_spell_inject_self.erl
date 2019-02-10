@@ -1,4 +1,4 @@
-%% Copyright (c) 2016, Chris Maguire <cwmaguire@gmail.com>
+%% Copyright (c) 2019, Chris Maguire <cwmaguire@gmail.com>
 %%
 %% Permission to use, copy, modify, and/or distribute this software for any
 %% purpose with or without fee is hereby granted, provided that the above
@@ -11,7 +11,7 @@
 %% WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 %% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
--module(erlmud_handler_item_inject_self).
+-module(erlmud_handler_spell_inject_self).
 -behaviour(erlmud_handler).
 
 -export([attempt/1]).
@@ -20,30 +20,18 @@
 
 -include("include/erlmud.hrl").
 
-attempt({_Owner, Props, {Object, Action, ItemName}})
-  when is_binary(ItemName) andalso
-       Action == get; Action == drop ->
-    case is_name(Props, ItemName) of
+attempt({#parents{character = Character},
+         Props,
+         {Character, memorize, SpellName}})
+  when is_binary(SpellName) ->
+    case is_name(Props, SpellName) of
         true ->
-            NewMessage = {Object, Action, self()},
+            NewMessage = {Character, memorize, self()},
             Log = [{?EVENT, inject_self},
-                   {action, Action},
-                   {name, ItemName}],
-            Result = {resend, Object, NewMessage},
+                   {action, memorize},
+                   {name, SpellName}],
+            Result = {resend, Character, NewMessage},
             {Result, _Subscribe = false, Props, Log};
-        _ ->
-            {succeed, _Subscribe = false, Props}
-    end;
-attempt({_Owner, Props, {ItemName, move, from, Source, to, Target}})
-  when is_binary(ItemName) ->
-    case is_name(Props, ItemName) of
-        true ->
-            NewMessage = {self(), move, from, Source, to, Target},
-            Log = [{?EVENT, inject_self},
-                   {sub_type, move},
-                   {name, ItemName}],
-            Result = {resend, self(), NewMessage},
-            {Result, false, Props, Log};
         _ ->
             {succeed, _Subscribe = false, Props}
     end;
@@ -57,8 +45,5 @@ fail({Props, _, _}) ->
     Props.
 
 is_name(Props, Name) ->
-    ItemName = proplists:get_value(name, Props, ""),
-    match == re:run(ItemName, Name, [{capture, none}]).
-
-%log(Props) ->
-    %erlmud_event_log:log(debug, [{module, ?MODULE} | Props]).
+    SpellName = proplists:get_value(name, Props, ""),
+    match == re:run(SpellName, Name, [{capture, none}]).

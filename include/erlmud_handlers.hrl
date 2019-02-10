@@ -12,7 +12,6 @@
                                         erlmud_handler_char_move,
                                         erlmud_handler_char_inject_self,
                                         erlmud_handler_char_enter_world,
-                                        %erlmud_handler_counterattack,
                                         ?UNIVERSAL_HANDLERS]}).
 
 -define(ITEM_HANDLERS, {handlers, [erlmud_handler_vector_attack,
@@ -20,15 +19,6 @@
                                    erlmud_handler_item_inv,
                                    erlmud_handler_item_inject_self,
                                    ?UNIVERSAL_HANDLERS]}).
-
--define(SPELL_HANDLERS, {handlers, [erlmud_handler_spell_attack,
-                                    erlmud_handler_spell_inject_self,
-                                    ?UNIVERSAL_HANDLERS]}).
-
--define(SPELL_EFFECT_HANDLERS,
-        {handlers, [erlmud_handler_spell_attack,
-                    erlmud_handler_spell_inject_self,
-                    ?UNIVERSAL_HANDLERS]}).
 
 -define(CONN_HANDLERS, {handlers, [erlmud_handler_conn_enter_world,
                                    erlmud_handler_conn_move,
@@ -62,3 +52,11 @@
                                        erlmud_handler_resource_reserve,
                                        ?UNIVERSAL_HANDLERS]}).
 
+-define(SPELL_HANDLERS, {handlers, [erlmud_handler_spell_attack,
+                                    erlmud_handler_spell_memorize,
+                                    erlmud_handler_spell_inject_self,
+                                    ?UNIVERSAL_HANDLERS]}).
+
+-define(EFFECT_HANDLERS, {handlers, [erlmud_handler_effect_create,
+                                     erlmud_handler_effect_attack,
+                                     ?UNIVERSAL_HANDLERS]}).

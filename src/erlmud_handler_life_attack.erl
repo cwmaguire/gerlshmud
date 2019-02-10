@@ -65,8 +65,7 @@ attempt({#parents{owner = Owner}, Props, Msg = {Attacker, calc, Hit, on, Owner, 
     end;
 attempt({#parents{owner = Owner},
          Props,
-         Msg = {Attacker, calc, Damage, to, Owner, with, AttackVector}}) ->
-         Msg = {Character, calc, Types, success, Success, on, Target, with, self()}}) ->
+         Msg = {Attacker, calc, Types, damage, Damage, to, Owner, with, AttackVector}}) ->
     log([{stage, attempt},
          {?EVENT, calc_damage},
          {object, self()},
@@ -75,6 +74,7 @@ attempt({#parents{owner = Owner},
          {?TARGET, Owner},
          {damage, Damage},
          {attack_vector, AttackVector},
+         {types, Types},
          {message, Msg},
          {sub, false}]),
     case proplists:get_value(is_alive, Props, false) of

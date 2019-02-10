@@ -70,6 +70,8 @@ terminate(_Reason, _State) ->
 code_change(_, _, _) ->
     {error, not_implemented}.
 
-flatten(Output) ->
+flatten(Output) when is_list(Output) ->
     ListOfBins = lists:flatten(Output),
-    lists:foldl(fun(Bin, Acc) -> <<Acc/binary, Bin/binary>> end, <<>>, ListOfBins).
+    lists:foldl(fun(Bin, Acc) -> <<Acc/binary, Bin/binary>> end, <<>>, ListOfBins);
+flatten(Output) ->
+    Output.

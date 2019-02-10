@@ -1,4 +1,4 @@
-%% Copyright (c) 2016, Chris Maguire <cwmaguire@gmail.com>
+%% Copyright (c) 2019, Chris Maguire <cwmaguire@gmail.com>
 %%
 %% Permission to use, copy, modify, and/or distribute this software for any
 %% purpose with or without fee is hereby granted, provided that the above
@@ -11,7 +11,7 @@
 %% WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 %% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
--module(erlmud_handler_vector_attack).
+-module(erlmud_handler_spell_attack).
 -behaviour(erlmud_handler).
 
 -export([attempt/1]).
@@ -42,10 +42,6 @@ attempt({#parents{character = Character},
         false ->
             {succeed, true, Props, Log};
         _ ->
-            %% If _other_ vectors aren't yet attacking the Target then they'll join in.
-            %% I'm not sure how that would happen unless the player can set what they're
-            %% attacking with for each individual attack. In that case they'll need to
-            %% set what their default counterattack is.
             {succeed, false, Props, Log}
     end;
 
@@ -61,7 +57,7 @@ attempt({#parents{character = Character},
         true ->
             {succeed, true, Props, Log};
         false ->
-            {{fail, <<"Vector is not activated">>}, false, Props, Log}
+            {{fail, <<"Spell is not memorized">>}, false, Props, Log}
     end;
 
 attempt({#parents{},
@@ -85,58 +81,6 @@ attempt({#parents{},
         Target ->
             Log2 = [{?TARGET, Target} | Log],
             {succeed, true, Props, Log2};
-        _ ->
-            {succeed, false, Props, Log}
-    end;
-
-%% Defending
-%% I don't think we need to know when someone attacks our character,
-%% we'll automatically get events for calc-hit and calc-damage
-
-%% Defend
-attempt({#parents{character = Character},
-         Props,
-         {Attacker, calc, Types, hit, Hit, on, Character, with, AttackVector}}) ->
-    Log = [{?SOURCE, Attacker},
-           {?EVENT, calc_hit},
-           {hit, Hit},
-           {?TARGET, Character},
-           {vector, AttackVector}],
-    case should_defend(Props) of
-        true ->
-            case proplists:get_value(defence_hit_modifier, Props) of
-                undefined ->
-                    {succeed, false, Props, Log};
-                Amount ->
-                    {succeed,
-                     {Attacker, calc, Types, hit, Hit - Amount, on, Character, with, AttackVector},
-                     true,
-                     Props,
-                     Log}
-            end;
-        _ ->
-            {succeed, false, Props, Log}
-    end;
-attempt({#parents{character = Character},
-         Props,
-         {Attacker, calc, Types, damage, Damage, to, Character, with, AttackVector}}) ->
-    Log = [{?SOURCE, Attacker},
-           {?EVENT, calc_damage},
-           {damage, Damage},
-           {?TARGET, Character},
-           {vector, AttackVector}],
-    case should_defend(Props) of
-        true ->
-            case erlmud_modifiers:modifier(Props, defence, damage, Types) of
-                0 ->
-                    {succeed, false, Props, Log};
-                Amount ->
-                    {succeed,
-                     {Attacker, calc, Types, damage, Damage - Amount, to, Character, with, AttackVector},
-                     true,
-                     Props,
-                     Log}
-            end;
         _ ->
             {succeed, false, Props, Log}
     end;
@@ -176,9 +120,6 @@ succeed({Props, {Attacker, attack, Target}}) when is_pid(Target) ->
     case {Character, IsAttacking} of
         {Attacker, false} ->
             erlmud_object:attempt(self(), {Attacker, attack, Target, with, self()});
-        {Target, false} ->
-            ok;
-            %erlmud_object:attempt(Character, {Character, attack, Attacker});
         _ ->
             ok
     end,
@@ -193,6 +134,8 @@ succeed({Props, {Attacker, counter_attack, Target}}) when is_pid(Target) ->
     case {Character, IsAttacking} of
         {Attacker, false} ->
             erlmud_object:attempt(self(), {Attacker, attack, Target, with, self()});
+        % So if something is _counter_ attacking us, then we fire up
+        % an attack? Why would it counter attack if we weren't already attacking?
         {Target, false} ->
             erlmud_object:attempt(Character, {Character, attack, Attacker});
         _ ->
@@ -232,21 +175,21 @@ succeed({Props, {allocate, Amt, 'of', Type, to, Self}})
     Props2 = lists:keystore(allocated_resources, 1, Props, {allocated_resources, RemainingAllocated}),
     {Props2, Log};
 
-succeed({Props, {Character, calc, Types, hit, Hit, on, Target, with, Self}})
+succeed({Props, {Character, calc, Types, cast, Success, on, Target, with, Self}})
   when is_pid(Target),
        Self == self(),
-       Hit > 0 ->
-    Damage = proplists:get_value(attack_damage_base, Props, 0),
-    Types = proplists:get_value(attack_types, Props, 0),
+       Success > 0 ->
     Log = [{?SOURCE, Character},
-           {?EVENT, calc_hit},
-           {hit, Hit},
+           {?EVENT, calc_success},
            {?TARGET, Target},
+           {success, Success},
+           {attack_types, Types},
            {vector, Self}],
-    erlmud_object:attempt(self(), {Character, calc, Types, damage, Damage, to, Target, with, Self}),
+    Effect = proplists:get_value(effect, Props),
+    erlmud_object:attempt(self(), {Character, cast, Effect, at, Target}),
     {Props, Log};
 
-succeed({Props, {Character, calc, Types, hit, Miss, on, Target, with, Self}})
+succeed({Props, {Character, calc, Types, success, Miss, on, Target, with, Self}})
   when is_pid(Target),
        Self == self() ->
     Log = [{?SOURCE, Character},
@@ -311,37 +254,20 @@ attack(Props) ->
     Character = proplists:get_value(character, Props),
     Target = proplists:get_value(target, Props),
     Types = proplists:get_value(attack_types, Props, 0),
-    Hit = calc_hit(Props, Types),
-    Message = {Character, calc, Types, hit, Hit, on, Target, with, self()},
+    Success = calc_success(Props, Types),
+    Message = {Character, calc, Types, success, Success, on, Target, with, self()},
     erlmud_object:attempt(self(), Message).
 
-calc_hit(Props, Types) ->
+calc_success(Props, Types) ->
     Action = proplists:get_value(attack_action, Props),
-    HitBase = proplists:get_value(attack_roll, Props, 0),
+    SuccessBase = proplists:get_value(attack_roll, Props, 0),
     Modifier = erlmud_modifiers:modifier(Props, attack, Action, Types),
-    rand:uniform(HitBase) + Modifier.
+    rand:uniform(SuccessBase) + Modifier.
 
 should_attack(Props) ->
-    is_wielded(Props) andalso is_attack(Props).
-
-should_defend(Props) ->
-    is_wielded(Props) andalso is_defence(Props).
-
-is_wielded(Props) ->
-    BodyPart = proplists:get_value(body_part, Props),
-    is_wielded(BodyPart, Props).
-
-is_wielded({BodyPart, BodyPartType}, Props) when is_pid(BodyPart) ->
-    WieldingBodyParts = proplists:get_value(wielding_body_parts, Props, []),
-    lists:member(BodyPartType, WieldingBodyParts);
-is_wielded(_, _) ->
-    false.
-
-is_attack(Props) ->
-    true == proplists:get_value(is_attack, Props, false).
-
-is_defence(Props) ->
-    true == proplists:get_value(is_defence, Props, false).
+    IsMemorized = proplists:get_value(is_memorized, Props),
+    IsAttack = proplists:get_value(is_attack, Props),
+    IsMemorized andalso IsAttack.
 
 unreserve(Character, Props) when is_list(Props) ->
     [unreserve(Character, Resource) || {Resource, _Amt} <- proplists:get_value(resources, Props, [])];
@@ -388,3 +314,4 @@ is_resource_lacking(_) ->
 
 log(Props) ->
     erlmud_event_log:log(debug, [{module, ?MODULE} | Props]).
+

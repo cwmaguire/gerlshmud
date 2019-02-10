@@ -9,30 +9,31 @@
 
 % TODO test updating a skill when a target is killed with a weapon (or when damage is dealt, or both)
 
-%all() -> [look_player].
-all() ->
-    [player_move,
-     player_move_fail,
-     player_move_exit_locked,
-     player_get_item,
-     player_drop_item,
-     character_owner_add_remove,
-     player_attack,
-     player_resource_wait,
-     attack_with_modifiers,
-     one_sided_fight,
-     counterattack_behaviour,
-     stop_attack_on_move,
-     player_wield,
-     player_wield_first_available,
-     player_wield_missing_body_part,
-     player_wield_wrong_body_part,
-     player_wield_body_part_is_full,
-     player_remove,
-     look_player,
-     look_room,
-     look_item,
-     set_character].
+all() -> [cast_spell].
+%all() ->
+    %[player_move,
+     %player_move_fail,
+     %player_move_exit_locked,
+     %player_get_item,
+     %player_drop_item,
+     %character_owner_add_remove,
+     %player_attack,
+     %player_resource_wait,
+     %attack_with_modifiers,
+     %one_sided_fight,
+     %counterattack_behaviour,
+     %stop_attack_on_move,
+     %player_wield,
+     %player_wield_first_available,
+     %player_wield_missing_body_part,
+     %player_wield_wrong_body_part,
+     %player_wield_body_part_is_full,
+     %player_remove,
+     %look_player,
+     %look_room,
+     %look_item,
+     %set_character,
+     %case_spell].
 
 init_per_testcase(_, Config) ->
     %erlmud_dbg:add(erlmud_event_log, div_),
@@ -225,10 +226,6 @@ one_sided_fight(Config) ->
 counterattack_behaviour(Config) ->
     start(?WORLD_3),
     Player = erlmud_index:get_pid(player),
-    %erlmud_object:set(Player, {attack_wait, 20}),
-    %Zombie = erlmud_index:get_pid(zombie),
-    %% Counterattack is now handled by items so we'll limit the attacks
-    %% with the amount of stamina available
     Stamina = val(stamina, zombie),
     erlmud_object:set(Stamina, {current, 5}),
     erlmud_object:set(Stamina, {tick_time, 100000}),
@@ -252,6 +249,10 @@ counterattack_behaviour(Config) ->
     true = 1000 > val(hitpoints, p_hp),
     true = val(is_alive, p_life),
     ok.
+
+% copy counterattack_behaviour
+counterattack_with_spell(_Config) ->
+    1 = 2.
 
 attack_with_modifiers(Config) ->
     erlmud_dbg:add(erlmud_handler_item_attack),
@@ -579,6 +580,32 @@ set_character(Config) ->
     Dog = val(character, collar),
     Dog = val(character, transmitter),
     Dog = val(character, stealth).
+
+memorize_spell(_Config) ->
+    1 = 2.
+
+cast_spell(Config) ->
+    start(?WORLD_11),
+    Player = erlmud_index:get_pid(player),
+    _Giant = erlmud_index:get_pid(giant),
+    attempt(Config, Player, {Player, memorize, <<"fireball">>}),
+    ?WAIT100,
+    true = val(is_memorized, fireball_spell),
+    attempt(Config, Player, {Player, attack, <<"pete">>}),
+    WaitFun =
+        fun() ->
+            case val(hitpoints, g_hp) of
+                ZeroOrLess when is_integer(ZeroOrLess), ZeroOrLess =< 0 ->
+                    true;
+                _ ->
+                    false
+            end
+        end,
+    true = wait_loop(WaitFun, true, 30),
+    ?WAIT100,
+    1000 = val(hitpoints, p_hp),
+    true = val(is_alive, p_life),
+    false = val(is_alive, z_life).
 
 log(_Config) ->
     {ok, Cwd} = file:get_cwd(),
