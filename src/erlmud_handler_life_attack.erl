@@ -96,6 +96,7 @@ succeed({Props, {Source, killed, Owner, with, AttackVector}}) ->
          {props, Props},
          {?SOURCE, Source},
          {?TARGET, Owner},
+         {handler, ?MODULE},
          {attack_vector, AttackVector}]),
     erlmud_object:attempt(self(), {Owner, die}),
     Props;

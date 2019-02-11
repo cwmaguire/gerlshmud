@@ -47,6 +47,7 @@ succeed({Props, {Character, cast, Spell, at, Target}}) ->
     Log = [{?EVENT, cast},
            {?SOURCE, Character},
            {?TARGET, Target},
+           {handler, ?MODULE},
            {spell, Spell}],
     Props2 = proplists:delete(owner, Props),
     {ok, Pid} = supervisor:start_child(erlmud_object_sup, [undefined, Props2]),

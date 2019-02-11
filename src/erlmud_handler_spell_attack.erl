@@ -104,7 +104,8 @@ succeed({Props, {Attacker, killed, Target, with, AttackVector}}) ->
     Log = [{?EVENT, killed},
            {?SOURCE, Attacker},
            {?TARGET, Target},
-           {vector, AttackVector}],
+           {vector, AttackVector},
+           {handler, ?MODULE}],
     Character = proplists:get_value(character, Props),
     unreserve(Character, Props),
     Props2 = lists:keystore(target, 1, Props, {?TARGET, undefined}),
@@ -114,7 +115,8 @@ succeed({Props, {Attacker, killed, Target, with, AttackVector}}) ->
 succeed({Props, {Attacker, attack, Target}}) when is_pid(Target) ->
     Log = [{?EVENT, attack},
            {?SOURCE, Attacker},
-           {?TARGET, Target}],
+           {?TARGET, Target},
+           {handler, ?MODULE}],
     Character = proplists:get_value(character, Props),
     IsAttacking = proplists:get_value(is_attacking, Props, false),
     case {Character, IsAttacking} of
@@ -128,7 +130,8 @@ succeed({Props, {Attacker, attack, Target}}) when is_pid(Target) ->
 succeed({Props, {Attacker, counter_attack, Target}}) when is_pid(Target) ->
     Log = [{?SOURCE, Attacker},
            {?EVENT, counter_attack},
-           {?TARGET, Target}],
+           {?TARGET, Target},
+           {handler, ?MODULE}],
     Character = proplists:get_value(character, Props),
     IsAttacking = proplists:get_value(is_attacking, Props, false),
     case {Character, IsAttacking} of
@@ -160,7 +163,8 @@ succeed({Props, {allocate, Amt, 'of', Type, to, Self}})
     Log = [{?EVENT, allocate},
            {amount, Amt},
            {resource_type, Type},
-           {?TARGET, Self}],
+           {?TARGET, Self},
+           {handler, ?MODULE}],
     Allocated = update_allocated(Amt, Type, Props),
     Required = proplists:get_value(resources, Props, []),
     HasResources = has_resources(Allocated, Required),
@@ -184,19 +188,22 @@ succeed({Props, {Character, calc, Types, cast, Success, on, Target, with, Self}}
            {?TARGET, Target},
            {success, Success},
            {attack_types, Types},
-           {vector, Self}],
+           {vector, Self},
+           {handler, ?MODULE}],
     Effect = proplists:get_value(effect, Props),
-    erlmud_object:attempt(self(), {Character, cast, Effect, at, Target}),
+    lager:info("sending {~p, affect, ~p}~n", [Effect, Target]),
+    erlmud_object:attempt(self(), {Effect, affect, Target}),
     {Props, Log};
 
-succeed({Props, {Character, calc, Types, success, Miss, on, Target, with, Self}})
+succeed({Props, {Character, calc, Types, cast, Miss, on, Target, with, Self}})
   when is_pid(Target),
        Self == self() ->
     Log = [{?SOURCE, Character},
            {?EVENT, calc_hit},
            {?TARGET, Target},
            {hit, Miss},
-           {types, Types}],
+           {types, Types},
+           {handler, ?MODULE}],
     % TODO: say "you missed!"
     {Props, Log};
 
@@ -255,14 +262,19 @@ attack(Props) ->
     Target = proplists:get_value(target, Props),
     Types = proplists:get_value(attack_types, Props, 0),
     Success = calc_success(Props, Types),
-    Message = {Character, calc, Types, success, Success, on, Target, with, self()},
+    Message = {Character, calc, Types, cast, Success, on, Target, with, self()},
     erlmud_object:attempt(self(), Message).
 
 calc_success(Props, Types) ->
     Action = proplists:get_value(attack_action, Props),
-    SuccessBase = proplists:get_value(attack_roll, Props, 0),
+    SuccessBase = proplists:get_value(attack_hit, Props, 0),
     Modifier = erlmud_modifiers:modifier(Props, attack, Action, Types),
-    rand:uniform(SuccessBase) + Modifier.
+    rand(SuccessBase) + Modifier.
+
+rand(0) ->
+    0;
+rand(Int) when is_integer(Int) ->
+    rand:uniform(Int).
 
 should_attack(Props) ->
     IsMemorized = proplists:get_value(is_memorized, Props),

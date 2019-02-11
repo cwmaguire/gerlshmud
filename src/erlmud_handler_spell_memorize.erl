@@ -44,7 +44,8 @@ attempt({_, _, _Msg}) ->
 succeed({Props, {Character, memorize, Self}}) when Self == self() ->
     Log = [{?EVENT, memorize},
            {?SOURCE, Character},
-           {?TARGET, Self}],
+           {?TARGET, Self},
+           {handler, ?MODULE}],
     Props2 = [{is_memorized, true} | proplists:delete(is_memorized, Props)],
     {Props2, Log};
 

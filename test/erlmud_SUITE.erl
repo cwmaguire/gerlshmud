@@ -586,6 +586,8 @@ memorize_spell(_Config) ->
 
 cast_spell(Config) ->
     start(?WORLD_11),
+    %erlmud_dbg:add(erlmud_handler_effect_attack),
+    %erlmud_dbg:add(erlmud_handler_spell_attack),
     Player = erlmud_index:get_pid(player),
     _Giant = erlmud_index:get_pid(giant),
     attempt(Config, Player, {Player, memorize, <<"fireball">>}),

@@ -50,6 +50,7 @@ succeed({Props, {Character, reserve, Amount, 'of', Self, for, Proc}})
            {?EVENT, reserve},
            {amount, Amount},
            {?TARGET, Self},
+           {handler, ?MODULE},
            {for, Proc}],
     Reservations = proplists:get_value(reservations, Props, []),
     Props2 = case lists:member({Proc, Amount}, Reservations) of
@@ -66,6 +67,7 @@ succeed({Props, {Character, unreserve, Self, for, Proc}})
     Log = [{?SOURCE, Character},
            {?EVENT, unreserve},
            {?TARGET, Self},
+           {handler, ?MODULE},
            {for, Proc}],
     Reservations = proplists:get_value(reservations, Props, []),
     Props2 = lists:keystore(reservations, 1, Props, {reservations, lists:keydelete(Proc, 1, Reservations)}),

@@ -28,22 +28,32 @@ attempt({_Parents,
            {?TARGET, Target}],
     {succeed, true, Props, Log};
 
-attempt({#parents{owner = undefined},
+attempt({_Parents,
          Props,
-         {Character, cast, Spell, at, Target}}) ->
-    Log = [{?SOURCE, Character},
-           {?EVENT, cast},
-           {?TARGET, Target},
-           {spell, Spell}],
+         {Character, calc, Types, affect, Success, on, Target, with, Self}})
+  when Self == self() ->
+    Log = [{?SOURCE, Self},
+           {?EVENT, calc_affect},
+           {?TARGET, Target}],
+    {succeed, true, Props, Log};
+
+attempt({_Parents,
+         Props,
+         {Character, calc, Types, damage, Damage, to, Target, with, Self}})
+  when Self == self() ->
+    Log = [{?SOURCE, Self},
+           {?EVENT, calc_damage},
+           {?TARGET, Target}],
     {succeed, true, Props, Log};
 
 attempt({_, _, _Msg}) ->
     undefined.
 
 succeed({Props, {Self, affect, Target}}) ->
-    Log = [{?EVENT, cast},
+    Log = [{?EVENT, affect},
            {?SOURCE, Self},
-           {?TARGET, Target}],
+           {?TARGET, Target},
+           {handler, ?MODULE}],
     Character = proplists:get_value(character, Props),
     AttackTypes = proplists:get_value(attack_types, Props),
     PossibleSuccess = proplists:get_value(attack_hit, Props),
@@ -57,7 +67,7 @@ succeed({Props, {Self, affect, Target}}) ->
     erlmud_object:attempt(self(), Event),
     {Props, Log};
 
-succeed({Props, {Character, calc, Types, effect, Success, on, Target, with, Self}})
+succeed({Props, {Character, calc, Types, affect, Success, on, Target, with, Self}})
   when is_pid(Target),
        Self == self(),
        Success > 0 ->
@@ -68,6 +78,7 @@ succeed({Props, {Character, calc, Types, effect, Success, on, Target, with, Self
            {?EVENT, calc_hit},
            {damage, Damage},
            {?TARGET, Target},
+           {handler, ?MODULE},
            {vector, Self}],
     Event = {Character, calc, Types, damage, Damage, to, Target, with, Self},
     erlmud_object:attempt(self(), Event),
@@ -79,6 +90,7 @@ succeed({Props, {Character, calc, Types, effect, Miss, on, Target, with, Self}})
     Log = [{?SOURCE, Self},
            {?TARGET, Target},
            {?EVENT, calc_success},
+           {handler, ?MODULE},
            {success, Miss},
            {effect, Self},
            {types, Types}],
@@ -92,6 +104,7 @@ succeed({Props, {Self, calc, Types, damage, Damage, to, Target, with, Self}})
     Log = [{?SOURCE, Self},
            {?TARGET, Target},
            {?EVENT, calc_damage},
+           {handler, ?MODULE},
            {damage, Damage},
            {types, Types}],
     Character = proplists:get_value(owner, Props),

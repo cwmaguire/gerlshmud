@@ -47,6 +47,7 @@ succeed({Props, {Self, tick, Ref, with, Count}})
   when Self == self() ->
     Log = [{?SOURCE, Self},
            {?EVENT, tick},
+           {handler, ?MODULE},
            {ref, Ref},
            {count, Count}],
     Current = proplists:get_value(current, Props, 0),
