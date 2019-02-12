@@ -1,15 +1,30 @@
 A MUD in Erlang.
 
 (I need to change the name as it conflicts with a prior Erlang MUD
-by zxq9: https://github.com/zxq9/erlmud)
+by zxq9: https://github.com/zxq9/erlmud. I'm thinking maybe gerlshmud for
+"Graph of ERLang Stream Handlers MUD")
 
-All MUD elements are processes.
+How it Works (short version):
+All MUD elements (rooms, characters, attributes, weapons, spells) are
+processes.
 Processes live in a graph.
 Events propagate through the graph.
 Events succeed or fail.
 Events can be: generated, resent, failed, passed, subscribed to.
 
-How it Works:
+Since every MUD element hears every local event and can modify it all kinds
+of logic becomes possible:
+- a door can unlock based on a broach that a character is wearing
+- time of day can boost chances to cast a spell
+- weather can change the rate at which resources like stamina accrue
+- A pair of magic boots could prevent a character from dying
+- A jungle area can have a miasma that limits a players focus
+The beauty of this is that anything can "man-in-the-middle" any event
+without any of the original participants needing to know about it. Every
+event initiator simply fires the event out into the world and sees what,
+if anything, comes back.
+
+How it Works (LOOOOONG version):
 https://www.youtube.com/watch?v=dcuv_M4Po0g
 
 In order to explain Erlmud I'm going to start with an elaborate analogy
@@ -30,7 +45,7 @@ be unlimited notes but only one prisoner will have any note at any one time.
 Every prisoner can add to a note, send more notes, or destroy a note. There
 are never multiple copies of a note in circulation so a prisoner with a
 note has complete confidence that have the most up-to-date version of the
-note.
+note since they have the only copy.
 
 Since the prisoners see many notes they do not try to remember anything
 on each note but rather add any information that anyone may need to the note.
@@ -47,8 +62,8 @@ again.
 
 When prisoners have questions about a conversation they will copy the note, add
 their question, and send the note through the prison again. A prisoner with
-the answer to a question on a note will answer the question before passing it
-on.
+the answer to a question on a note will create a new note, answer the question
+and send it back to the originator to be passed around again.
 
 The prison camp is huge and passing messages through the hands of thousands of
 prisoners would be take too long. Instead the prisoners limit how far
@@ -56,7 +71,7 @@ each message will travel from the source.
 
 Since prisoners will sometimes need to resend the same message with new
 information they mark the message with the original source so that it doesn't
-travel farther than the original.
+travel farther than the original note.
 
 If a proposal is to be decided on then prisoners can add their name to the list
 of people to be notified whether the proposal was accepted or rejected, along with
@@ -67,8 +82,8 @@ will often spark new conversations.
 Now that you have this situation in your imagination we can map Erlmud to it.
 
 In Erlmud the prisoners are the MUD objects and are modelled by processes. The
-objects are lists of properties which include properties that control
-behaviours. The processes cannot communicate with each other to ask questions
+objects are lists of properties which include modules for event handling.
+The processes cannot communicate with each other to ask questions
 directly so information is gathered by sending questions to every process
 that receives the message: any other process that has the answer can update the
 message and resend it. "Buildings", or "time to live" (TTL), is modelled by
@@ -111,7 +126,7 @@ receive all (nearby) events, any process can be added anywhere in the
 graph and begin to participate in every (nearby) event. Each process
 listens for particluar events and so processes that cooperate to resolve
 an event will need to agree on a protocol to communicate via the process
-network.
+graph.
 
 Let's tie this together with a short example.
 
@@ -131,7 +146,8 @@ to room R2 to the north. E drops "north" since it's redundant and resends
 
 Exit E or room R2 might see the message "go north" and ignore it before C updates
 the message. The "graph traversal" must restart after the message is updated by
-C to make sure that every process sees the most recent message.
+C to make sure that every process sees the most recent message. Once the new
+message arrives with "P move north from R1" then Exit E will recognize it.
 
 This goes on until the event has all the questions about it answered and either
 the message is deemed a success or the message is deemed a failure.
@@ -154,13 +170,17 @@ b) Every object could potentially be handling a different message at the same ti
 Rather than lock up hundreds of processes to reconcile a battle between multiple
 characters many events can be happening at the same time.
 
+c) No event is ever modified by two processes at once. No process needs to acquire
+any locks which means no deadlocks and no race conditions.
+
 There are downsides though: we have no "transactions" to make sure that information
 is still valid by the time it is acted upon. A player might decide to go north
 while a door is unlocked but by the time they actually move the door is locked.
 In a banking environment this would be a catastrophe but in a MUD this is
 survivable. For one, events won't take long to complete. For another, the world
 won't end if a player manages to slip through a door milliseconds after the door
-is locked. "GamesDoneQuick" is all about enjoying these sorts of problems.
+is locked. Maybe one day there will be a Games Done Quick feature where this is
+abused. I hope so.
 
 Finally, this is all experimental. If it fails, oh well. :)
 
@@ -194,12 +214,13 @@ Jul  3, 2016 - add broadcast message (send multiple messages at once)
 Jul  9, 2016 - attributes and items can modify attack hits and damage
 Jun 15, 2017 - uses resources to handle simultaneous attacks
 Feb  1, 2019 - logs are now JSON, added new logging web page
+Feb 11, 2019 - implemented spells and effects
 
 How to run the tests: (Which is all I've been doing lately)
 
 ./t
 
-How to run it: (I haven't been running this lately, just running tests)
+How to run it:
 
 make && make rel && _rel/erlmud_release/bin/erlmud_release console
 > erlmud_world:init(). %% Loads the world
@@ -209,6 +230,7 @@ make && make rel && _rel/erlmud_release/bin/erlmud_release console
 > open http://localhost:8080/websocket.html in a browser
 > in the browser enter any text for the login
 > in the browser enter any text for the password
+> start typing commands (e.g. "n", "look", "look pete")
 
 Videos in which I give explanations for commits:
 
