@@ -19,6 +19,7 @@ IMG {
   position: relative;
   top: 8px;
   margin-right: 2px;
+  background-color: white;
 }
 
 SVG {
@@ -51,13 +52,13 @@ SVG {
 .process {
   margin: 2px;
   border: 2px dashed grey;
-  width: 90px;
+  width: 120px;
 }
 
 .event {
   border: 1px solid brown;
   padding: 2px;
-  width: 270px;
+  width: 380px;
 }
 
 .event_parent {
@@ -117,7 +118,7 @@ SVG {
   position: relative;
   padding: 3px;
   font-size: 8pt;
-  width: 150px;
+  width: 100px;
 }
 
 .message {

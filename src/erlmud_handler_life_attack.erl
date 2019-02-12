@@ -63,7 +63,9 @@ attempt({#parents{owner = Owner}, Props, Msg = {Attacker, calc, Hit, on, Owner, 
         _ ->
             {succeed, false, Props}
     end;
-attempt({#parents{owner = Owner}, Props, Msg = {Attacker, calc, Damage, to, Owner, with, AttackVector}}) ->
+attempt({#parents{owner = Owner},
+         Props,
+         Msg = {Attacker, calc, Types, damage, Damage, to, Owner, with, AttackVector}}) ->
     log([{stage, attempt},
          {?EVENT, calc_damage},
          {object, self()},
@@ -72,6 +74,7 @@ attempt({#parents{owner = Owner}, Props, Msg = {Attacker, calc, Damage, to, Owne
          {?TARGET, Owner},
          {damage, Damage},
          {attack_vector, AttackVector},
+         {types, Types},
          {message, Msg},
          {sub, false}]),
     case proplists:get_value(is_alive, Props, false) of
@@ -93,6 +96,7 @@ succeed({Props, {Source, killed, Owner, with, AttackVector}}) ->
          {props, Props},
          {?SOURCE, Source},
          {?TARGET, Owner},
+         {handler, ?MODULE},
          {attack_vector, AttackVector}]),
     erlmud_object:attempt(self(), {Owner, die}),
     Props;

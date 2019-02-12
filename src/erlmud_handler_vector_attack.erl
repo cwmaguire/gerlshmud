@@ -11,7 +11,7 @@
 %% WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 %% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
--module(erlmud_handler_item_attack).
+-module(erlmud_handler_vector_attack).
 -behaviour(erlmud_handler).
 
 -export([attempt/1]).
@@ -42,7 +42,7 @@ attempt({#parents{character = Character},
         false ->
             {succeed, true, Props, Log};
         _ ->
-            %% If _other_ items aren't yet attacking the Target then they'll join in.
+            %% If _other_ vectors aren't yet attacking the Target then they'll join in.
             %% I'm not sure how that would happen unless the player can set what they're
             %% attacking with for each individual attack. In that case they'll need to
             %% set what their default counterattack is.
@@ -56,21 +56,22 @@ attempt({#parents{character = Character},
     Log = [{?SOURCE, Character},
            {?EVENT, attack},
            {?TARGET, Target},
-           {item, Self}],
+           {vector, Self}],
     case should_attack(Props) of
         true ->
             {succeed, true, Props, Log};
         false ->
-            {{fail, <<"Item is not wielded or is not activated">>}, false, Props, Log}
+            {{fail, <<"Vector is not activated">>}, false, Props, Log}
     end;
 
 attempt({#parents{},
          Props,
-         {allocate, Required, 'of', Type, to, Self}})
+         {Resource, allocate, Required, 'of', Type, to, Self}})
   when Self == self() ->
     Log = [{?EVENT, allocate},
            {amount, Required},
            {resource_type, Type},
+           {?SOURCE, Resource},
            {?TARGET, Self}],
     {succeed, true, Props, Log};
 
@@ -96,7 +97,7 @@ attempt({#parents{},
 %% Defend
 attempt({#parents{character = Character},
          Props,
-         {Attacker, calc, Hit, on, Character, with, AttackVector}}) ->
+         {Attacker, calc, Types, hit, Hit, on, Character, with, AttackVector}}) ->
     Log = [{?SOURCE, Attacker},
            {?EVENT, calc_hit},
            {hit, Hit},
@@ -109,7 +110,7 @@ attempt({#parents{character = Character},
                     {succeed, false, Props, Log};
                 Amount ->
                     {succeed,
-                     {Attacker, calc, Hit - Amount, on, Character, with, AttackVector},
+                     {Attacker, calc, Types, hit, Hit - Amount, on, Character, with, AttackVector},
                      true,
                      Props,
                      Log}
@@ -119,7 +120,7 @@ attempt({#parents{character = Character},
     end;
 attempt({#parents{character = Character},
          Props,
-         {Attacker, calc, Damage, to, Character, with, AttackVector}}) ->
+         {Attacker, calc, Types, damage, Damage, to, Character, with, AttackVector}}) ->
     Log = [{?SOURCE, Attacker},
            {?EVENT, calc_damage},
            {damage, Damage},
@@ -127,12 +128,12 @@ attempt({#parents{character = Character},
            {vector, AttackVector}],
     case should_defend(Props) of
         true ->
-            case proplists:get_value(defence_damage_modifier, Props) of
-                undefined ->
+            case erlmud_modifiers:modifier(Props, defence, damage, Types) of
+                0 ->
                     {succeed, false, Props, Log};
                 Amount ->
                     {succeed,
-                     {Attacker, calc, Damage - Amount, on, Character, with, AttackVector},
+                     {Attacker, calc, Types, damage, Damage - Amount, to, Character, with, AttackVector},
                      true,
                      Props,
                      Log}
@@ -166,21 +167,6 @@ succeed({Props, {Attacker, killed, Target, with, AttackVector}}) ->
     Props2 = lists:keystore(target, 1, Props, {?TARGET, undefined}),
     Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, false}),
     {Props3, Log};
-
-%% I feel like the character should kick off a counter-attack message when hit, but that means
-%% on _every_ hit I'm sending out a counter-attack message that's going to get ignored.
-%% If the _item_ sees the attack it can check if it's already engaged in a target.
-%% However, if the player decides to change targets, then I'd need a different event to
-%% differentiate from "Char attack Target (because it attacked us)" and "Char attack Target
-%% (because the player said so)".
-%%
-%% I think I'll assume that event messages are free. If I start letting optimization creep
-%% in (especially without measuring) this design is going to get gross fast.
-%%
-%% I'm probably going to need some counterattack logic at some point anyway.
-%%
-%% We only get one handler per event so if I need a counterattack handler I can give it a
-%% distinct, but similar, event.
 
 succeed({Props, {Attacker, attack, Target}}) when is_pid(Target) ->
     Log = [{?EVENT, attack},
@@ -221,17 +207,18 @@ succeed({Props, {Character, attack, Target, with, Self}}) ->
     Log = [{?EVENT, attack},
            {?SOURCE, Character},
            {?TARGET, Target},
-           {item, Self}],
+           {vector, Self}],
     reserve(Character, Props),
     Props2 = lists:keystore(target, 1, Props, {target, Target}),
     Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, true}),
     {Props3, Log};
 
-succeed({Props, {allocate, Amt, 'of', Type, to, Self}})
+succeed({Props, {Resource, allocate, Amt, 'of', Type, to, Self}})
   when Self == self() ->
     Log = [{?EVENT, allocate},
            {amount, Amt},
            {resource_type, Type},
+           {?SOURCE, Resource},
            {?TARGET, Self}],
     Allocated = update_allocated(Amt, Type, Props),
     Required = proplists:get_value(resources, Props, []),
@@ -247,30 +234,32 @@ succeed({Props, {allocate, Amt, 'of', Type, to, Self}})
     Props2 = lists:keystore(allocated_resources, 1, Props, {allocated_resources, RemainingAllocated}),
     {Props2, Log};
 
-succeed({Props, {Character, calc, Hit, on, Target, with, Self}})
+succeed({Props, {Character, calc, Types, hit, Hit, on, Target, with, Self}})
   when is_pid(Target),
        Self == self(),
        Hit > 0 ->
-    Damage = proplists:get_value(attack_damage_modifier, Props, 1),
+    Damage = proplists:get_value(attack_damage_base, Props, 0),
+    Types = proplists:get_value(attack_types, Props, 0),
     Log = [{?SOURCE, Character},
            {?EVENT, calc_hit},
            {hit, Hit},
            {?TARGET, Target},
-           {item, Self}],
-    erlmud_object:attempt(self(), {Character, calc, Damage, to, Target, with, Self}),
+           {vector, Self}],
+    erlmud_object:attempt(self(), {Character, calc, Types, damage, Damage, to, Target, with, Self}),
     {Props, Log};
 
-succeed({Props, {Character, calc, Miss, on, Target, with, Self}})
+succeed({Props, {Character, calc, Types, hit, Miss, on, Target, with, Self}})
   when is_pid(Target),
        Self == self() ->
     Log = [{?SOURCE, Character},
            {?EVENT, calc_hit},
            {?TARGET, Target},
-           {hit, Miss}],
+           {hit, Miss},
+           {types, Types}],
     % TODO: say "you missed!"
     {Props, Log};
 
-succeed({Props, {Character, calc, Damage, to, Target, with, Self}})
+succeed({Props, {Character, calc, Types, damage, Damage, to, Target, with, Self}})
   when Self == self(),
        Damage > 0 ->
     log([{?EVENT, calc_damage},
@@ -279,11 +268,12 @@ succeed({Props, {Character, calc, Damage, to, Target, with, Self}})
          {character, Character},
          {damage, Damage},
          {?TARGET, Target},
+         {damage_types, Types},
          {result, succeed}]),
-    erlmud_object:attempt(self(), {Character, does, Damage, to, Target, with, Self}),
+    erlmud_object:attempt(self(), {Character, does, Types, damage, Damage, to, Target, with, Self}),
     Props;
 
-succeed({Props, {Character, calc, NoDamage, to, Target, with, Self}})
+succeed({Props, {Character, calc, Types, damage, NoDamage, to, Target, with, Self}})
   when Self == self() ->
     %% Attack failed (No damage was done)
     %% TODO: output something to the client like
@@ -292,8 +282,9 @@ succeed({Props, {Character, calc, NoDamage, to, Target, with, Self}})
     Log = [{?SOURCE, Character},
            {?EVENT, calc_damage},
            {damage, NoDamage},
+           {damage_types, Types},
            {?TARGET, Target},
-           {item, Self}],
+           {vector, Self}],
     {Props, Log};
 
 succeed({Props, {Character, stop_attack}}) ->
@@ -321,8 +312,16 @@ fail({Props, _, _}) ->
 attack(Props) ->
     Character = proplists:get_value(character, Props),
     Target = proplists:get_value(target, Props),
-    Hit = proplists:get_value(attack_hit_modifier, Props, 1),
-    erlmud_object:attempt(self(), {Character, calc, Hit, on, Target, with, self()}).
+    Types = proplists:get_value(attack_types, Props, 0),
+    Hit = calc_hit(Props, Types),
+    Message = {Character, calc, Types, hit, Hit, on, Target, with, self()},
+    erlmud_object:attempt(self(), Message).
+
+calc_hit(Props, Types) ->
+    Action = proplists:get_value(attack_action, Props),
+    HitBase = proplists:get_value(attack_roll, Props, 0),
+    Modifier = erlmud_modifiers:modifier(Props, attack, Action, Types),
+    rand:uniform(HitBase) + Modifier.
 
 should_attack(Props) ->
     is_wielded(Props) andalso is_attack(Props).

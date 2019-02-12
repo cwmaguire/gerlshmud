@@ -1,4 +1,4 @@
-%% Copyright (c) 2015, Chris Maguire <cwmaguire@gmail.com>
+%% Copyright (c) 2019, Chris Maguire <cwmaguire@gmail.com>
 %%
 %% Permission to use, copy, modify, and/or distribute this software for any
 %% purpose with or without fee is hereby granted, provided that the above
@@ -14,194 +14,317 @@
 -module(erlmud_handler_spell_attack).
 -behaviour(erlmud_handler).
 
-%% This generic handler is added to anything that attacks, because
-%% each attacking item will control reserving and being allocated
-%% resources on its own. That is, there isn't a single attack process
-%% for the character that manages all the different attack vectors.
-%% Each attack vector registers for resource allocation and fires off
-%% attacks whenever all of its resource needs are fulfilled.
-
--include("include/erlmud.hrl").
-
-%% object behaviour
 -export([attempt/1]).
 -export([succeed/1]).
 -export([fail/1]).
 
-%% This process' parent character is attacking a target
-attempt({#parents{character = Character}, Props, {Character, attack, Target}}) ->
-    Log = [{?SOURCE, Character},
+-include("include/erlmud.hrl").
+
+%% Attacking
+attempt({#parents{character = Character},
+         Props,
+         {Attacker, attack, Target}})
+  when Attacker == Character ->
+    Log = [{?SOURCE, Attacker},
            {?EVENT, attack},
            {?TARGET, Target}],
     {succeed, true, Props, Log};
 
-attempt({#parents{character = Character}, Props, {Character, attack, Target, with, Self}})
+attempt({#parents{character = Character},
+         Props,
+         {Character, counter_attack, Target}}) ->
+    IsAttacking = proplists:get_value(is_attacking, Props, false),
+    Log = [{?EVENT, attack},
+           {?SOURCE, Character},
+           {?TARGET, Target},
+           {is_attacking, IsAttacking}],
+    case IsAttacking of
+        false ->
+            {succeed, true, Props, Log};
+        _ ->
+            {succeed, false, Props, Log}
+    end;
+
+attempt({#parents{character = Character},
+         Props,
+         {Character, attack, Target, with, Self}})
   when Self == self() ->
     Log = [{?SOURCE, Character},
            {?EVENT, attack},
            {?TARGET, Target},
            {vector, Self}],
-    {succeed, true, Props, Log};
+    case should_attack(Props) of
+        true ->
+            {succeed, true, Props, Log};
+        false ->
+            {{fail, <<"Spell is not memorized">>}, false, Props, Log}
+    end;
 
-%% This process landed an attack on a target
-attempt({#parents{}, Props, {Character, calc, Hit, on, Target, with, Self}})
+attempt({#parents{},
+         Props,
+         {Resource, allocate, Required, 'of', Type, to, Self}})
   when Self == self() ->
-    Log = [{?SOURCE, Character},
-           {?EVENT, calc_hit},
-           {hit, Hit},
-           {?TARGET, Target},
-           {vector, Self}],
+    Log = [{?EVENT, allocate},
+           {amount, Required},
+           {resource_type, Type},
+           {?SOURCE, Resource},
+           {?TARGET, Self}],
     {succeed, true, Props, Log};
 
-%% This process needs to calculate damage to a target
-%% TODO that needs to happen in the attempt
-%%
-%% I don't think I can do this: how will I know if a separate handler is handling
-%% this?
-%%
-%%    Well, I could only use this for top level items, spells, etc. that don't
-%%    need custom logic and then not even add it to sub-items and stuff that
-%%    need custom filters (e.g. a sub-item checks if the attack vector matches
-%%    its top-item).
-%%
-%%    One possible way around this is to have a general 'attack_hit_modifier' as
-%%    well as a specific property (e.g. 'subitem_attack_hit_modifier') for the
-%%    sub-item handler.
-%%
-%%    Maybe have a way to override handler events?
-%%       Cowboy checks the module to see which functions are exported, but
-%%       every handler will export attempt/3 and succeed/1.
-%%
-%%       Perhaps when erlmud_object grabs the handlers from the process?
-%%       but ... we'd need to cache the results otherwise we're doing that
-%%       on _every_ event.
-%%
-%%       Or, I could have several generic handlers:
-%%          - is_interested
-%%          - calc hit
-%%          - calc damage
-%%       ... but I'd run into trouble if I wanted both to respond to the
-%%       success of the same event.
-%%
-%%    I think I'll stick with a generic handler until I need something specific
-%%    and then I'll move that process over completely to custom handlers.
-attempt({#parents{}, Props, {Character, calc, Damage, to, Target, with, Self}})
-  when Self == self() ->
+attempt({#parents{},
+         Props,
+         {Attacker, killed, Target, with, AttackVector}}) ->
+    Log = [{?SOURCE, Attacker},
+           {?EVENT, killed},
+           {?SOURCE, Target},
+           {vector, AttackVector}],
+    case proplists:get_value(target, Props) of
+        Target ->
+            Log2 = [{?TARGET, Target} | Log],
+            {succeed, true, Props, Log2};
+        _ ->
+            {succeed, false, Props, Log}
+    end;
+
+attempt({#parents{character = Character}, Props, {Character, stop_attack}}) ->
     Log = [{?SOURCE, Character},
-           {?EVENT, calc_damage},
-           {damage, Damage},
-           {?TARGET, Target},
-           {vector, Self}],
+           {?EVENT, stop_attack}],
     {succeed, true, Props, Log};
 
-%% This process did damage to a target
-attempt({#parents{}, Props, {Character, does, Damage, to, Target, with, Self}})
-  when Self == self(), is_pid(Target) ->
+attempt({#parents{character = Character},
+         Props,
+         {die, Character}}) ->
     Log = [{?SOURCE, Character},
-           {?EVENT, damage},
-           {damage, Damage},
-           {?TARGET, Target},
-           {vector, Self}],
+           {?EVENT, die}],
     {succeed, true, Props, Log};
 
-%% All processes belonging to this character need to stop attacking
-attempt({#parents{character = Character}, Props, {Character, stop_attacking, Target}}) ->
-    Log = [{?SOURCE, Character},
-           {?EVENT, stop_attacking},
-           {?TARGET, Target}],
-    {succeed, true, Props, Log};
-
-attempt(_) ->
+attempt({_, _, _Msg}) ->
     undefined.
 
-%% An attack by our character has been successfully instigated but with no
-%% specfic attack vector: we'll kick off an attempt to attack with this item
-%% specifically.
-succeed({Props, {Character, attack, Target}}) when is_pid(Target) ->
-    Log = [{?SOURCE, Character},
-           {?EVENT, attack},
-           {?TARGET, Target}],
-    erlmud_object:attempt(self(), {Character, attack, Target, with, self()}),
+succeed({Props, {Attacker, killed, Target, with, AttackVector}}) ->
+    Log = [{?EVENT, killed},
+           {?SOURCE, Attacker},
+           {?TARGET, Target},
+           {vector, AttackVector},
+           {handler, ?MODULE}],
+    Character = proplists:get_value(character, Props),
+    unreserve(Character, Props),
+    Props2 = lists:keystore(target, 1, Props, {?TARGET, undefined}),
+    Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, false}),
+    {Props3, Log};
+
+succeed({Props, {Attacker, attack, Target}}) when is_pid(Target) ->
+    Log = [{?EVENT, attack},
+           {?SOURCE, Attacker},
+           {?TARGET, Target},
+           {handler, ?MODULE}],
+    Character = proplists:get_value(character, Props),
+    IsAttacking = proplists:get_value(is_attacking, Props, false),
+    case {Character, IsAttacking} of
+        {Attacker, false} ->
+            erlmud_object:attempt(self(), {Attacker, attack, Target, with, self()});
+        _ ->
+            ok
+    end,
+    {Props, Log};
+
+succeed({Props, {Attacker, counter_attack, Target}}) when is_pid(Target) ->
+    Log = [{?SOURCE, Attacker},
+           {?EVENT, counter_attack},
+           {?TARGET, Target},
+           {handler, ?MODULE}],
+    Character = proplists:get_value(character, Props),
+    IsAttacking = proplists:get_value(is_attacking, Props, false),
+    case {Character, IsAttacking} of
+        {Attacker, false} ->
+            erlmud_object:attempt(self(), {Attacker, attack, Target, with, self()});
+        % So if something is _counter_ attacking us, then we fire up
+        % an attack? Why would it counter attack if we weren't already attacking?
+        {Target, false} ->
+            erlmud_object:attempt(Character, {Character, attack, Attacker});
+        _ ->
+            ok
+    end,
     {Props, Log};
 
 %% An attack by our character has been successfully instigated using this process:
 %% we'll register for resources and implement the attack when we have them.
-succeed({Props, {Character, attack, Target, with, _Self}}) ->
-    reserve(Character, proplists:get_value(resources, Props, [])),
-    lists:keystore(target, 1, Props, {?TARGET, Target});
-
-succeed({Props, {Character, calc, Hit, on, Target, with, Self}})
-  when is_pid(Target),
-       Self == self(),
-       Hit > 0 ->
-    Log = [{?SOURCE, Character},
-           {?EVENT, calc_hit},
-           {hit, Hit},
+succeed({Props, {Character, attack, Target, with, Self}}) ->
+    Log = [{?EVENT, attack},
+           {?SOURCE, Character},
            {?TARGET, Target},
            {vector, Self}],
-    erlmud_object:attempt(self(), {Character, calc, _InitialDamage = 0, to, Target, with, Self}),
+    reserve(Character, Props),
+    Props2 = lists:keystore(target, 1, Props, {target, Target}),
+    Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, true}),
+    {Props3, Log};
+
+succeed({Props, {Resource, allocate, Amt, 'of', Type, to, Self}})
+  when Self == self() ->
+    Log = [{?EVENT, allocate},
+           {amount, Amt},
+           {resource_type, Type},
+           {?SOURCE, Resource},
+           {?TARGET, Self},
+           {handler, ?MODULE}],
+    Allocated = update_allocated(Amt, Type, Props),
+    Required = proplists:get_value(resources, Props, []),
+    HasResources = has_resources(Allocated, Required),
+    RemainingAllocated =
+        case HasResources of
+            true ->
+                attack(Props),
+                deallocate(Allocated, Required);
+            _ ->
+                Allocated
+        end,
+    Props2 = lists:keystore(allocated_resources, 1, Props, {allocated_resources, RemainingAllocated}),
+    {Props2, Log};
+
+succeed({Props, {Character, calc, Types, cast, Success, on, Target, with, Self}})
+  when is_pid(Target),
+       Self == self(),
+       Success > 0 ->
+    Log = [{?SOURCE, Character},
+           {?EVENT, calc_success},
+           {?TARGET, Target},
+           {success, Success},
+           {attack_types, Types},
+           {vector, Self},
+           {handler, ?MODULE}],
+    Effect = proplists:get_value(effect, Props),
+    erlmud_object:attempt(self(), {Effect, affect, Target}),
     {Props, Log};
-succeed({Props, {Character, calc, Miss, on, Target, with, Self}})
+
+succeed({Props, {Character, calc, Types, cast, Miss, on, Target, with, Self}})
   when is_pid(Target),
        Self == self() ->
     Log = [{?SOURCE, Character},
            {?EVENT, calc_hit},
-           {hit, Miss},
            {?TARGET, Target},
-           {vector, Self}],
+           {hit, Miss},
+           {types, Types},
+           {handler, ?MODULE}],
     % TODO: say "you missed!"
     {Props, Log};
-succeed({Props, {Character, calc, Damage, to, Target, with, Self}})
+
+succeed({Props, {Character, calc, Types, damage, Damage, to, Target, with, Self}})
   when Self == self(),
        Damage > 0 ->
-    Log = [{?SOURCE, Character},
-           {?EVENT, calc_damage},
-           {damage, Damage},
-           {?TARGET, Target},
-           {vector, Self}],
-    erlmud_object:attempt(self(), {Character, does, Damage, to, Target, with, Self}),
-    {Props, Log};
-succeed({Props, {Character, calc, NoDamage, to, Target, with, Self}})
+    log([{?EVENT, calc_damage},
+         {object, Self},
+         {props, Props},
+         {character, Character},
+         {damage, Damage},
+         {?TARGET, Target},
+         {damage_types, Types},
+         {result, succeed}]),
+    erlmud_object:attempt(self(), {Character, does, Types, damage, Damage, to, Target, with, Self}),
+    Props;
+
+succeed({Props, {Character, calc, Types, damage, NoDamage, to, Target, with, Self}})
   when Self == self() ->
-    Log = [{?SOURCE, Character},
-           {?EVENT, calc_damage},
-           {damage, NoDamage},
-           {?TARGET, Target},
-           {vector, Self}],
     %% Attack failed (No damage was done)
     %% TODO: output something to the client like
     %% "You manage to hit <target> but fail to do any damage"
     %%       _if_ this is a player
+    Log = [{?SOURCE, Character},
+           {?EVENT, calc_damage},
+           {damage, NoDamage},
+           {damage_types, Types},
+           {?TARGET, Target},
+           {vector, Self}],
     {Props, Log};
+
 succeed({Props, {Character, stop_attack}}) ->
     Log = [{?SOURCE, Character},
            {?EVENT, stop_attack}],
     unreserve(Character, Props),
-    Props2 = [{is_attacking, false} | Props],
-    {Props2, Log};
+    Props2 = lists:keystore(target, 1, Props, {target, undefined}),
+    Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, false}),
+    {Props3, Log};
 
-succeed({Props, Msg}) ->
-    log([<<"saw ">>, Msg, <<" succeed">>]),
+succeed({Props, {Character, die}}) ->
+    Log = [{?SOURCE, Character},
+           {?EVENT, die}],
+    unreserve(Character, Props),
+    Props2 = lists:keystore(target, 1, Props, {target, undefined}),
+    Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, false}),
+    {Props3, Log};
+
+succeed({Props, _}) ->
     Props.
 
-fail({Props, target_is_dead, _Message}) ->
-    Log = [{?EVENT, target_is_dead}],
-    erlmud_object:attempt(self(), {self(), stop_attack}),
-    {Props, Log};
-fail({Props, _Reason, _Message}) ->
+fail({Props, _, _}) ->
     Props.
 
-log(Terms) ->
-    erlmud_event_log:log(debug, [?MODULE | Terms]).
+attack(Props) ->
+    Character = proplists:get_value(character, Props),
+    Target = proplists:get_value(target, Props),
+    Types = proplists:get_value(attack_types, Props, 0),
+    Success = calc_success(Props, Types),
+    Message = {Character, calc, Types, cast, Success, on, Target, with, self()},
+    erlmud_object:attempt(self(), Message).
 
-unreserve(Owner, Props) ->
-    reserve_op(unreserve, Owner, Props).
+calc_success(Props, Types) ->
+    Action = proplists:get_value(attack_action, Props),
+    SuccessBase = proplists:get_value(attack_hit, Props, 0),
+    Modifier = erlmud_modifiers:modifier(Props, attack, Action, Types),
+    rand(SuccessBase) + Modifier.
 
-reserve(Owner, Props) ->
-    reserve_op(reserve, Owner, Props).
+rand(0) ->
+    0;
+rand(Int) when is_integer(Int) ->
+    rand:uniform(Int).
 
-reserve_op(Op, Character, Props) when is_list(Props) ->
-    [reserve_op(Op, Character, R) || R <- proplists:get_value(resources, Props, [])];
+should_attack(Props) ->
+    IsMemorized = proplists:get_value(is_memorized, Props),
+    IsAttack = proplists:get_value(is_attack, Props),
+    IsMemorized andalso IsAttack.
 
-reserve_op(Op, Character, Resource) ->
-    erlmud_object:attempt(self(), {Character, Op, Resource, for, self()}).
+unreserve(Character, Props) when is_list(Props) ->
+    [unreserve(Character, Resource) || {Resource, _Amt} <- proplists:get_value(resources, Props, [])];
+unreserve(Character, Resource) ->
+    erlmud_object:attempt(self(), {Character, unreserve, Resource, for, self()}).
+
+reserve(Character, Props) when is_list(Props) ->
+    [reserve(Character, Resource, Amount) || {Resource, Amount} <- proplists:get_value(resources, Props, [])].
+
+reserve(Character, Resource, Amount) ->
+    erlmud_object:attempt(self(), {Character, reserve, Amount, 'of', Resource, for, self()}).
+
+update_allocated(New, Type, Props) ->
+    Allocated = proplists:get_value(allocated_resources, Props, #{}),
+    Curr = maps:get(Type, Allocated, 0),
+    Allocated#{Type => Curr + New}.
+
+deallocate(Allocated, Required) ->
+    lists:foldl(fun subtract_required/2, Allocated, Required).
+
+subtract_required({Type, Required}, Allocated) ->
+    #{Type := Amt} = Allocated,
+    Allocated#{Type := min(0, Amt - Required)}.
+
+has_resources(Allocated, Required) ->
+    {_, AllocApplied} = lists:foldl(fun apply_resource/2, {Allocated, []}, Required),
+    case lists:filter(fun is_resource_lacking/1, AllocApplied) of
+        [] ->
+            true;
+        _ ->
+            false
+    end.
+
+apply_resource(_Resource = {Type, Required},
+               {Allocated, Applied0}) ->
+    AllocAmt = maps:get(Type, Allocated, 0),
+    Applied1 = [{Type, Required - AllocAmt} | Applied0],
+    {Allocated#{Type => 0}, Applied1}.
+
+is_resource_lacking({_Type, Amount}) when Amount =< 0 ->
+    false;
+is_resource_lacking(_) ->
+    true.
+
+log(Props) ->
+    erlmud_event_log:log(debug, [{module, ?MODULE} | Props]).
+
