@@ -33,6 +33,9 @@ let icons = {
   exit: 'exit_icon.png',
   ammo: 'ammo_icon.png',
   technology: 'technology_icon.png',
+  spell: 'spell_icon.png',
+  effect: 'effect_icon.png',
+  resource: 'meter_icon.png',
   none: 'white_icon.png',
   unknown: 'question_mark_icon.png'
 };
@@ -222,6 +225,7 @@ function add_log_process(parent, log){
 
 function add_handler(parent, log){
   let handler = prop(log, 'handler');
+  handler = handler.split('_').slice(2).join(' ');
   let handlerSpan = span(handler, 'module');
   parent.appendChild(handlerSpan);
 

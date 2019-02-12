@@ -62,11 +62,12 @@ attempt({#parents{character = Character},
 
 attempt({#parents{},
          Props,
-         {allocate, Required, 'of', Type, to, Self}})
+         {Resource, allocate, Required, 'of', Type, to, Self}})
   when Self == self() ->
     Log = [{?EVENT, allocate},
            {amount, Required},
            {resource_type, Type},
+           {?SOURCE, Resource},
            {?TARGET, Self}],
     {succeed, true, Props, Log};
 
@@ -158,11 +159,12 @@ succeed({Props, {Character, attack, Target, with, Self}}) ->
     Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, true}),
     {Props3, Log};
 
-succeed({Props, {allocate, Amt, 'of', Type, to, Self}})
+succeed({Props, {Resource, allocate, Amt, 'of', Type, to, Self}})
   when Self == self() ->
     Log = [{?EVENT, allocate},
            {amount, Amt},
            {resource_type, Type},
+           {?SOURCE, Resource},
            {?TARGET, Self},
            {handler, ?MODULE}],
     Allocated = update_allocated(Amt, Type, Props),

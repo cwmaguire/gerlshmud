@@ -80,7 +80,7 @@ fail({Props, _, _}) ->
 
 allocate(Type, [{Proc, Required} | Reservations], Available)
   when Available >= Required ->
-    erlmud_object:attempt(Proc, {allocate, Required, 'of', Type, to, Proc}),
+    erlmud_object:attempt(Proc, {self(), allocate, Required, 'of', Type, to, Proc}),
     RotatedReservations = Reservations ++ [{Proc, Required}],
     allocate(Type, RotatedReservations, Available - Required);
 allocate(_, Reservations, Available) ->

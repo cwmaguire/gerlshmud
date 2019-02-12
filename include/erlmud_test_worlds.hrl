@@ -101,7 +101,7 @@
                                {per_tick, 1},
                                {tick_time, 10},
                                {max, 10},
-                               {icon, stat},
+                               {icon, resource},
                                ?RESOURCE_HANDLERS]},
 
                   {zombie, [{owner, room},
@@ -152,7 +152,7 @@
                                {tick_time, 10},
                                {max, 10},
                                {current, 0},
-                               {icon, stat},
+                               {icon, resource},
                                ?RESOURCE_HANDLERS]},
 
                   {sword, [{attack_damage_modifier, 5},
@@ -462,7 +462,7 @@
                                {per_tick, 1},
                                {tick_time, 10},
                                {max, 10},
-                               {icon, stat},
+                               {icon, resource},
                                ?RESOURCE_HANDLERS]},
 
                   {hand0,   [{name, <<"left hand">>},
@@ -551,7 +551,7 @@
                                {per_tick, 1},
                                {tick_time, 10},
                                {max, 10},
-                               {icon, stat},
+                               {icon, resource},
                                ?RESOURCE_HANDLERS]},
 
                   {race0, [{owner, giant},
@@ -660,7 +660,7 @@
                         {per_tick, 1},
                         {tick_time, 10},
                         {max, 10},
-                        {icon, stat},
+                        {icon, resource},
                         ?RESOURCE_HANDLERS]},
 
                    {p_hp,
@@ -700,6 +700,7 @@
                         {attack_types, [effect, fire]},
                         {is_attack, false},
                         {is_defence, false},
+                        {icon, effect},
                         ?EFFECT_HANDLERS]},
 
                    {giant,
