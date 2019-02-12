@@ -193,7 +193,6 @@ succeed({Props, {Character, calc, Types, cast, Success, on, Target, with, Self}}
            {vector, Self},
            {handler, ?MODULE}],
     Effect = proplists:get_value(effect, Props),
-    lager:info("sending {~p, affect, ~p}~n", [Effect, Target]),
     erlmud_object:attempt(self(), {Effect, affect, Target}),
     {Props, Log};
 

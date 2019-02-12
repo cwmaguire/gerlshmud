@@ -605,9 +605,9 @@ cast_spell(Config) ->
         end,
     true = wait_loop(WaitFun, true, 30),
     ?WAIT100,
-    1000 = val(hitpoints, p_hp),
+    10 = val(hitpoints, p_hp),
     true = val(is_alive, p_life),
-    false = val(is_alive, z_life).
+    false = val(is_alive, g_life).
 
 log(_Config) ->
     {ok, Cwd} = file:get_cwd(),

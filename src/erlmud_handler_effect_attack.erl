@@ -61,7 +61,7 @@ succeed({Props, {Self, affect, Target}}) ->
     Success = rand:uniform(PossibleSuccess) + Modifier,
     Event = {Character,
              calc, AttackTypes,
-             effect, Success,
+             affect, Success,
              on, Target,
              with, Self},
     erlmud_object:attempt(self(), Event),
@@ -98,7 +98,7 @@ succeed({Props, {Character, calc, Types, effect, Miss, on, Target, with, Self}})
     erlmud_object:attempt(Character, {send, Character, <<"You missed!">>}),
     {Props, Log};
 
-succeed({Props, {Self, calc, Types, damage, Damage, to, Target, with, Self}})
+succeed({Props, {Character, calc, Types, damage, Damage, to, Target, with, Self}})
   when is_pid(Target),
        Self == self() ->
     Log = [{?SOURCE, Self},
@@ -107,7 +107,10 @@ succeed({Props, {Self, calc, Types, damage, Damage, to, Target, with, Self}})
            {handler, ?MODULE},
            {damage, Damage},
            {types, Types}],
-    Character = proplists:get_value(owner, Props),
+    DamageEvent = {Character, does, Types, damage, Damage, to, Target, with, Self},
+    lager:info("~p sending event ~p~n", [?MODULE, DamageEvent]),
+    erlmud_object:attempt(self(), DamageEvent),
+
     Desc = proplists:get_value(desc, Props, <<"no description">>),
     DamageBin = integer_to_binary(Damage),
     % TODO have the connection object figure out the missing information
