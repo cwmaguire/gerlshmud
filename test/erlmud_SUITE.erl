@@ -9,7 +9,7 @@
 
 % TODO test updating a skill when a target is killed with a weapon (or when damage is dealt, or both)
 
-all() -> [cast_spell].
+all() -> [counterattack_with_spell].
 %all() ->
     %[player_move,
      %player_move_fail,
@@ -249,10 +249,6 @@ counterattack_behaviour(Config) ->
     true = 1000 > val(hitpoints, p_hp),
     true = val(is_alive, p_life),
     ok.
-
-% copy counterattack_behaviour
-counterattack_with_spell(_Config) ->
-    1 = 2.
 
 attack_with_modifiers(Config) ->
     erlmud_dbg:add(erlmud_handler_item_attack),
@@ -581,13 +577,39 @@ set_character(Config) ->
     Dog = val(character, transmitter),
     Dog = val(character, stealth).
 
-memorize_spell(_Config) ->
-    1 = 2.
+counterattack_with_spell(Config) ->
+    start(?WORLD_11),
+    Giant = erlmud_index:get_pid(giant),
+    Player = erlmud_index:get_pid(player),
+
+    Stamina = val(stamina, giant),
+    erlmud_object:set(Stamina, {current, 5}),
+    erlmud_object:set(Stamina, {tick_time, 100000}),
+
+    attempt(Config, Player, {Player, memorize, <<"fireball">>}),
+    ?WAIT100,
+    true = val(is_memorized, fireball_spell),
+
+    attempt(Config, Giant, {Giant, attack, <<"bob">>}),
+
+    WaitFun =
+        fun() ->
+            case val(hitpoints, g_hp) of
+                ZeroOrLess when is_integer(ZeroOrLess), ZeroOrLess =< 0 ->
+                    true;
+                _ ->
+                    false
+            end
+        end,
+    true = wait_loop(WaitFun, true, 40),
+
+    false = val(is_alive, g_life),
+    true = 1000 > val(hitpoints, p_hp),
+    true = val(is_alive, p_life),
+    ok.
 
 cast_spell(Config) ->
     start(?WORLD_11),
-    %erlmud_dbg:add(erlmud_handler_effect_attack),
-    %erlmud_dbg:add(erlmud_handler_spell_attack),
     Player = erlmud_index:get_pid(player),
     _Giant = erlmud_index:get_pid(giant),
     attempt(Config, Player, {Player, memorize, <<"fireball">>}),
