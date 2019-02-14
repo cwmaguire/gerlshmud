@@ -23,9 +23,9 @@ if anything, comes back.
 How it Works (LOOOOONG version):
 https://www.youtube.com/watch?v=dcuv_M4Po0g
 
-In order to explain Erlmud I'm going to start with an elaborate analogy
+In order to explain GERLSHMUD I'm going to start with an elaborate analogy
 involving a prisoner of war (PoW) camp. After, I'll break down the analogy
-and explain how Erlmud maps to that analogy.
+and explain how GERLSHMUD maps to that analogy.
 
 Imagine a PoW camp where PoWs can only communicate by passing
 paper notes from cell to cell and building to building.  In order to account
@@ -75,9 +75,9 @@ the the final version of the message. Notifications of decisions are passed
 directly to the prisoners who request them. Notifications of proposal outcomes
 will often spark new conversations.
 
-Now that you have this situation in your imagination we can map Erlmud to it.
+Now that you have this situation in your imagination we can map GERLSHMUD to it.
 
-In Erlmud the prisoners are the MUD objects and are modelled by processes. The
+In GERLSHMUD the prisoners are the MUD objects and are modelled by processes. The
 objects are lists of properties which include modules for event handling.
 The processes cannot communicate with each other to ask questions
 directly so information is gathered by sending questions to every process
@@ -97,7 +97,7 @@ properties pointing to sibling objects to route messages through the MUD.
 Prisoners knowing each other is modelled by objects having properties that have
 PIDs pointing to other objects.
 
-So, Erlmud is a graph of asynchronous processes representing every aspect
+So, GERLSHMUD is a graph of asynchronous processes representing every aspect
 of game world: rooms, spells, attributes, attacks, players, etc. Events
 in the MUD flow through the graph and touch one process at a time.
 Each process takes in events, modifies it's internal state and either
@@ -184,7 +184,7 @@ See https://github.com/zxq9/erlmud for a potentially more successful MUD
 in Erlang by someone who actually knows what they're talking about.
 
 
-Some older videos that explain Erlmud:
+Some older videos that explain GERLSHMUD:
 
 Jun 20, 2015 - How attacks work: https://youtu.be/oSG1EXPMJVw
 Jun 20, 2015 - How messages work: https://youtu.be/6t7YSnSBaJ8
