@@ -1,0 +1,330 @@
+%% Copyright (c) 2019, Chris Maguire <cwmaguire@gmail.com>
+%%
+%% Permission to use, copy, modify, and/or distribute this software for any
+%% purpose with or without fee is hereby granted, provided that the above
+%% copyright notice and this permission notice appear in all copies.
+%%
+%% THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+%% WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+%% MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+%% ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+%% WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+%% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+%% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+-module(gerlshmud_handler_spell_attack).
+-behaviour(gerlshmud_handler).
+
+-export([attempt/1]).
+-export([succeed/1]).
+-export([fail/1]).
+
+-include("include/gerlshmud.hrl").
+
+%% Attacking
+attempt({#parents{character = Character},
+         Props,
+         {Attacker, attack, Target}})
+  when Attacker == Character ->
+    Log = [{?SOURCE, Attacker},
+           {?EVENT, attack},
+           {?TARGET, Target}],
+    {succeed, true, Props, Log};
+
+attempt({#parents{character = Character},
+         Props,
+         {Character, counter_attack, Target}}) ->
+    IsAttacking = proplists:get_value(is_attacking, Props, false),
+    Log = [{?EVENT, attack},
+           {?SOURCE, Character},
+           {?TARGET, Target},
+           {is_attacking, IsAttacking}],
+    case IsAttacking of
+        false ->
+            {succeed, true, Props, Log};
+        _ ->
+            {succeed, false, Props, Log}
+    end;
+
+attempt({#parents{character = Character},
+         Props,
+         {Character, attack, Target, with, Self}})
+  when Self == self() ->
+    Log = [{?SOURCE, Character},
+           {?EVENT, attack},
+           {?TARGET, Target},
+           {vector, Self}],
+    case should_attack(Props) of
+        true ->
+            {succeed, true, Props, Log};
+        false ->
+            {{fail, <<"Spell is not memorized">>}, false, Props, Log}
+    end;
+
+attempt({#parents{},
+         Props,
+         {Resource, allocate, Required, 'of', Type, to, Self}})
+  when Self == self() ->
+    Log = [{?EVENT, allocate},
+           {amount, Required},
+           {resource_type, Type},
+           {?SOURCE, Resource},
+           {?TARGET, Self}],
+    {succeed, true, Props, Log};
+
+attempt({#parents{},
+         Props,
+         {Attacker, killed, Target, with, AttackVector}}) ->
+    Log = [{?SOURCE, Attacker},
+           {?EVENT, killed},
+           {?SOURCE, Target},
+           {vector, AttackVector}],
+    case proplists:get_value(target, Props) of
+        Target ->
+            Log2 = [{?TARGET, Target} | Log],
+            {succeed, true, Props, Log2};
+        _ ->
+            {succeed, false, Props, Log}
+    end;
+
+attempt({#parents{character = Character}, Props, {Character, stop_attack}}) ->
+    Log = [{?SOURCE, Character},
+           {?EVENT, stop_attack}],
+    {succeed, true, Props, Log};
+
+attempt({#parents{character = Character},
+         Props,
+         {die, Character}}) ->
+    Log = [{?SOURCE, Character},
+           {?EVENT, die}],
+    {succeed, true, Props, Log};
+
+attempt({_, _, _Msg}) ->
+    undefined.
+
+succeed({Props, {Attacker, killed, Target, with, AttackVector}}) ->
+    Log = [{?EVENT, killed},
+           {?SOURCE, Attacker},
+           {?TARGET, Target},
+           {vector, AttackVector},
+           {handler, ?MODULE}],
+    Character = proplists:get_value(character, Props),
+    unreserve(Character, Props),
+    Props2 = lists:keystore(target, 1, Props, {?TARGET, undefined}),
+    Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, false}),
+    {Props3, Log};
+
+succeed({Props, {Attacker, attack, Target}}) when is_pid(Target) ->
+    Log = [{?EVENT, attack},
+           {?SOURCE, Attacker},
+           {?TARGET, Target},
+           {handler, ?MODULE}],
+    Character = proplists:get_value(character, Props),
+    IsAttacking = proplists:get_value(is_attacking, Props, false),
+    case {Character, IsAttacking} of
+        {Attacker, false} ->
+            gerlshmud_object:attempt(self(), {Attacker, attack, Target, with, self()});
+        _ ->
+            ok
+    end,
+    {Props, Log};
+
+succeed({Props, {Attacker, counter_attack, Target}}) when is_pid(Target) ->
+    Log = [{?SOURCE, Attacker},
+           {?EVENT, counter_attack},
+           {?TARGET, Target},
+           {handler, ?MODULE}],
+    Character = proplists:get_value(character, Props),
+    IsAttacking = proplists:get_value(is_attacking, Props, false),
+    case {Character, IsAttacking} of
+        {Attacker, false} ->
+            gerlshmud_object:attempt(self(), {Attacker, attack, Target, with, self()});
+        % So if something is _counter_ attacking us, then we fire up
+        % an attack? Why would it counter attack if we weren't already attacking?
+        {Target, false} ->
+            gerlshmud_object:attempt(Character, {Character, attack, Attacker});
+        _ ->
+            ok
+    end,
+    {Props, Log};
+
+%% An attack by our character has been successfully instigated using this process:
+%% we'll register for resources and implement the attack when we have them.
+succeed({Props, {Character, attack, Target, with, Self}}) ->
+    Log = [{?EVENT, attack},
+           {?SOURCE, Character},
+           {?TARGET, Target},
+           {vector, Self}],
+    reserve(Character, Props),
+    Props2 = lists:keystore(target, 1, Props, {target, Target}),
+    Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, true}),
+    {Props3, Log};
+
+succeed({Props, {Resource, allocate, Amt, 'of', Type, to, Self}})
+  when Self == self() ->
+    Log = [{?EVENT, allocate},
+           {amount, Amt},
+           {resource_type, Type},
+           {?SOURCE, Resource},
+           {?TARGET, Self},
+           {handler, ?MODULE}],
+    Allocated = update_allocated(Amt, Type, Props),
+    Required = proplists:get_value(resources, Props, []),
+    HasResources = has_resources(Allocated, Required),
+    RemainingAllocated =
+        case HasResources of
+            true ->
+                attack(Props),
+                deallocate(Allocated, Required);
+            _ ->
+                Allocated
+        end,
+    Props2 = lists:keystore(allocated_resources, 1, Props, {allocated_resources, RemainingAllocated}),
+    {Props2, Log};
+
+succeed({Props, {Character, calc, Types, cast, Success, on, Target, with, Self}})
+  when is_pid(Target),
+       Self == self(),
+       Success > 0 ->
+    Log = [{?SOURCE, Character},
+           {?EVENT, calc_success},
+           {?TARGET, Target},
+           {success, Success},
+           {attack_types, Types},
+           {vector, Self},
+           {handler, ?MODULE}],
+    Effect = proplists:get_value(effect, Props),
+    gerlshmud_object:attempt(self(), {Effect, affect, Target}),
+    {Props, Log};
+
+succeed({Props, {Character, calc, Types, cast, Miss, on, Target, with, Self}})
+  when is_pid(Target),
+       Self == self() ->
+    Log = [{?SOURCE, Character},
+           {?EVENT, calc_hit},
+           {?TARGET, Target},
+           {hit, Miss},
+           {types, Types},
+           {handler, ?MODULE}],
+    % TODO: say "you missed!"
+    {Props, Log};
+
+succeed({Props, {Character, calc, Types, damage, Damage, to, Target, with, Self}})
+  when Self == self(),
+       Damage > 0 ->
+    log([{?EVENT, calc_damage},
+         {object, Self},
+         {props, Props},
+         {character, Character},
+         {damage, Damage},
+         {?TARGET, Target},
+         {damage_types, Types},
+         {result, succeed}]),
+    gerlshmud_object:attempt(self(), {Character, does, Types, damage, Damage, to, Target, with, Self}),
+    Props;
+
+succeed({Props, {Character, calc, Types, damage, NoDamage, to, Target, with, Self}})
+  when Self == self() ->
+    %% Attack failed (No damage was done)
+    %% TODO: output something to the client like
+    %% "You manage to hit <target> but fail to do any damage"
+    %%       _if_ this is a player
+    Log = [{?SOURCE, Character},
+           {?EVENT, calc_damage},
+           {damage, NoDamage},
+           {damage_types, Types},
+           {?TARGET, Target},
+           {vector, Self}],
+    {Props, Log};
+
+succeed({Props, {Character, stop_attack}}) ->
+    Log = [{?SOURCE, Character},
+           {?EVENT, stop_attack}],
+    unreserve(Character, Props),
+    Props2 = lists:keystore(target, 1, Props, {target, undefined}),
+    Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, false}),
+    {Props3, Log};
+
+succeed({Props, {Character, die}}) ->
+    Log = [{?SOURCE, Character},
+           {?EVENT, die}],
+    unreserve(Character, Props),
+    Props2 = lists:keystore(target, 1, Props, {target, undefined}),
+    Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, false}),
+    {Props3, Log};
+
+succeed({Props, _}) ->
+    Props.
+
+fail({Props, _, _}) ->
+    Props.
+
+attack(Props) ->
+    Character = proplists:get_value(character, Props),
+    Target = proplists:get_value(target, Props),
+    Types = proplists:get_value(attack_types, Props, 0),
+    Success = calc_success(Props, Types),
+    Message = {Character, calc, Types, cast, Success, on, Target, with, self()},
+    gerlshmud_object:attempt(self(), Message).
+
+calc_success(Props, Types) ->
+    Action = proplists:get_value(attack_action, Props),
+    SuccessBase = proplists:get_value(attack_hit, Props, 0),
+    Modifier = gerlshmud_modifiers:modifier(Props, attack, Action, Types),
+    rand(SuccessBase) + Modifier.
+
+rand(0) ->
+    0;
+rand(Int) when is_integer(Int) ->
+    rand:uniform(Int).
+
+should_attack(Props) ->
+    IsMemorized = proplists:get_value(is_memorized, Props),
+    IsAttack = proplists:get_value(is_attack, Props),
+    IsMemorized andalso IsAttack.
+
+unreserve(Character, Props) when is_list(Props) ->
+    [unreserve(Character, Resource) || {Resource, _Amt} <- proplists:get_value(resources, Props, [])];
+unreserve(Character, Resource) ->
+    gerlshmud_object:attempt(self(), {Character, unreserve, Resource, for, self()}).
+
+reserve(Character, Props) when is_list(Props) ->
+    [reserve(Character, Resource, Amount) || {Resource, Amount} <- proplists:get_value(resources, Props, [])].
+
+reserve(Character, Resource, Amount) ->
+    gerlshmud_object:attempt(self(), {Character, reserve, Amount, 'of', Resource, for, self()}).
+
+update_allocated(New, Type, Props) ->
+    Allocated = proplists:get_value(allocated_resources, Props, #{}),
+    Curr = maps:get(Type, Allocated, 0),
+    Allocated#{Type => Curr + New}.
+
+deallocate(Allocated, Required) ->
+    lists:foldl(fun subtract_required/2, Allocated, Required).
+
+subtract_required({Type, Required}, Allocated) ->
+    #{Type := Amt} = Allocated,
+    Allocated#{Type := min(0, Amt - Required)}.
+
+has_resources(Allocated, Required) ->
+    {_, AllocApplied} = lists:foldl(fun apply_resource/2, {Allocated, []}, Required),
+    case lists:filter(fun is_resource_lacking/1, AllocApplied) of
+        [] ->
+            true;
+        _ ->
+            false
+    end.
+
+apply_resource(_Resource = {Type, Required},
+               {Allocated, Applied0}) ->
+    AllocAmt = maps:get(Type, Allocated, 0),
+    Applied1 = [{Type, Required - AllocAmt} | Applied0],
+    {Allocated#{Type => 0}, Applied1}.
+
+is_resource_lacking({_Type, Amount}) when Amount =< 0 ->
+    false;
+is_resource_lacking(_) ->
+    true.
+
+log(Props) ->
+    gerlshmud_event_log:log(debug, [{module, ?MODULE} | Props]).
+

@@ -12,7 +12,7 @@
 # vm_args, "
 # vm.args
 
-for f in src/erlmud_handler_*
+for f in src/handlers/gerlshmud_handler_*
 do
   echo -e "\n$f"
   cat $f | \

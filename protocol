@@ -1,5 +1,5 @@
 
-src/erlmud_handler_attack_resource.erl
+src/handlers/gershmud_handler_attack_resource.erl
 attempt({#parents{character = Character, owner = Owner}, Props, {Character, attack, Target, with, Owner}}) ->
 attempt({#parents{character = Character}, Props, {move, Character, From, To, Exit}}) ->
 attempt({#parents{character = Character}, Props, {die, Character}}) ->
@@ -10,7 +10,7 @@ succeed({Props, {die, Character}}) ->
 succeed({Props, _}) ->
 attempt(self(), {Character, reserve, Amount, 'of', Resource, for, Owner}).unreserve(Character, Owner, Props) when is_list(Props) ->
 
-src/erlmud_handler_attribute_attack.erl
+src/handlers/gershmud_handler_attribute_attack.erl
 attempt({#parents{character = Character, top_item = TopItem = #top_item{item = Item}}, Props, {Character, calc, Hit, on, Target, with, Item}}) ->
 attempt({#parents{character = Character, top_item = TopItem = #top_item{item = Item}}, Props, {Character, damage, Damage, to, Target, with, Item}}) ->
 attempt({#parents{character = Character, top_item = TopItem = #top_item{item = Item}}, Props, {Attacker, calc, Hit, on, Character, with, Item}}) ->
@@ -20,7 +20,7 @@ attempt({#parents{character = Character}, Props, {Attacker, damage, Damage, to, 
 attempt({_, _, _Msg}) ->
 succeed({Props, _}) ->
 
-src/erlmud_handler_attribute_look.erl
+src/handlers/gershmud_handler_attribute_look.erl
 attempt({#parents{owner = Owner}, Props, {Source, describe, Owner, with, Context}}) ->
 attempt(_) ->
 succeed({Props, {Source, describe, Self, with, Context}}) when Self == self() ->
@@ -29,7 +29,7 @@ succeed({Props, _Msg}) ->
 attempt(Source, {Source, describe, self(), with, NewContext}).send_description(Source, Props, Context) ->
 attempt(Source, {send, Source, [<<Context/binary>>, Description]}).is_owner(MaybeOwner, Props) when is_pid(MaybeOwner) ->
 
-src/erlmud_handler_body_part_inject_self.erl
+src/handlers/gershmud_handler_body_part_inject_self.erl
 attempt({#parents{owner = Owner}, Props, {Item, move, from, Owner, to, BodyPartName}}) when is_binary(BodyPartName) ->
 NewMessage = {Item, move, from, Owner, to, self()},
 attempt({#parents{owner = Owner}, Props, {Item, move, from, BodyPartName, to, Owner}}) when is_pid(Item) andalso is_binary(BodyPartName) ->
@@ -39,7 +39,7 @@ NewMessage = {Item, move, from, self(), to, Owner},
 attempt(_) ->
 succeed({Props, _}) ->
 
-src/erlmud_handler_body_part_inv.erl
+src/handlers/gershmud_handler_body_part_inv.erl
 attempt({#parents{owner = Owner}, Props, {Item, move, from, Self, to, Owner}}) when Self == self(), is_pid(Item) ->
 attempt({#parents{owner = Owner}, Props, {Item, move, from, Owner, to, Self}}) when Self == self(), is_pid(Item) ->
 NewMessage = {Item, move, from, Owner, to, self(), limited, to, item_body_parts},
@@ -57,7 +57,7 @@ succeed({Props, {move, Item, from, Self, to, NewOwner, _ItemBodyParts}}) %when S
 succeed({Props, _}) ->
 attempt(Item, {Target, clear_child_property, body_part, 'if', #body_part{body_part = self(), type = BodyPartType, ref = ItemRef}}), lists:keydelete({Item, ItemRef}, 2, Props).item_ref(Item, Props) ->
 
-src/erlmud_handler_body_part_look.erl
+src/handlers/gershmud_handler_body_part_look.erl
 attempt({#parents{}, Props, {Source, describe, Self, with, Context}}) when Self == self() ->
 attempt({#parents{owner = Owner}, Props, {Source, describe, Owner, with, Context}}) ->
 attempt(_) ->
@@ -67,7 +67,7 @@ succeed({Props, _}) ->
 attempt(Source, {Source, describe, self(), with, NewContext});describe(Source, Props, Context, shallow) ->
 attempt(Source, {send, Source, [<<Context/binary>>, Description]}).description(Props) when is_list(Props) ->
 
-src/erlmud_handler_char_attack.erl
+src/handlers/gershmud_handler_char_attack.erl
 attempt({#parents{}, Props, {Attacker, attack, Self}}) when Self == self() ->
 attempt({#parents{}, Props, {Self, attack, Target, with, AttackVector}}) when Self == self() ->
 attempt(_) ->
@@ -75,7 +75,7 @@ succeed({Props, {Self, attack, Target, with, AttackVector}}) ->
 succeed({Props, {Attacker, attack, Self}}) ->
 attempt(self(), {self(), counter_attack, Attacker}) end, {Props, Log};succeed({Props, _}) ->
 
-src/erlmud_handler_char_enter_world.erl
+src/handlers/gershmud_handler_char_enter_world.erl
 attempt({_Parents, Props, {Self, enter_world, in, room, with, Conn}}) when Self == self() ->
 NewMessage = {Self, enter_world, in, Room, with, Conn},
 attempt({_Parents, Props, {Self, enter_world, in, Room, with, _Conn}}) when Self == self(), is_pid(Room) ->
@@ -83,7 +83,7 @@ attempt(_) ->
 succeed({Props, {Player, enter_world, in, Room, with, Conn}}) ->
 succeed({Props, _Other}) ->
 
-src/erlmud_handler_char_inject_self.erl
+src/handlers/gershmud_handler_char_inject_self.erl
 attempt({#parents{}, Props, {Source, Action, TargetName}}) when is_binary(TargetName) andalso (Action == look orelse Action == attack) ->
 NewMessage = {Source, Action, self()},
 attempt({Owner, Props, {Self, look}}) when Self == self() ->
@@ -91,7 +91,7 @@ NewMessage = {Self, look, Owner},
 attempt(_) ->
 succeed({Props, _}) ->
 
-src/erlmud_handler_char_inv.erl
+src/handlers/gershmud_handler_char_inv.erl
 attempt({_Owner, Props, {Self, Action, Item}}) when Self == self() andalso is_pid(Item) andalso Action == get; Action == drop ->
 attempt({_Owner, Props, {Item, move, from, Self, to, Room}}) when Self == self() andalso is_pid(Item), is_pid(Room) ->
 attempt({_Owner, Props, {Item, move, from, Self, to, BodyPart, on, body_part, type, BodyPartType}}) when Self == self() andalso is_pid(Item), is_pid(BodyPart) ->
@@ -103,7 +103,7 @@ succeed({Props, {Item, move, from, Self, to, Target}}) when Self == self() ->
 succeed({Props, _}) ->
 attempt(Item, {Target, clear_child_property, character, 'if', self()}), lists:keydelete(Item, 2, Props).log(Props) ->
 
-src/erlmud_handler_char_look.erl
+src/handlers/gershmud_handler_char_look.erl
 attempt({#parents{}, Props, {Source, look, TargetName}}) when Source =/= self(), is_binary(TargetName) ->
 NewMessage = {Source, look, self()},
 attempt({#parents{owner = Room}, Props, _JustPlainLook = {SelfSource, look}}) when SelfSource == self() ->
@@ -117,7 +117,7 @@ succeed({Props, _}) ->
 attempt(Source, {Source, describe, self(), with, NewContext}).send_description(Source, Props, Context) ->
 attempt(Source, {send, Source, [<<Context/binary>>, Description]}).is_owner(MaybeOwner, Props) when is_pid(MaybeOwner) ->
 
-src/erlmud_handler_char_move.erl
+src/handlers/gershmud_handler_char_move.erl
 attempt({#parents{}, Props, {Self, move, Direction}}) when Self == self() ->
 attempt({#parents{}, Props, {Self, move, Dir, from, From}}) when Self == self() ->
 attempt({#parents{}, Props, {Self, move, from, From, to, To, via, Exit}}) when Self == self() ->
@@ -127,24 +127,24 @@ attempt(self(), {self(), stop_attack}); _ ->
 succeed({Props, {Self, move, Direction, from, Source}}) when Self == self(), is_atom(Direction) ->
 succeed({Props, _}) ->
 
-src/erlmud_handler_cleanup.erl
+src/handlers/gershmud_handler_cleanup.erl
 attempt(_) ->
 succeed({Props, {Self, cleanup, self}}) when Self == self() ->
 succeed({Props, _}) ->
 
-src/erlmud_handler_conn_enter_world.erl
+src/handlers/gershmud_handler_conn_enter_world.erl
 attempt({#parents{owner = Owner}, Props, {Owner, enter_world, in, Room, with, Self}}) when Self == self(), is_pid(Room) ->
 attempt(_) ->
 succeed({Props, {Player, enter_world, in, Room, with, Conn}}) ->
 succeed({Props, _Other}) ->
 
-src/erlmud_handler_conn_send.erl
+src/handlers/gershmud_handler_conn_send.erl
 attempt({#parents{owner = Owner}, Props, {send, Owner, Message}}) ->
 attempt(_) ->
 succeed({Props, {send, Player, Message}}) ->
 succeed({Props, _Other}) ->
 
-src/erlmud_handler_counterattack.erl
+src/handlers/gershmud_handler_counterattack.erl
 attempt({#parents{}, Props, {Attacker, attack, Self}}) when Self == self() ->
 attempt({#parents{}, Props, {Self, attack, Target}}) when Self == self() ->
 attempt({#parents{}, _, _}) ->
@@ -154,74 +154,53 @@ attempt(self(), {self(), counter_attack, Attacker}) end, {Props, Log}; _ ->
 succeed({Props, {Self, counter_attack, Target}}) ->
 attempt(self(), {self(), attack, Target}), {Props, Log};succeed({Props, _}) ->
 
-src/erlmud_handler_exit_look.erl
+src/handlers/gershmud_handler_effect_attack.erl
+attempt({_Parents, Props, {Self, affect, Target}}) when Self == self() ->
+attempt({_Parents, Props, {Character, calc, Types, affect, Success, on, Target, with, Self}}) when Self == self() ->
+attempt({_Parents, Props, {Character, calc, Types, damage, Damage, to, Target, with, Self}}) when Self == self() ->
+attempt({_, _, _Msg}) ->
+succeed({Props, {Self, affect, Target}}) ->
+attempt(self(), Event), {Props, Log};succeed({Props, {Character, calc, Types, affect, Success, on, Target, with, Self}}) when is_pid(Target), Self == self(), Success > 0 ->
+attempt(self(), Event), {Props, Log};succeed({Props, {Character, calc, Types, effect, Miss, on, Target, with, Self}}) when is_pid(Target), Self == self() ->
+attempt(Character, {send, Character, <<"You missed!">>}), {Props, Log};succeed({Props, {Character, calc, Types, damage, Damage, to, Target, with, Self}}) when is_pid(Target), Self == self() ->
+attempt(self(), DamageEvent), Desc = proplists:get_value(desc, Props, <<"no description">>), DamageBin = integer_to_binary(Damage), % TODO have the connection object figure out the missing information % by sending messages out to owners, e.g. {Target, name} Msg = <<"You hit <target> with ", Desc/binary, " for ", DamageBin/binary, " damage">>, gershmud_object:attempt(Character, {send, Character, Msg}), {Props, Log};succeed({Props, _}) ->
+
+src/handlers/gershmud_handler_effect_create.erl
+attempt({#parents{owner = Spell, character = Character}, Props, {Character, cast, Spell, at, Target}}) ->
+attempt({#parents{owner = undefined}, Props, {Character, cast, Spell, at, Target}}) ->
+attempt({_, _, _Msg}) ->
+succeed({Props, {Character, cast, Spell, at, Target}}) ->
+attempt(Pid, {Pid, affect, Target}), {Props, Log};succeed({Props, _}) ->
+
+src/handlers/gershmud_handler_exit_look.erl
 attempt({#parents{owner = Owner}, Props, {Source, describe, Room, with, Context}}) ->
 attempt(_) ->
 succeed({Props, {Source, describe, Room, with, Context}}) ->
 succeed({Props, _Msg}) ->
 attempt(Source, {send, Source, Desc}).other_exits(Props, Room) ->
 
-src/erlmud_handler_exit_move.erl
+src/handlers/gershmud_handler_exit_move.erl
 attempt({_Owner, Props, {Obj, move, Exit, from, Room}}) when is_atom(Exit) ->
 attempt({_Owner, Props, {Mover, move, from, Source, to, Target, via, Self}}) when Self == self() ->
 attempt(_) ->
 succeed({Props, Msg}) ->
 
-src/erlmud_handler_harm_spell.erl
-attempt({_Owner, Props, {_Source, look, Self}}) when Self == self() ->
+src/handlers/gershmud_handler_hitpoints_attack.erl
+attempt({#parents{owner = Owner}, Props, {Character, does, Types, damage, Damage, to, Owner, with, AttackVector}}) ->
 attempt(_) ->
-succeed({Props, {Player, look, Self}}) when Self == self() ->
-NewMessage = {Player, describe, self(), with, RoomContext},
-attempt(Player, NewMessage), {Props, Log};succeed({Props, _}) ->
-attempt(Source, {send, Source, Description}).description(Props) when is_list(Props) ->
-
-src/erlmud_handler_hitpoints_attack.erl
-attempt({#parents{owner = Owner}, Props, {Character, does, Damage, to, Owner, with, AttackVector}}) ->
-attempt(_) ->
-succeed({Props, _Msg = {Attacker, does, Damage, to, Owner, with, AttackVector}}) ->
+succeed({Props, _Msg = {Attacker, does, Types, damage, Damage, to, Owner, with, AttackVector}}) ->
 succeed({Props, _Msg}) ->
 attempt(Owner, {Attacker, killed, Owner, with, AttackVector}); _ ->
 
-src/erlmud_handler_item_attack.erl
-attempt({#parents{character = Character}, Props, {Attacker, attack, Target}}) when Attacker == Character ->
-attempt({#parents{character = Character}, Props, {Character, counter_attack, Target}}) ->
-attempt({#parents{character = Character}, Props, {Character, attack, Target, with, Self}}) when Self == self() ->
-attempt({#parents{}, Props, {allocate, Required, 'of', Type, to, Self}}) when Self == self() ->
-attempt({#parents{}, Props, {Attacker, killed, Target, with, AttackVector}}) ->
-attempt({#parents{character = Character}, Props, {Attacker, calc, Hit, on, Character, with, AttackVector}}) ->
-attempt({#parents{character = Character}, Props, {Attacker, calc, Damage, to, Character, with, AttackVector}}) ->
-attempt({#parents{character = Character}, Props, {Character, stop_attack}}) ->
-attempt({#parents{character = Character}, Props, {die, Character}}) ->
-attempt({_, _, _Msg}) ->
-succeed({Props, {Attacker, killed, Target, with, AttackVector}}) ->
-succeed({Props, {Attacker, attack, Target}}) when is_pid(Target) ->
-attempt(self(), {Attacker, attack, Target, with, self()}); {Target, false} ->
-attempt(Character, {Character, attack, Attacker}); _ ->
-succeed({Props, {Attacker, counter_attack, Target}}) when is_pid(Target) ->
-attempt(self(), {Attacker, attack, Target, with, self()}); {Target, false} ->
-attempt(Character, {Character, attack, Attacker}); _ ->
-succeed({Props, {Character, attack, Target, with, Self}}) ->
-succeed({Props, {allocate, Amt, 'of', Type, to, Self}}) when Self == self() ->
-succeed({Props, {Character, calc, Hit, on, Target, with, Self}}) when is_pid(Target), Self == self(), Hit > 0 ->
-attempt(self(), {Character, calc, Damage, to, Target, with, Self}), {Props, Log};succeed({Props, {Character, calc, Miss, on, Target, with, Self}}) when is_pid(Target), Self == self() ->
-succeed({Props, {Character, calc, Damage, to, Target, with, Self}}) when Self == self(), Damage > 0 ->
-attempt(self(), {Character, does, Damage, to, Target, with, Self}), Props;succeed({Props, {Character, calc, NoDamage, to, Target, with, Self}}) when Self == self() ->
-succeed({Props, {Character, stop_attack}}) ->
-succeed({Props, {Character, die}}) ->
-succeed({Props, _}) ->
-attempt(self(), {Character, calc, Hit, on, Target, with, self()}).should_attack(Props) ->
-attempt(self(), {Character, unreserve, Resource, for, self()}).reserve(Character, Props) when is_list(Props) ->
-attempt(self(), {Character, reserve, Amount, 'of', Resource, for, self()}).update_allocated(New, Type, Props) ->
-
-src/erlmud_handler_item_inject_self.erl
-attempt({_Owner, Props, Message = {Object, Action, ItemName}}) when is_binary(ItemName) andalso Action == get; Action == drop ->
+src/handlers/gershmud_handler_item_inject_self.erl
+attempt({_Owner, Props, {Object, Action, ItemName}}) when is_binary(ItemName) andalso Action == get; Action == drop ->
 NewMessage = {Object, Action, self()},
-attempt({_Owner, Props, Message = {ItemName, move, from, Source, to, Target}}) when is_binary(ItemName) ->
+attempt({_Owner, Props, {ItemName, move, from, Source, to, Target}}) when is_binary(ItemName) ->
 NewMessage = {self(), move, from, Source, to, Target},
 attempt(_) ->
 succeed({Props, _}) ->
 
-src/erlmud_handler_item_inv.erl
+src/handlers/gershmud_handler_item_inv.erl
 attempt({#parents{owner = Owner}, Props, {Self, move, from, Owner, to, Target, limited, to, item_body_parts}}) when Self == self(), Owner /= Target ->
 NewMessage = {Self, move, from, Owner, to, Target, limited, to, BodyParts},
 attempt({#parents{owner = Owner}, Props, {Self, move, from, Owner, to, Target}}) when Self == self(), Owner /= Target, is_pid(Target) ->
@@ -237,7 +216,7 @@ succeed({Props, _}) ->
 attempt(Child, {self(), set_child_properties, ChildProps}).clear_child_top_item(Props, Item, Target) ->
 attempt(Item, Message), lists:keydelete(Item, 2, Props).top_item(Props) ->
 
-src/erlmud_handler_item_look.erl
+src/handlers/gershmud_handler_item_look.erl
 attempt({#parents{}, Props, Msg = {Source, look, TargetName}}) when Source =/= self(), is_binary(TargetName) ->
 NewMessage = {Source, look, self()},
 attempt({#parents{}, Props, {Source, look, Self}}) when Self == self() ->
@@ -250,17 +229,17 @@ succeed({Props, _}) ->
 attempt(Source, {Source, describe, self(), with, NewContext});describe(Source, Props, Context, shallow) ->
 attempt(Source, {send, Source, [<<Context/binary>>, Description]}).description(Props) when is_list(Props) ->
 
-src/erlmud_handler_life_attack.erl
+src/handlers/gershmud_handler_life_attack.erl
 attempt({#parents{owner = Owner}, Props, Msg = {Source, killed, Owner, with, _AttackVector}}) ->
 attempt({#parents{owner = Owner}, Props, Msg = {Owner, die}}) ->
 attempt({#parents{owner = Owner}, Props, Msg = {Attacker, calc, Hit, on, Owner, with, AttackVector}}) ->
-attempt({#parents{owner = Owner}, Props, Msg = {Attacker, calc, Damage, to, Owner, with, AttackVector}}) ->
+attempt({#parents{owner = Owner}, Props, Msg = {Attacker, calc, Types, damage, Damage, to, Owner, with, AttackVector}}) ->
 attempt(_) ->
 succeed({Props, {Source, killed, Owner, with, AttackVector}}) ->
 attempt(self(), {Owner, die}), Props;succeed({Props, {Owner, die}}) ->
 succeed({Props, _Msg}) ->
 
-src/erlmud_handler_resource_inject_self.erl
+src/handlers/gershmud_handler_resource_inject_self.erl
 attempt({#parents{owner = Owner}, Props, {Owner, reserve, Amt, 'of', ResourceType, for, AttackVector}}) when is_atom(ResourceType) ->
 NewMessage = {Owner, reserve, Amt, 'of', self(), for, AttackVector},
 attempt({#parents{owner = Owner}, Props, {Owner, unreserve, ResourceType, for, AttackVector}}) when is_atom(ResourceType) ->
@@ -268,7 +247,7 @@ NewMessage = {Owner, unreserve, self(), for, AttackVector},
 attempt(_) ->
 succeed({Props, _}) ->
 
-src/erlmud_handler_resource_reserve.erl
+src/handlers/gershmud_handler_resource_reserve.erl
 attempt({#parents{owner = Owner}, Props, {Owner, reserve, Amount, 'of', Self, for, Proc}}) when Self == self() ->
 attempt({#parents{owner = Owner}, Props, {Owner, unreserve, Self, for, Proc}}) when Self == self() ->
 attempt({#parents{}, Props, {Self, update_tick}}) when Self == self() ->
@@ -278,27 +257,27 @@ succeed({Props, {Character, unreserve, Self, for, Proc}}) when Self == self() ->
 succeed({Props, _}) ->
 attempt(Self, {Self, tick, Ref, with, PerTick}), [{tick, Ref} | Props]; {[], _} ->
 
-src/erlmud_handler_resource_tick.erl
+src/handlers/gershmud_handler_resource_tick.erl
 attempt({#parents{}, Props, {Self, tick, Ref, with, Count}}) when Self == self() ->
 attempt(_) ->
 succeed({Props, {Self, tick, Ref, with, Count}}) when Self == self() ->
 succeed({Props, _}) ->
-attempt(Proc, {allocate, Required, 'of', Type, to, Proc}), RotatedReservations = Reservations ++ [{Proc, Required}], allocate(Type, RotatedReservations, Available - Required);allocate(_, Reservations, Available) ->
+attempt(Proc, {self(), allocate, Required, 'of', Type, to, Proc}), RotatedReservations = Reservations ++ [{Proc, Required}], allocate(Type, RotatedReservations, Available - Required);allocate(_, Reservations, Available) ->
 
-src/erlmud_handler_room_inject_self.erl
+src/handlers/gershmud_handler_room_inject_self.erl
 attempt({_Parents,% Props,% {Char, enter_world, in, Room, with, Conn}})% when is_binary(Room) ->
 NewMessage = {Char, enter_world, in, self(), with, Conn},
 attempt(_) ->
 succeed({Props, _}) ->
 
-src/erlmud_handler_room_inv.erl
+src/handlers/gershmud_handler_room_inv.erl
 attempt({_Owner, Props, {Item, move, from, Source, to, Target}}) when Source == self(); Target == self() ->
 attempt(_Attempt) ->
 succeed({Props, {Item, move, from, Self, to, Target}}) when Self == self() ->
 succeed({Props, {Item, move, from, Target, to, Self}}) when Self == self() ->
 succeed({Props, _}) ->
 
-src/erlmud_handler_room_look.erl
+src/handlers/gershmud_handler_room_look.erl
 attempt({_Owner, Props, {_Source, look, Self}}) when Self == self() ->
 attempt(_) ->
 succeed({Props, {Player, look, Self}}) when Self == self() ->
@@ -306,7 +285,7 @@ NewMessage = {Player, describe, self(), with, RoomContext},
 attempt(Player, NewMessage), {Props, Log};succeed({Props, _}) ->
 attempt(Source, {send, Source, Description}).description(Props) when is_list(Props) ->
 
-src/erlmud_handler_room_move.erl
+src/handlers/gershmud_handler_room_move.erl
 attempt({_Owner, Props, {Char, move, from, Source, to, Target, via, Exit}}) when Source == self(); Target == self() ->
 attempt({_Owner, Props, {Char, enter_world, in, Self, with, Conn}}) when Self == self() ->
 attempt(_) ->
@@ -315,7 +294,7 @@ succeed({Props, {Char, move, from, Source, to, Self, via, Exit}}) when Self == s
 attempt(Self, {Char, look, Self}), Props2 = [{character, Char} | Props], {Props2, Log};succeed({Props, {Char, enter_world, in, Self, with, Conn}}) when Self == self() ->
 attempt(Self, {Char, look, Self}), Props2 = [{character, Char} | Props], {Props2, Log};succeed({Props, _}) ->
 
-src/erlmud_handler_set_child_property.erl
+src/handlers/gershmud_handler_set_child_property.erl
 attempt({#parents{owner = Owner}, Props, {Owner, set_child_property, Key, Value}}) ->
 NewMessage = {self(), set_child_property, Key, Value},
 attempt({#parents{owner = Owner}, Props, {Owner, set_child_properties, ParentProps}}) ->
@@ -328,32 +307,54 @@ attempt({_, Props, {_, set_child_property, _, _}}) ->
 attempt(_) ->
 succeed({Props, _Msg}) ->
 
-src/erlmud_handler_spell_attack.erl
-attempt({#parents{character = Character}, Props, {Character, attack, Target}}) ->
+src/handlers/gershmud_handler_spell_attack.erl
+attempt({#parents{character = Character}, Props, {Attacker, attack, Target}}) when Attacker == Character ->
+attempt({#parents{character = Character}, Props, {Character, counter_attack, Target}}) ->
 attempt({#parents{character = Character}, Props, {Character, attack, Target, with, Self}}) when Self == self() ->
-attempt({#parents{}, Props, {Character, calc, Hit, on, Target, with, Self}}) when Self == self() ->
-attempt({#parents{}, Props, {Character, calc, Damage, to, Target, with, Self}}) when Self == self() ->
-attempt({#parents{}, Props, {Character, does, Damage, to, Target, with, Self}}) when Self == self(), is_pid(Target) ->
-attempt({#parents{character = Character}, Props, {Character, stop_attacking, Target}}) ->
-attempt(_) ->
-succeed({Props, {Character, attack, Target}}) when is_pid(Target) ->
-attempt(self(), {Character, attack, Target, with, self()}), {Props, Log};%% An attack by our character has been successfully instigated using this process:%% we'll register for resources and implement the attack when we have them.succeed({Props, {Character, attack, Target, with, _Self}}) ->
-succeed({Props, {Character, calc, Hit, on, Target, with, Self}}) when is_pid(Target), Self == self(), Hit > 0 ->
-attempt(self(), {Character, calc, _InitialDamage = 0, to, Target, with, Self}), {Props, Log};succeed({Props, {Character, calc, Miss, on, Target, with, Self}}) when is_pid(Target), Self == self() ->
-succeed({Props, {Character, calc, Damage, to, Target, with, Self}}) when Self == self(), Damage > 0 ->
-attempt(self(), {Character, does, Damage, to, Target, with, Self}), {Props, Log};succeed({Props, {Character, calc, NoDamage, to, Target, with, Self}}) when Self == self() ->
+attempt({#parents{}, Props, {Resource, allocate, Required, 'of', Type, to, Self}}) when Self == self() ->
+attempt({#parents{}, Props, {Attacker, killed, Target, with, AttackVector}}) ->
+attempt({#parents{character = Character}, Props, {Character, stop_attack}}) ->
+attempt({#parents{character = Character}, Props, {die, Character}}) ->
+attempt({_, _, _Msg}) ->
+succeed({Props, {Attacker, killed, Target, with, AttackVector}}) ->
+succeed({Props, {Attacker, attack, Target}}) when is_pid(Target) ->
+attempt(self(), {Attacker, attack, Target, with, self()}); _ ->
+succeed({Props, {Attacker, counter_attack, Target}}) when is_pid(Target) ->
+attempt(self(), {Attacker, attack, Target, with, self()}); % So if something is _counter_ attacking us, then we fire up % an attack? Why would it counter attack if we weren't already attacking? {Target, false} -> gershmud_object:attempt(Character, {Character, attack, Attacker}); _ ->
+succeed({Props, {Character, attack, Target, with, Self}}) ->
+succeed({Props, {Resource, allocate, Amt, 'of', Type, to, Self}}) when Self == self() ->
+succeed({Props, {Character, calc, Types, cast, Success, on, Target, with, Self}}) when is_pid(Target), Self == self(), Success > 0 ->
+attempt(self(), {Effect, affect, Target}), {Props, Log};succeed({Props, {Character, calc, Types, cast, Miss, on, Target, with, Self}}) when is_pid(Target), Self == self() ->
+succeed({Props, {Character, calc, Types, damage, Damage, to, Target, with, Self}}) when Self == self(), Damage > 0 ->
+attempt(self(), {Character, does, Types, damage, Damage, to, Target, with, Self}), Props;succeed({Props, {Character, calc, Types, damage, NoDamage, to, Target, with, Self}}) when Self == self() ->
 succeed({Props, {Character, stop_attack}}) ->
-succeed({Props, Msg}) ->
-attempt(self(), {self(), stop_attack}), {Props, Log};fail({Props, _Reason, _Message}) ->
+succeed({Props, {Character, die}}) ->
+succeed({Props, _}) ->
+attempt(self(), Message).calc_success(Props, Types) ->
+attempt(self(), {Character, unreserve, Resource, for, self()}).reserve(Character, Props) when is_list(Props) ->
+attempt(self(), {Character, reserve, Amount, 'of', Resource, for, self()}).update_allocated(New, Type, Props) ->
 
-src/erlmud_handler_stat_look.erl
+src/handlers/gershmud_handler_spell_inject_self.erl
+attempt({#parents{character = Character}, Props, {Character, memorize, SpellName}}) when is_binary(SpellName) ->
+NewMessage = {Character, memorize, self()},
+attempt(_) ->
+succeed({Props, _}) ->
+
+src/handlers/gershmud_handler_spell_memorize.erl
+attempt({#parents{character = Character}, Props, {Character, memorize, Spell}}) when is_pid(Spell) ->
+attempt({#parents{owner = undefined}, Props, {Character, cast, Spell, at, Target}}) ->
+attempt({_, _, _Msg}) ->
+succeed({Props, {Character, memorize, Self}}) when Self == self() ->
+succeed({Props, _}) ->
+
+src/handlers/gershmud_handler_stat_look.erl
 attempt({#parents{owner = Owner}, Props, {Source, look, Owner, with, Context}}) ->
 attempt(_) ->
 succeed({Props, {Source, look, Target, with, Context}}) ->
 succeed({Props, _Msg}) ->
 attempt(Source, {send, Source, [<<Context/binary>>, Description]}).description(Props) when is_list(Props) ->
 
-src/erlmud_handler_subitem_attack.erl
+src/handlers/gershmud_handler_subitem_attack.erl
 attempt({#parents{top_item = TopItem}, Props, {Character, calc, Hit, on, Target, with, TopItem}}) ->
 attempt({#parents{top_item = TopItem}, Props, {Character, damage, Damage, to, Target, with, TopItem}}) ->
 attempt({#parents{character = Character}, Props, {Attacker, calc, Hit, on, Character, with, AttackVector}}) ->
@@ -362,7 +363,7 @@ attempt({_, _, _Msg}) ->
 succeed({Props, {Character, attack, Target}}) when is_pid(Target) ->
 attempt(self(), {Character, attack, Target, with, self()}), {Props, Log};succeed({Props, _}) ->
 
-src/erlmud_handler_test_connection_attack.erl
+src/handlers/gershmud_handler_test_connection_attack.erl
 attempt({#parents{owner = Owner}, Props, _Msg = {killed, Attack, Source, Owner}}) ->
 attempt({#parents{owner = Owner}, Props, _Msg = {die, Owner}}) ->
 attempt({#parents{owner = Owner}, Props, _Msg = {Action, Attack, Owner, Target, _}}) when Action == calc_hit; Action == calc_damage ->
@@ -377,3 +378,34 @@ attempt(_) ->
 succeed({Props, {killed, Attack, Source, Owner}}) ->
 attempt(self(), {die, Owner}), {Props, Log};succeed({Props, {die, Target}}) ->
 succeed({Props, _Msg}) ->
+
+src/handlers/gershmud_handler_vector_attack.erl
+attempt({#parents{character = Character}, Props, {Attacker, attack, Target}}) when Attacker == Character ->
+attempt({#parents{character = Character}, Props, {Character, counter_attack, Target}}) ->
+attempt({#parents{character = Character}, Props, {Character, attack, Target, with, Self}}) when Self == self() ->
+attempt({#parents{}, Props, {Resource, allocate, Required, 'of', Type, to, Self}}) when Self == self() ->
+attempt({#parents{}, Props, {Attacker, killed, Target, with, AttackVector}}) ->
+attempt({#parents{character = Character}, Props, {Attacker, calc, Types, hit, Hit, on, Character, with, AttackVector}}) ->
+attempt({#parents{character = Character}, Props, {Attacker, calc, Types, damage, Damage, to, Character, with, AttackVector}}) ->
+attempt({#parents{character = Character}, Props, {Character, stop_attack}}) ->
+attempt({#parents{character = Character}, Props, {die, Character}}) ->
+attempt({_, _, _Msg}) ->
+succeed({Props, {Attacker, killed, Target, with, AttackVector}}) ->
+succeed({Props, {Attacker, attack, Target}}) when is_pid(Target) ->
+attempt(self(), {Attacker, attack, Target, with, self()}); {Target, false} ->
+attempt(Character, {Character, attack, Attacker}); _ ->
+succeed({Props, {Attacker, counter_attack, Target}}) when is_pid(Target) ->
+attempt(self(), {Attacker, attack, Target, with, self()}); {Target, false} ->
+attempt(Character, {Character, attack, Attacker}); _ ->
+succeed({Props, {Character, attack, Target, with, Self}}) ->
+succeed({Props, {Resource, allocate, Amt, 'of', Type, to, Self}}) when Self == self() ->
+succeed({Props, {Character, calc, Types, hit, Hit, on, Target, with, Self}}) when is_pid(Target), Self == self(), Hit > 0 ->
+attempt(self(), {Character, calc, Types, damage, Damage, to, Target, with, Self}), {Props, Log};succeed({Props, {Character, calc, Types, hit, Miss, on, Target, with, Self}}) when is_pid(Target), Self == self() ->
+succeed({Props, {Character, calc, Types, damage, Damage, to, Target, with, Self}}) when Self == self(), Damage > 0 ->
+attempt(self(), {Character, does, Types, damage, Damage, to, Target, with, Self}), Props;succeed({Props, {Character, calc, Types, damage, NoDamage, to, Target, with, Self}}) when Self == self() ->
+succeed({Props, {Character, stop_attack}}) ->
+succeed({Props, {Character, die}}) ->
+succeed({Props, _}) ->
+attempt(self(), Message).calc_hit(Props, Types) ->
+attempt(self(), {Character, unreserve, Resource, for, self()}).reserve(Character, Props) when is_list(Props) ->
+attempt(self(), {Character, reserve, Amount, 'of', Resource, for, self()}).update_allocated(New, Type, Props) ->

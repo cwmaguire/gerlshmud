@@ -1,4 +1,4 @@
-%% This world is used when trying out erlmud from the console.
+%% This world is used when trying out gerlshmud from the console.
 
 %%  Create rooms on a grid named after their X,Y coordinate
 %%  positions

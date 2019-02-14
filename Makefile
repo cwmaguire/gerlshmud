@@ -1,6 +1,6 @@
-PROJECT = erlmud
+PROJECT = gerlshmud
 DEPS = cowboy jsx lists lager
-COMPILE_FIRST = erlmud_object erlmud_handler
+COMPILE_FIRST = gerlshmud_object gerlshmud_handler
 
 dep_lists = git https://github.com/cwmaguire/lists master
 
@@ -14,7 +14,7 @@ ERLC_OPTS = -Werror \
 						+warn_shadow_vars \
 						+warn_obsolete_guard \
 						+'{parse_transform, lager_transform}'
-						#+'{parse_transform, erlmud_log_transform}'
+						#+'{parse_transform, gerlshmud_log_transform}'
 						#+native ##\
 
 ## copied from erlang.mk and added lager parse transform
@@ -23,6 +23,6 @@ TEST_ERLC_OPTS = +debug_info \
                  +warn_shadow_vars \
 								 +warn_obsolete_guard \
 								 +'{parse_transform, lager_transform}'
-								 #+'{parse_transform, erlmud_log_transform}'
+								 #+'{parse_transform, gerlshmud_log_transform}'
 
 include erlang.mk

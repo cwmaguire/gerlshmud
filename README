@@ -1,8 +1,4 @@
-A MUD in Erlang.
-
-(I need to change the name as it conflicts with a prior Erlang MUD
-by zxq9: https://github.com/zxq9/erlmud. I'm thinking maybe gerlshmud for
-"Graph of ERLang Stream Handlers MUD")
+G.Erl.S.H.M.U.D - Graph of ERLang Stream Handlers Multi-User Dungeon
 
 How it Works (short version):
 All MUD elements (rooms, characters, attributes, weapons, spells) are
