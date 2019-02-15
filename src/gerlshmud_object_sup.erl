@@ -20,6 +20,8 @@
 start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
+% TODO check if I can use one_for_one and add child specs on the fly.
+% That way they'd be restarted if they died.
 init([]) ->
     Procs = [{object,
               {gerlshmud_object, start_link, []},

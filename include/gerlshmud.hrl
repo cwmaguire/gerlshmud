@@ -21,6 +21,9 @@
                     type :: atom(),
                     ref :: reference()}).
 
+-record(object, {id :: string(),
+                 properties :: list()}).
+
 -define(EVENT, event_type).
 -define(SOURCE, event_source).
 -define(TARGET, event_target).

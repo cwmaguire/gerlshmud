@@ -21,6 +21,7 @@
 -define(NO_OPTIONS, []).
 
 start(_Type, _Args) ->
+    setup_and_or_start_mnesia(),
     Port = case application:get_env(gerlshmud, port) of
                {ok, EnvPort} ->
                    EnvPort;
@@ -38,3 +39,18 @@ start(_Type, _Args) ->
 
 stop(_State) ->
 	ok.
+
+setup_and_or_start_mnesia() ->
+    case mnesia:system_info(use_dir) of
+        true ->
+            mnesia:start();
+        false ->
+            setup_mnesia_schema()
+    end.
+
+setup_mnesia_schema() ->
+    ok = mnesia:create_schema([node()]),
+    ok = mnesia:start(),
+    {atomic, ok} =
+    mnesia:create_table(object,
+                        [{attributes, record_info(fields, employee)}]).

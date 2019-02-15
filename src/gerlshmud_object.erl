@@ -51,20 +51,23 @@
 %% API.
 
 -spec start_link(any(), proplist()) -> {ok, pid()}.
-start_link(Id, Props) ->
-    %ct:pal("gerlshmud_obj:start_link(~p, ~p, ~p)~n", [Id, Type, Props]),
-    {ok, Pid} = gen_server:start_link(?MODULE, Props, []),
-    Id2 = id(Id, Pid, Props),
+start_link(MaybeId, Props) ->
+    crypto:rand_seed(),
+    Id = id(MaybeId),
+
+    mnesia_write(Id, Props),
+
+    {ok, Pid} = gen_server:start_link(?MODULE, [{id, Id} | Props], []),
+
     gerlshmud_index:put(Pid, {id, Id2}),
+
     Icon = proplists:get_value(icon, Props),
     gerlshmud_index:put(Pid, {icon, Icon}),
+
     {ok, Pid}.
 
-id(_Id = undefined, Pid, Props) ->
-    PidString = pid_to_list(Pid)
-                ++ "_"
-                ++ binary_to_list(proplists:get_value(name, Props, <<"no_name">>)),
-    list_to_atom(PidString);
+id(_Id = undefined) ->
+    binary_to_list(crypto:strong_rand_bytes(20));
 id(Id, _, _) ->
     Id.
 
@@ -504,6 +507,10 @@ prop(Prop, Props, Fun, Default) ->
         _ ->
             Default
     end.
+
+mnesia_write(Id, Props) ->
+    % TODO write all properties with {Id, PID} as just {Key, Id}
+    ok.
 
 log(Props0) ->
     Props = gerlshmud_event_log:flatten(Props0),

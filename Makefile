@@ -9,6 +9,7 @@ dep_lists = git https://github.com/cwmaguire/lists master
 ## to ~400ms.
 ## Also added lager parse transform
 ERLC_OPTS = -Werror \
+						-mnesia dir '"mnesia"' \
 						+debug_info \
 						+warn_export_vars \
 						+warn_shadow_vars \
