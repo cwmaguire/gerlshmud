@@ -132,23 +132,27 @@ handle_cast_({populate, ProcIds}, State = #state{props = Props}) ->
          {?EVENT, populate},
          {source, self()} |
          Props]),
+    mnesia_write(Props),
     {noreply, State#state{props = populate_(Props, ProcIds)}};
 handle_cast_({set, Prop = {K, _}}, State = #state{props = Props}) ->
     {noreply, State#state{props = lists:keystore(K, 1, Props, Prop)}};
 handle_cast_({attempt, Msg, Procs}, State = #state{props = Props}) ->
     IsExit = proplists:get_value(is_exit, Props, false),
-    {noreply, maybe_attempt(Msg, Procs, IsExit, State)};
+    NewState = #state{props = Props} = maybe_attempt(Msg, Procs, IsExit, State),
+    mnesia_write(Props),
+    {noreply, NewState};
 handle_cast_({fail, Reason, Msg}, State) ->
     case fail(Reason, Msg, State) of
         {stop, Props, LogProps} ->
             {_, ParentsList} = parents(Props),
-            %% TODO: remove from index
+            mnesia_write(Props),
             log([{stage, fail_stop},
                  {object, self()},
                  {owner, proplists:get_value(owner, Props)},
                  {message, Msg},
                  {stop_reason, Reason} |
                  Props ++ ParentsList ++ LogProps]),
+            mnesia_write(Props),
             {stop, {shutdown, Reason}, State#state{props = Props}};
         {Props, _, _, LogProps} ->
             {_, ParentsList} = parents(Props),
@@ -157,6 +161,7 @@ handle_cast_({fail, Reason, Msg}, State) ->
                  {message, Msg},
                  {stop_reason, Reason} |
                  Props ++ ParentsList ++ LogProps]),
+            mnesia_write(Props),
             {noreply, State#state{props = Props}}
     end;
 handle_cast_({succeed, Msg}, State) ->
@@ -168,6 +173,7 @@ handle_cast_({succeed, Msg}, State) ->
                  {message, Msg},
                  {stop_reason, Reason} |
                  Props ++ ParentsList ++ LogProps]),
+            mnesia_write(Props),
             {stop, {shutdown, Reason}, State#state{props = Props}};
         {Props, LogProps} ->
             {_, ParentsList} = parents(Props),
@@ -175,6 +181,7 @@ handle_cast_({succeed, Msg}, State) ->
                  {object, self()},
                  {message, Msg} |
                  Props ++ ParentsList ++ LogProps]),
+            mnesia_write(Props),
             {noreply, State#state{props = Props}}
     end.
 
@@ -186,6 +193,7 @@ handle_info({'EXIT', From, Reason}, State = #state{props = Props}) ->
          {reason, Reason} |
          Props ++ ParentsList]),
     Props2 = lists:keydelete(From, 2, Props),
+    mnesia_write(Props),
     {noreply, State#state{props = Props2}};
 handle_info({Pid, Msg}, State) ->
     attempt(Pid, Msg),
@@ -387,7 +395,7 @@ proc(MaybeId, IdPids) when is_atom(MaybeId) ->
     MaybePid = proplists:get_value(MaybeId, IdPids, MaybeId),
     case is_pid(MaybePid) of
         true ->
-            log([{?EVENT, link}, {target, MaybePid}]),
+            log([{?EVENT, link}, {source, self()}, {target, MaybePid}]),
             link(MaybePid);
         false ->
             ok
@@ -508,9 +516,23 @@ prop(Prop, Props, Fun, Default) ->
             Default
     end.
 
-mnesia_write(Id, Props) ->
-    % TODO write all properties with {Id, PID} as just {Key, Id}
-    ok.
+mnesia_write(Props) ->
+    Props2 = lists:foldl(fun pid2id/2, [], Props),
+    Id = proplists:get_value(id, Props),
+    Fun =
+    fun() ->
+        mnesia:write(#object{id = Id, properties = Props})
+    end,
+    mnesia:transaction(Fun).
+
+pid2id({K, {Pid, BodyPart}}, Props) when is_pid(Pid) ->
+    Id = erlmud_index:get_id(Pid),
+    [{K, {Id, BodyPart}} | Props];
+pid2id({K, Pid}, Props) when is_pid(Pid) ->
+    Id = erlmud_index:get_id(Pid),
+    [{K, Id} | Props];
+pid2id(KV, Props) ->
+    [KV | Props].
 
 log(Props0) ->
     Props = gerlshmud_event_log:flatten(Props0),
