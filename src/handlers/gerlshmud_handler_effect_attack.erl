@@ -30,20 +30,22 @@ attempt({_Parents,
 
 attempt({_Parents,
          Props,
-         {Character, calc, Types, affect, Success, on, Target, with, Self}})
+         {_Character, calc, Types, affect, _Success, on, Target, with, Self}})
   when Self == self() ->
     Log = [{?SOURCE, Self},
            {?EVENT, calc_affect},
-           {?TARGET, Target}],
+           {?TARGET, Target},
+           {types, Types}],
     {succeed, true, Props, Log};
 
 attempt({_Parents,
          Props,
-         {Character, calc, Types, damage, Damage, to, Target, with, Self}})
+         {_Character, calc, Types, damage, _Damage, to, Target, with, Self}})
   when Self == self() ->
     Log = [{?SOURCE, Self},
            {?EVENT, calc_damage},
-           {?TARGET, Target}],
+           {?TARGET, Target},
+           {types, Types}],
     {succeed, true, Props, Log};
 
 attempt({_, _, _Msg}) ->

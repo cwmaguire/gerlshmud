@@ -28,7 +28,8 @@ attempt({#parents{owner = Owner},
            {?SOURCE, Character},
            {?TARGET, Owner},
            {damage, Damage},
-           {vector, AttackVector}],
+           {vector, AttackVector},
+           {types, Types}],
     {succeed, true, Props, Log};
 attempt(_) ->
     undefined.
@@ -38,7 +39,8 @@ succeed({Props, _Msg = {Attacker, does, Types, damage, Damage, to, Owner, with, 
            {?TARGET, Owner},
            {from, Attacker},
            {damage, Damage},
-           {vector, AttackVector}],
+           {vector, AttackVector},
+           {types, Types}],
     {Props2, Log2} = take_damage(Attacker, Owner, Damage, AttackVector, Props),
     {Props2, Log2 ++ Log};
 succeed({Props, _Msg}) ->
