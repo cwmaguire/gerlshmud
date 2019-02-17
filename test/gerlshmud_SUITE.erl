@@ -48,6 +48,7 @@ init_per_testcase(_, Config) ->
     application:load(gerlshmud),
     application:set_env(gerlshmud, port, Port),
     {ok, _Started} = application:ensure_all_started(gerlshmud),
+    {atomic, ok} = mnesia:clear_table(object),
     {ok, _Pid} = gerlshmud_test_socket:start(),
     TestObject = spawn_link(fun mock_object/0),
     gerlshmud_index:put(TestObject, {id, test_object}),
@@ -606,6 +607,9 @@ counterattack_with_spell(Config) ->
     false = val(is_alive, g_life),
     true = 1000 > val(hitpoints, p_hp),
     true = val(is_alive, p_life),
+    %F = fun() -> mnesia:select(object, [{'$1', [], ['$_']}]) end,
+    %Result = mnesia:transaction(F),
+    %ct:pal("Mnesia query:~n~p~n", [Result]),
     ok.
 
 cast_spell(Config) ->

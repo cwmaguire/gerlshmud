@@ -55,11 +55,11 @@ start_link(MaybeId, Props) ->
     crypto:rand_seed(),
     Id = id(MaybeId),
 
-    mnesia_write(Id, Props),
+    mnesia_write(Props),
 
     {ok, Pid} = gen_server:start_link(?MODULE, [{id, Id} | Props], []),
 
-    gerlshmud_index:put(Pid, {id, Id2}),
+    gerlshmud_index:put(Pid, {id, Id}),
 
     Icon = proplists:get_value(icon, Props),
     gerlshmud_index:put(Pid, {icon, Icon}),
@@ -68,7 +68,7 @@ start_link(MaybeId, Props) ->
 
 id(_Id = undefined) ->
     binary_to_list(crypto:strong_rand_bytes(20));
-id(Id, _, _) ->
+id(Id) ->
     Id.
 
 populate(Pid, ProcIds) ->
@@ -521,15 +521,15 @@ mnesia_write(Props) ->
     Id = proplists:get_value(id, Props),
     Fun =
     fun() ->
-        mnesia:write(#object{id = Id, properties = Props})
+        mnesia:write(#object{id = Id, properties = Props2})
     end,
     mnesia:transaction(Fun).
 
 pid2id({K, {Pid, BodyPart}}, Props) when is_pid(Pid) ->
-    Id = erlmud_index:get_id(Pid),
+    Id = gershlmud_index:get_id(Pid),
     [{K, {Id, BodyPart}} | Props];
 pid2id({K, Pid}, Props) when is_pid(Pid) ->
-    Id = erlmud_index:get_id(Pid),
+    Id = gerlshmud_index:get_id(Pid),
     [{K, Id} | Props];
 pid2id(KV, Props) ->
     [KV | Props].

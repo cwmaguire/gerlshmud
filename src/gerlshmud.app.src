@@ -9,6 +9,7 @@
     stdlib,
     runtime_tools,
     %sasl,
+    %mnesia,
     cowboy,
     jsx,
     lager

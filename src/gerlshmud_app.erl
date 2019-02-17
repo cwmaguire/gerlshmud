@@ -14,6 +14,8 @@
 -module(gerlshmud_app).
 -behaviour(application).
 
+-include("include/gerlshmud.hrl").
+
 -export([start/2]).
 -export([stop/1]).
 
@@ -41,16 +43,27 @@ stop(_State) ->
 	ok.
 
 setup_and_or_start_mnesia() ->
+    case application:get_env(mnesia, dir) of
+        undefined ->
+            io:format("Mnesia dir not defined in mnesia application~n", []);
+        {ok, Value} ->
+            io:format("Mnesia dir ~p~n", [Value])
+    end,
     case mnesia:system_info(use_dir) of
         true ->
+            io:format("Mnesia schema already exists~n"),
             mnesia:start();
         false ->
+            io:format("Mnesia schema doesn\'t exists~n"),
             setup_mnesia_schema()
     end.
 
 setup_mnesia_schema() ->
     ok = mnesia:create_schema([node()]),
+    io:format("Mnesia schema created~n"),
     ok = mnesia:start(),
+    io:format("Mnesia started~n"),
     {atomic, ok} =
     mnesia:create_table(object,
-                        [{attributes, record_info(fields, employee)}]).
+                        [{attributes, record_info(fields, object)}]),
+    io:format("Mnesia table 'object' created~n").
