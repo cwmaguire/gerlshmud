@@ -34,7 +34,7 @@
 -export([code_change/3]).
 
 -record(entry, {pid :: pid(),
-                id :: atom(),
+                id :: term(),
                 icon :: atom()}).
 -record(state, {index = [] :: list(#entry{})}).
 
@@ -45,8 +45,10 @@ start_link() ->
 
 put(undefined, _) ->
     ok;
-put(Pid, Prop = {Key, Value})
-  when is_pid(Pid), is_atom(Key), is_atom(Value) ->
+put(Id, Pid) when is_pid(Pid) ->
+    gen_server:cast(gerlshmud_index, {update_pid, Id, Pid});
+put(Pid, Prop = {Key, _})
+  when is_pid(Pid), is_atom(Key) ->
     gen_server:cast(gerlshmud_index, {put, Pid, Prop}).
 
 get(Pid) when is_pid(Pid) ->
@@ -93,13 +95,23 @@ handle_call(_Request, _From, State) ->
 
 handle_cast({put, Pid, {K, V}}, State = #state{index = Index}) ->
     Index2 =
-    case lists:keyfind(Pid, 2, Index) of
-        false ->
-            [entry(Pid, K, V) | Index];
-        Record ->
-            Entry = update_entry(Record, K, V),
-            lists:keyreplace(Pid, 2, Index, Entry)
-    end,
+        case lists:keyfind(Pid, #entry.pid, Index) of
+            false ->
+                [entry(Pid, K, V) | Index];
+            Record ->
+                Entry = update_entry(Record, K, V),
+                lists:keyreplace(Pid, #entry.pid, Index, Entry)
+        end,
+    {noreply, State#state{index = Index2}};
+handle_cast({update_pid, Id, Pid}, State = #state{index = Index}) ->
+    Index2 =
+        case lists:keyfind(Pid, #entry.id, Index) of
+            false ->
+                [entry(Pid, id, Id) | Index];
+            Record ->
+                Entry = update_entry(Record, pid, Pid),
+                lists:keyreplace(Id, #entry.id, Index, Entry)
+        end,
     {noreply, State#state{index = Index2}};
 handle_cast({del, Pid}, State = #state{index = Index}) ->
     {noreply, State#state{index = lists:keydelete(Pid, 2, Index)}};
@@ -120,6 +132,8 @@ entry(Pid, id, Id) ->
 entry(Pid, icon, Icon) ->
     #entry{pid = Pid, icon = Icon}.
 
+update_entry(Entry, pid, Pid) ->
+    Entry#entry{pid = Pid};
 update_entry(Entry, id, Id) ->
     Entry#entry{id = Id};
 update_entry(Entry, icon, Icon) ->

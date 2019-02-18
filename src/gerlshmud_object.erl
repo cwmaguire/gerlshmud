@@ -51,15 +51,30 @@
 %% API.
 
 -spec start_link(any(), proplist()) -> {ok, pid()}.
-start_link(MaybeId, Props) ->
+start_link(MaybeId, OriginalProps) ->
     crypto:rand_seed(),
     Id = id(MaybeId),
 
-    mnesia_write(Props),
+    % See if we have any Mnesia props yet.
+    % If we do, grab them.
+    % If we don't, start with the original defaults.
+    % (supervisor will keep restarting us with the original props)
+    Fun =
+    fun() ->
+        case mnesia:read(object, Id) of
+            [] ->
+                mnesia_write(OriginalProps),
+                OriginalProps;
+            MProps ->
+                MProps
+        end
+    end,
+
+    {atomic, Props} = mnesia:transaction(Fun),
 
     {ok, Pid} = gen_server:start_link(?MODULE, [{id, Id} | Props], []),
 
-    gerlshmud_index:put(Pid, {id, Id}),
+    gerlshmud_index:put(Id, Pid),
 
     Icon = proplists:get_value(icon, Props),
     gerlshmud_index:put(Pid, {icon, Icon}),
@@ -113,6 +128,12 @@ has_pid(Props, Pid) ->
 %% gen_server.
 
 init(Props) ->
+    case proplists:get_value(id, Props) of
+        player ->
+            io:format("~p started with props:~n~p~n", [self(), Props]);
+        _ ->
+            ok
+    end,
     process_flag(trap_exit, true),
     {ok, #state{props = Props}}.
 
@@ -526,7 +547,7 @@ mnesia_write(Props) ->
     mnesia:transaction(Fun).
 
 pid2id({K, {Pid, BodyPart}}, Props) when is_pid(Pid) ->
-    Id = gershlmud_index:get_id(Pid),
+    Id = gerlshmud_index:get_id(Pid),
     [{K, {Id, BodyPart}} | Props];
 pid2id({K, Pid}, Props) when is_pid(Pid) ->
     Id = gerlshmud_index:get_id(Pid),

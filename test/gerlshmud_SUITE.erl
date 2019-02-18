@@ -9,7 +9,7 @@
 
 % TODO test updating a skill when a target is killed with a weapon (or when damage is dealt, or both)
 
-all() -> [counterattack_with_spell].
+all() -> [revive_process].
 %all() ->
     %[player_move,
      %player_move_fail,
@@ -634,6 +634,40 @@ cast_spell(Config) ->
     10 = val(hitpoints, p_hp),
     true = val(is_alive, p_life),
     false = val(is_alive, g_life).
+
+revive_process(Config) ->
+    start(?WORLD_3),
+    PlayerV1 = gerlshmud_index:get_pid(player),
+    ct:pal("~p: PlayerV1~n\t~p~n", [?MODULE, PlayerV1]),
+    Room = val(owner, player),
+    true = is_pid(Room),
+    HP = val(hitpoints, player),
+    true = is_pid(HP),
+    Life = val(life, player),
+    true = is_pid(Life),
+    Dex = val(attribute, player),
+    true = is_pid(Dex),
+    Stamina = val(resource, player),
+    true = is_pid(Stamina),
+    Hand = val(body_part, player),
+    true = is_pid(Hand),
+    exit(PlayerV1, kill),
+    ?WAIT100,
+    PlayerV2 = gerlshmud_index:get_pid(player),
+    ct:pal("~p: PlayerV2~n\t~p~n", [?MODULE, PlayerV2]),
+    false = PlayerV1 == PlayerV2,
+    Room = val(owner, player),
+    true = is_pid(Room),
+    HP = val(hitpoints, player),
+    true = is_pid(HP),
+    Life = val(life, player),
+    true = is_pid(Life),
+    Dex = val(attribute, player),
+    true = is_pid(Dex),
+    Stamina = val(resource, player),
+    true = is_pid(Stamina),
+    Hand = val(body_part, player),
+    true = is_pid(Hand).
 
 log(_Config) ->
     {ok, Cwd} = file:get_cwd(),
