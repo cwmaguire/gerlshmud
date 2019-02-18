@@ -637,8 +637,10 @@ cast_spell(Config) ->
 
 revive_process(Config) ->
     start(?WORLD_3),
+
     PlayerV1 = gerlshmud_index:get_pid(player),
     ct:pal("~p: PlayerV1~n\t~p~n", [?MODULE, PlayerV1]),
+
     Room = val(owner, player),
     true = is_pid(Room),
     HP = val(hitpoints, player),
@@ -651,11 +653,14 @@ revive_process(Config) ->
     true = is_pid(Stamina),
     Hand = val(body_part, player),
     true = is_pid(Hand),
+
     exit(PlayerV1, kill),
     ?WAIT100,
+
     PlayerV2 = gerlshmud_index:get_pid(player),
     ct:pal("~p: PlayerV2~n\t~p~n", [?MODULE, PlayerV2]),
     false = PlayerV1 == PlayerV2,
+
     Room = val(owner, player),
     true = is_pid(Room),
     HP = val(hitpoints, player),
