@@ -83,7 +83,7 @@
                        %% instead of just an attribute?
                        %% It might not matter what the index of the property
                        %% is if we don't look them up by index
-                       {stamina, p_stamina},
+                       {resource, p_stamina},
                        {body_part, p_hand},
                        {icon, person},
                        ?CHARACTER_HANDLERS]},
