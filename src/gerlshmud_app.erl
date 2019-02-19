@@ -64,6 +64,17 @@ setup_mnesia_schema() ->
     ok = mnesia:start(),
     io:format("Mnesia started~n"),
     {atomic, ok} =
-    mnesia:create_table(object,
-                        [{attributes, record_info(fields, object)}]),
+        mnesia:create_table(object,
+                            [{attributes,
+                              record_info(fields, object)}]),
+    % TODO add index on PID column so we can use index_read when
+    % searching by PID
+    {atomic, ok} =
+        mnesia:create_table(object,
+                            [{attributes,
+                              record_info(fields, dead_pid_subscription)}]),
+    {atomic, ok} =
+        mnesia:create_table(object,
+                            [{attributes,
+                              record_info(fields, replacement_pid)}]),
     io:format("Mnesia table 'object' created~n").

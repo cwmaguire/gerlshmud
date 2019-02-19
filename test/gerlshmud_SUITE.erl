@@ -51,7 +51,7 @@ init_per_testcase(_, Config) ->
     {atomic, ok} = mnesia:clear_table(object),
     {ok, _Pid} = gerlshmud_test_socket:start(),
     TestObject = spawn_link(fun mock_object/0),
-    gerlshmud_index:put(TestObject, {id, test_object}),
+    gerlshmud_index:put(TestObject, [{id, test_object}]),
     [{test_object, TestObject} | Config].
 
 end_per_testcase(_, _Config) ->

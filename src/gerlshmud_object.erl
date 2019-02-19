@@ -209,9 +209,17 @@ handle_info({'EXIT', From, Reason}, State = #state{props = Props}) ->
          {source, From},
          {reason, Reason} |
          Props ++ ParentsList]),
-    Props2 = lists:keydelete(From, 2, Props),
+
+    gerlshmud_index:subscribe_dead(self(), Pid),
+    mark_pid_dead(From, Props),
     mnesia_write(Props),
     {noreply, State#state{props = Props2}};
+handle_info({replace_pid, OldPid, NewPid}, State = #state{props = Props})
+  when is_pid(OldPid), is_pid(NewPid) ->
+    Props2 = replace_pid(Props, OldPid, NewPid),
+    gerlshmud:unsubscribe_dead(self(), OldPid),
+    mnesia_write(Props2),
+    State#state{props = Props2};
 handle_info({Pid, Msg}, State) ->
     attempt(Pid, Msg),
     {noreply, State};
@@ -533,44 +541,29 @@ prop(Prop, Props, Fun, Default) ->
             Default
     end.
 
+mark_pid_dead(Pid, Props) when is_list(Props) ->
+    [mark_pid_dead(Pid, Prop) || Prop <- Props].
+
+mark_pid_dead(Pid, {K, Pid}) ->
+    {K, {dead, Pid}};
+mark_pid_dead(Pid, {K, {Pid, BodyPart}}) ->
+    {K, {{dead, Pid}, BodyPart}};
+mark_pid_dead(_, KV) ->
+    KV.
+
+replace_pid(Props, OldPid, NewPid) ->
+    [replace_pid(Prop, OldPid, NewPid) || Prop <- Props].
+
+replace_pid({K, {dead, OldPid}}, OldPid, NewPid) ->
+    {K, NewPid};
+replace_pid({K, {{dead, OldPid}, BodyPart}}, OldPid, NewPid)
+  where is_atom(BodyPart) ->
+    {K, {NewPid, BodyPart}};
+replace_pid(Prop, _, _) ->
+    Prop.
+
 mnesia_write(Props) ->
-    Props2 = [pid2id(Prop) || Prop <- Props],
-    Id = proplists:get_value(id, Props),
-    Fun =
-    fun() ->
-        mnesia:write(#object{id = Id, properties = Props2})
-    end,
-    mnesia:transaction(Fun).
-
-pid2id({K, {Pid, BodyPart}}) when is_pid(Pid) ->
-    Id = gerlshmud_index:get_id(Pid),
-    {K, {Id, BodyPart}};
-pid2id({K, Pid}) when is_pid(Pid) ->
-    Id = gerlshmud_index:get_id(Pid),
-    {K, Id};
-pid2id(KV) ->
-    KV.
-
-ids2pids(Props) ->
-    [id2pid(Prop) || Prop <- Props].
-
-id2pid({K, MaybeId}) when is_atom(MaybeId) ->
-    case gerlshmud_index:get_pid(MaybeId) of
-        undefined ->
-            {K, MaybeId};
-        Pid when is_pid(Pid) ->
-            {K, Pid}
-    end;
-id2pid({K, {MaybeId, BodyPart}})
-  when is_atom(MaybeId), is_atom(BodyPart) ->
-    case gerlshmud_index:get_pid(MaybeId) of
-        undefined ->
-            {K, {MaybeId, BodyPart}};
-        Pid when is_pid(Pid) ->
-            {K, {Pid, BodyPart}}
-    end;
-id2pid(KV) ->
-    KV.
+    gerlshmud_index:write(self(), Props).
 
 log(Props0) ->
     Props = gerlshmud_event_log:flatten(Props0),
