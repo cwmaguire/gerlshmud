@@ -2,6 +2,8 @@
 
 -behaviour(gen_server).
 
+-include("include/gerlshmud.hrl").
+
 -export([start_link/0]).
 -export([log/2]).
 -export([log/3]).
@@ -167,7 +169,7 @@ add_index_details({Key, Pid}, NamedProps) when is_pid(Pid) ->
     case gerlshmud_index:get(Pid) of
         undefined ->
             NamedProps;
-        {Id, Icon} ->
+        #object{id = Id, icon = Icon} ->
             IdKey = list_to_atom(atom_to_list(Key) ++ "_id"),
             IconKey = list_to_atom(atom_to_list(Key) ++ "_icon"),
             Props = [P || P = {_, V} <- [{IdKey, Id}, {IconKey, Icon}], V /= undefined],

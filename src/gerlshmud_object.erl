@@ -55,32 +55,29 @@ start_link(MaybeId, OriginalProps) ->
     crypto:rand_seed(),
     Id = id(MaybeId),
 
-    % See if we have any Mnesia props yet.
-    % If we do, grab them.
-    % If we don't, start with the original defaults.
-    % (supervisor will keep restarting us with the original props)
     Fun =
-    fun() ->
-        case mnesia:read(object, Id) of
-            [] ->
-                mnesia_write(OriginalProps),
-                [{id, Id} | OriginalProps];
-            [#object{properties = MProps}] ->
-                MProps
-        end
-    end,
+        fun() ->
 
+            case mnesia:read(object, Id) of
+                [] ->
+                    Props = [{id, Id} | OriginalProps],
+                    mnesia_write(Props),
+                    Props;
+                [#object{properties = MProps}] ->
+                    MProps
+            end
+        end,
     {atomic, Props} = mnesia:transaction(Fun),
+    Props =
+        case gerlshmud_index:get(Id) of
+            undefined ->
+                gerlshmud_index:ids2pids(Props);
+            #object{properties = StoredProps} ->
+                StoredProps
+        end,
 
-    PidProps = ids2pids(Props),
-
-    {ok, Pid} = gen_server:start_link(?MODULE, PidProps, []),
-
-    gerlshmud_index:put(Id, Pid),
-
-    Icon = proplists:get_value(icon, Props),
-    gerlshmud_index:put(Pid, {icon, Icon}),
-
+    {ok, Pid} = gen_server:start_link(?MODULE, Props, []),
+    gerlshmud_index:update_pid(Id, Pid),
     {ok, Pid}.
 
 id(_Id = undefined) ->
@@ -131,7 +128,7 @@ has_pid(Props, Pid) ->
 
 init(Props) ->
     process_flag(trap_exit, true),
-    {ok, #state{props = Props}}.
+    {ok, #state{props = [{pid, self()} | Props]}}.
 
 handle_call(props, _From, State) ->
     {reply, State#state.props, State};
@@ -209,10 +206,10 @@ handle_info({'EXIT', From, Reason}, State = #state{props = Props}) ->
          {source, From},
          {reason, Reason} |
          Props ++ ParentsList]),
-
-    gerlshmud_index:subscribe_dead(self(), Pid),
-    mark_pid_dead(From, Props),
-    mnesia_write(Props),
+    lager:info("Process ~p died~n", [From]),
+    gerlshmud_index:subscribe_dead(self(), From),
+    Props2 = mark_pid_dead(From, Props),
+    mnesia_write(Props2),
     {noreply, State#state{props = Props2}};
 handle_info({replace_pid, OldPid, NewPid}, State = #state{props = Props})
   when is_pid(OldPid), is_pid(NewPid) ->
@@ -429,6 +426,8 @@ proc(MaybeId, IdPids) when is_atom(MaybeId) ->
 proc(Value, _) ->
     Value.
 
+% TODO Does this handle {K, {PID, bodypart}} properties?
+% 2019-02-19
 procs(Props) ->
     lists:foldl(fun({_, Pid}, Acc) when is_pid(Pid) ->
                     [Pid | Acc];
@@ -542,8 +541,7 @@ prop(Prop, Props, Fun, Default) ->
     end.
 
 mark_pid_dead(Pid, Props) when is_list(Props) ->
-    [mark_pid_dead(Pid, Prop) || Prop <- Props].
-
+    [mark_pid_dead(Pid, Prop) || Prop <- Props];
 mark_pid_dead(Pid, {K, Pid}) ->
     {K, {dead, Pid}};
 mark_pid_dead(Pid, {K, {Pid, BodyPart}}) ->
@@ -551,19 +549,18 @@ mark_pid_dead(Pid, {K, {Pid, BodyPart}}) ->
 mark_pid_dead(_, KV) ->
     KV.
 
-replace_pid(Props, OldPid, NewPid) ->
-    [replace_pid(Prop, OldPid, NewPid) || Prop <- Props].
-
+replace_pid(Props, OldPid, NewPid) when is_list(Props) ->
+    [replace_pid(Prop, OldPid, NewPid) || Prop <- Props];
 replace_pid({K, {dead, OldPid}}, OldPid, NewPid) ->
     {K, NewPid};
 replace_pid({K, {{dead, OldPid}, BodyPart}}, OldPid, NewPid)
-  where is_atom(BodyPart) ->
+  when is_atom(BodyPart) ->
     {K, {NewPid, BodyPart}};
 replace_pid(Prop, _, _) ->
     Prop.
 
 mnesia_write(Props) ->
-    gerlshmud_index:write(self(), Props).
+    gerlshmud_index:put(Props).
 
 log(Props0) ->
     Props = gerlshmud_event_log:flatten(Props0),

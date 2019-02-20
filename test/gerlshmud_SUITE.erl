@@ -635,6 +635,12 @@ cast_spell(Config) ->
     true = val(is_alive, p_life),
     false = val(is_alive, g_life).
 
+%% TODO
+%% Give a MUCH better explanation of how registering for dead
+%% pid replacements works.
+%% I rushed the commit comment to get the commit in before
+%% midnight and I gave the briefest explanation for dead
+%% pid subscriptsion.
 revive_process(Config) ->
     start(?WORLD_3),
 

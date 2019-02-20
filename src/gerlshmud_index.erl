@@ -16,15 +16,13 @@
 
 -behaviour(gen_server).
 
+-include("include/gerlshmud.hrl").
+
 -export([start_link/0]).
--export([put/2]).
--export([get/1]).
--export([get_pid/1]).
--export([get_id/1]).
--export([get_icon/1]).
--export([del/1]).
+-export([put/1]).
 -export([update_pid/2]).
--export([update_prop/2]).
+-export([get/1]).
+-export([ids2pids/1]).
 -export([subscribe_dead/2]).
 -export([unsubscribe_dead/2]).
 -export([replace_dead/2]).
@@ -48,32 +46,14 @@
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
-put(undefined, _) ->
-    ok;
-put(Pid, Props) when is_pid(Pid), is_list(Props) ->
-    gen_server:cast(?MODULE, {put, Pid, Props});
+put(Props) when is_list(Props) ->
+    gen_server:cast(?MODULE, {put, Props}).
 
 update_pid(Id, Pid) when is_pid(Pid) ->
-    gen_server:cast(?MODULE, {update_pid, Id, Pid});
+    gen_server:cast(?MODULE, {update_pid, Id, Pid}).
 
-update_prop(Pid, Prop = {Key, _})
-  when is_pid(Pid), is_atom(Key) ->
-    gen_server:cast(?MODULE, {update_prop, Pid, [Prop]}).
-
-get(Pid) when is_pid(Pid) ->
-    gen_server:call(?MODULE, {get, Pid}).
-
-get_pid(Id) when is_atom(Id) ->
-    gen_server:call(?MODULE, {get_pid, Id}).
-
-get_id(Pid) when is_pid(Pid) ->
-    gen_server:call(?MODULE, {get_id, Pid}).
-
-get_icon(Pid) when is_pid(Pid) ->
-    gen_server:call(?MODULE, {get_icon, Pid}).
-
-del(Pid) when is_pid(Pid) ->
-    gen_server:cast(?MODULE, {del, Pid}).
+get(IdOrPid) ->
+    gen_server:call(?MODULE, {get, IdOrPid}).
 
 subscribe_dead(Subscriber, DeadPid) ->
     gen_server:cast(?MODULE, {subscribe_dead, Subscriber, Pid}).
@@ -84,108 +64,65 @@ unsubscribe_dead(Subscriber, DeadPid) ->
 replace_dead(OldPid, NewPid) ->
     gen_server:cast(?MODULE, {replace_pid, OldPid, NewPid}).
 
+% gen_server
+
 init([]) ->
     {ok, #state{}}.
 
-handle_call({get, Pid}, _From, State) ->
+handle_call({get, Pid}, _From, State) when is_pid(Pid) ->
     case fetch_object(Pid) of
-        #object{id = Id, icon = Icon} ->
-            {Id, Icon};
+        Object = #object{} ->
+            Object;
         _ ->
             undefined
     end.
-
-    %case lists:keyfind(Pid, 2, State#state.index) of
-    %    false ->
-    %        {reply, undefined, State};
-    %    #entry{id = Id, icon = Icon} ->
-    %        {reply, {Id, Icon}, State}
-    %end;
-handle_call({get_pid, Id}, _From, State) ->
+handle_call({get, Id}, _From, State) ->
     Fun =
-    fun() ->
-        %MatchHead = #object{id=Id, pid='$1', _='_'},
-        %Result = {'$1', '$2'},
-        %mnesia:select(object, [{MathHead, [], [Result]}])
-        mnesia:read(object, Id)
-    end,
+        fun() ->
+            mnesia:read(object, Id)
+        end,
     case mnesia:transaction(Fun) of
         {atomic, []} ->
             {reply, undefined, State};
-        {atomic, [Pid | _]} ->
-            {reply, Pid, State}
-    end
-
-    %case lists:keyfind(Id, 3, State#state.index) of
-    %    false ->
-    %        {reply, undefined, State};
-    %    #entry{pid = Pid} ->
-    %        {reply, Pid, State}
-    %end;
-handle_call({get_id, Pid}, _From, State) ->
-    case fetch_object(Pid) of
-        #object{id = Id} ->
-            Id;
-        _ ->
-            undefined
-    end.
-    %case lists:keyfind(Pid, 2, State#state.index) of
-    %    false ->
-    %        {reply, undefined, State};
-    %    #entry{id = Id} ->
-    %        {reply, Id, State}
-    %end;
+        {atomic, [Object = #object{properties = Props} | _]} ->
+            Props2 = ids2pids(Props),
+            {reply, Object#object{properties = Props2}, State}
+    end;
 handle_call(_Request, _From, State) ->
     {reply, ignored, State}.
 
-handle_cast({put, Pid, Props}) when is_pid(Pid), is_list(Props) ->
+handle_cast({put, Props}) when is_list(Props) ->
     Props2 = [pid2id(Prop) || Prop <- Props],
+    Pid = proplists:get_value(pid, Props),
     Id = proplists:get_value(id, Props),
     Icon = proplists:get_value(icon, Props),
     Fun =
     fun() ->
         mnesia:write(#object{id = Id,
-                             pid = self(),
+                             pid = Pid,
                              icon = Icon,
                              properties = Props2})
     end,
-    mnesia:transaction(Fun).
+    mnesia:transaction(Fun);
 
-% TODO use index_read once we have an index on PID
-handle_cast({put, Pid, {id, Id}}, State) ->
-
-handle_cast({put, Pid, {icon, Icon}}, State) ->
-    case fetch_object(Pid) of
-        #object{id = Id, icon = Icon} ->
-            {Id, Icon};
-        _ ->
-            undefined
-    end.
-
-    Index2 =
-        case lists:keyfind(Pid, #entry.pid, Index) of
-            false ->
-                [entry(Pid, K, V) | Index];
-            Record ->
-                Entry = update_entry(Record, K, V),
-                lists:keyreplace(Pid, #entry.pid, Index, Entry)
-        end,
-    {noreply, State};
 handle_cast({update_pid, Id, Pid}, State = #state{index = Index}) ->
-    Index2 =
-        case lists:keyfind(Pid, #entry.id, Index) of
-            false ->
-                [entry(Pid, id, Id) | Index];
-            Record ->
-                Entry = update_entry(Record, pid, Pid),
-                lists:keyreplace(Id, #entry.id, Index, Entry)
+    Fun =
+        fun() ->
+            [Object = #object{properties = Props}] = mnesia:read(object, Id),
+            Props2 = [{pid, Pid} | lists:keydelete(Pid, 1, Props)],
+            ok = mnesia:write(Object#object{pid = Pid, properties = Props2})
         end,
-    {noreply, State#state{index = Index2}};
-handle_cast({del, Pid}, State = #state{index = Index}) ->
-    {noreply, State#state{index = lists:keydelete(Pid, 2, Index)}};
+    {atomic, ok} = mnesia:transaction(Fun),
+    {noreply, State};
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
+handle_info({delete, Object}) ->
+    Fun =
+        fun() ->
+            mnesia:delete_object(Object)
+        end,
+    {atomic, ok} = mnesia:transaction(Fun);
 handle_info(_Info, State) ->
     {noreply, State}.
 
@@ -198,15 +135,16 @@ code_change(_OldVsn, State, _Extra) ->
 fetch_object(Pid) ->
     Fun =
         fun() ->
-            MatchHead = #object{pid=Pid, id='$1', icon='$2', _='_'},
-            Result = {'$1', '$2'},
+            MatchHead = #object{pid=Pid, _='_'},
+            Result = '$_',
             mnesia:select(object, [{MathHead, [], [Result]}])
         end,
     case mnesia:transaction(Fun) of
         {atomic, []} ->
             {reply, undefined, State};
-        {atomic, [Object | _]} ->
-            {reply, Object, State}
+        {atomic, [Object = #object{properties = Props} | _]} ->
+            Props2 = ids2pids(Props),
+            {reply, Object#object{properties = Props}, State}
     end.
 
 update_object(Pid, {icon, Icon})
@@ -242,9 +180,13 @@ subscribe_dead(Subscriber, Pid) ->
             [] ->
                 mnesia:write(#dead_pid_subscription{subscriber = self(),
                                                     dead_pid = Pid})
+                OneMinute = 60 * 1000,
+                Message = {delete, #dead_pid_subscription{subscriber = self(),
+                                                          dead_pid = Pid}},
+                erlang:send_after(OneMinute, self(), Message).
         end
     end,
-    mnesia:transaction(Fun).
+    mnesia:transaction(Fun),
 
 unsubscribe_dead(Subscriber, OldPid) ->
     OldRecord = #broken_link{object_pid = self(),
@@ -255,13 +197,21 @@ unsubscribe_dead(Subscriber, OldPid) ->
     {atomic, ok} = mnesia:transaction(Fun).
 
 replace_dead(OldPid, NewPid) ->
-    %TODO fetch all subscriptions for OldPid and
-    % notify the subscriber that there's a new PID
+    Fun =
+        fun() ->
+            Object = #dead_pid_subscription{dead_pid = OldPid, _ = '_'},
+            Subs = mnesia:match_object(Object)
+            [Sub ! {replace_pid, OldPid, NewPid}
+             || #dead_pid_subscription{subscriber = Sub} <- Subs].
 
-    %TODO insert new #replacement_pid record
+            mnesia:write(#replacement_pid{old_pid = OldPid,
+                                          new_pid = NewPid})
+        end,
+    {atomic, ok} = mnesia:transaction(Fun),
 
-    %TODO do a "send after" to delete the #replacement
-    % after, say, a minute
+    OneMinute = 60 * 1000,
+    Message = {delete, #replacement_pid{old_pid = OldPid, new_pid = NewPid}},
+    erlang:send_after(OneMinute, self(), Message).
 
 ids2pids(Props) ->
     [id2pid(Prop) || Prop <- Props].
@@ -284,7 +234,13 @@ id2pid({K, {MaybeId, BodyPart}})
 id2pid(Prop) ->
     Prop.
 
-
+% Need to be able to compare previous PID
+% to new PID in case of object death and
+% resurrection
+% Dead PIDs stay as PIDs so we can reset them
+% when we know what the new PID is
+pid2id(Prop = {pid, Pid}) when is_pid(Pid) ->
+    Prop;
 pid2id({K, {Pid, BodyPart}}) when is_pid(Pid) ->
     Id = gerlshmud_index:get_id(Pid),
     {K, {Id, BodyPart}};
@@ -293,15 +249,3 @@ pid2id({K, Pid}) when is_pid(Pid) ->
     {K, Id};
 pid2id(Prop) ->
     Prop.
-
-%entry(Pid, id, Id) ->
-%    #entry{pid = Pid, id = Id};
-%entry(Pid, icon, Icon) ->
-%    #entry{pid = Pid, icon = Icon}.
-
-%update_entry(Entry, pid, Pid) ->
-%    Entry#entry{pid = Pid};
-%update_entry(Entry, id, Id) ->
-%    Entry#entry{id = Id};
-%update_entry(Entry, icon, Icon) ->
-%    Entry#entry{icon = Icon}.
