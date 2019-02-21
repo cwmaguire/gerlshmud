@@ -56,10 +56,10 @@ get(IdOrPid) ->
     gen_server:call(?MODULE, {get, IdOrPid}).
 
 subscribe_dead(Subscriber, DeadPid) ->
-    gen_server:cast(?MODULE, {subscribe_dead, Subscriber, Pid}).
+    gen_server:cast(?MODULE, {subscribe_dead, Subscriber, DeadPid}).
 
 unsubscribe_dead(Subscriber, DeadPid) ->
-    gen_server:cast(?MODULE, {unsubscribe_dead, Subscriber, Pid}).
+    gen_server:cast(?MODULE, {unsubscribe_dead, Subscriber, DeadPid}).
 
 replace_dead(OldPid, NewPid) ->
     gen_server:cast(?MODULE, {replace_pid, OldPid, NewPid}).
@@ -70,12 +70,14 @@ init([]) ->
     {ok, #state{}}.
 
 handle_call({get, Pid}, _From, State) when is_pid(Pid) ->
-    case fetch_object(Pid) of
-        Object = #object{} ->
-            Object;
-        _ ->
-            undefined
-    end.
+    Reply =
+       case fetch_object(Pid) of
+           Object = #object{} ->
+               Object;
+           _ ->
+               undefined
+       end,
+    {reply, Reply, State};
 handle_call({get, Id}, _From, State) ->
     Fun =
         fun() ->
@@ -91,7 +93,7 @@ handle_call({get, Id}, _From, State) ->
 handle_call(_Request, _From, State) ->
     {reply, ignored, State}.
 
-handle_cast({put, Props}) when is_list(Props) ->
+handle_cast({put, Props}, State) when is_list(Props) ->
     Props2 = [pid2id(Prop) || Prop <- Props],
     Pid = proplists:get_value(pid, Props),
     Id = proplists:get_value(id, Props),
@@ -103,9 +105,10 @@ handle_cast({put, Props}) when is_list(Props) ->
                              icon = Icon,
                              properties = Props2})
     end,
-    mnesia:transaction(Fun);
+    mnesia:transaction(Fun),
+    {noreply, State};
 
-handle_cast({update_pid, Id, Pid}, State = #state{index = Index}) ->
+handle_cast({update_pid, Id, Pid}, State) ->
     Fun =
         fun() ->
             [Object = #object{properties = Props}] = mnesia:read(object, Id),
@@ -114,15 +117,25 @@ handle_cast({update_pid, Id, Pid}, State = #state{index = Index}) ->
         end,
     {atomic, ok} = mnesia:transaction(Fun),
     {noreply, State};
+handle_cast({subscribe_dead, Subscriber, DeadPid}, State) ->
+    subscribe_dead_(Subscriber, DeadPid),
+    {noreply, State};
+handle_cast({unsubscribe_dead, Subscriber, OldPid}, State) ->
+    unsubscribe_dead_(Subscriber, OldPid),
+    {noreply, State};
+handle_cast({replace_dead, OldPid, NewPid}, State) ->
+    replace_dead_(OldPid, NewPid),
+    {noreply, State};
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
-handle_info({delete, Object}) ->
+handle_info({delete, Object}, State) ->
     Fun =
         fun() ->
             mnesia:delete_object(Object)
         end,
-    {atomic, ok} = mnesia:transaction(Fun);
+    {atomic, ok} = mnesia:transaction(Fun),
+    {noreply, State};
 handle_info(_Info, State) ->
     {noreply, State}.
 
@@ -137,72 +150,48 @@ fetch_object(Pid) ->
         fun() ->
             MatchHead = #object{pid=Pid, _='_'},
             Result = '$_',
-            mnesia:select(object, [{MathHead, [], [Result]}])
+            mnesia:select(object, [{MatchHead, [], [Result]}])
         end,
     case mnesia:transaction(Fun) of
         {atomic, []} ->
-            {reply, undefined, State};
+            undefined;
         {atomic, [Object = #object{properties = Props} | _]} ->
-            Props2 = ids2pids(Props),
-            {reply, Object#object{properties = Props}, State}
+            Object#object{properties = ids2pids(Props)}
     end.
 
-update_object(Pid, {icon, Icon})
-    Fun = fun(Object) ->
-              Object#object{icon = Icon}
-          end,
-    update_object(Pid, Fun);
-update_object(Pid, {id, Id})
-    Fun = fun(Object) ->
-              Object#object{id = Id}
-          end,
-    update_object(Pid, Fun),
-update_object(Pid, UpdateFun) when is_function(UpdateFun) ->
+subscribe_dead_(Subscriber, Pid) ->
+    Fun =
+       fun() ->
+           case mnesia:read(replacement_pid, Pid) of
+               [#replacement_pid{new_pid = NewPid} | _] ->
+                   Subscriber ! {replace_pid, Pid, NewPid};
+               [] ->
+                   mnesia:write(#dead_pid_subscription{subscriber = self(),
+                                                       dead_pid = Pid}),
+                   OneMinute = 60 * 1000,
+                   Message = {delete, #dead_pid_subscription{subscriber = self(),
+                                                             dead_pid = Pid}},
+                   erlang:send_after(OneMinute, self(), Message)
+           end
+       end,
+    mnesia:transaction(Fun).
+
+unsubscribe_dead_(Subscriber, OldPid) ->
+    OldRecord = #dead_pid_subscription{subscriber = Subscriber,
+                                       dead_pid = OldPid},
     Fun =
         fun() ->
-            MatchHead = #object{pid=Pid, _='_'},
-            Result = {'$_'},
-            case mnesia:select(object, [{MathHead, [], [Result]}]) of
-                undefined
+            mnesia:delete(OldRecord)
         end,
-    case mnesia:transaction(Fun) of
-        {atomic, []} ->
-            {reply, undefined, State};
-        {atomic, [Object | _]} ->
-            {reply, Object, State}
-    end.
-
-subscribe_dead(Subscriber, Pid) ->
-    fun() ->
-        case mnesia:read(replacement_pid, Pid) of
-            [#replacement_pid{new_pid = NewPid} | _] ->
-                Subsriber ! {replace_pid, Pid, NewPid};
-            [] ->
-                mnesia:write(#dead_pid_subscription{subscriber = self(),
-                                                    dead_pid = Pid})
-                OneMinute = 60 * 1000,
-                Message = {delete, #dead_pid_subscription{subscriber = self(),
-                                                          dead_pid = Pid}},
-                erlang:send_after(OneMinute, self(), Message).
-        end
-    end,
-    mnesia:transaction(Fun),
-
-unsubscribe_dead(Subscriber, OldPid) ->
-    OldRecord = #broken_link{object_pid = self(),
-                             dead_pid = OldPid},
-    fun() ->
-        mnesia:delete(OldRecord)
-    end,
     {atomic, ok} = mnesia:transaction(Fun).
 
-replace_dead(OldPid, NewPid) ->
+replace_dead_(OldPid, NewPid) ->
     Fun =
         fun() ->
             Object = #dead_pid_subscription{dead_pid = OldPid, _ = '_'},
-            Subs = mnesia:match_object(Object)
+            Subs = mnesia:match_object(Object),
             [Sub ! {replace_pid, OldPid, NewPid}
-             || #dead_pid_subscription{subscriber = Sub} <- Subs].
+             || #dead_pid_subscription{subscriber = Sub} <- Subs],
 
             mnesia:write(#replacement_pid{old_pid = OldPid,
                                           new_pid = NewPid})
