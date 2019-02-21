@@ -68,7 +68,7 @@ start_link(MaybeId, OriginalProps) ->
             end
         end,
     {atomic, Props} = mnesia:transaction(Fun),
-    Props =
+    Props2 =
         case gerlshmud_index:get(Id) of
             undefined ->
                 gerlshmud_index:ids2pids(Props);
@@ -76,7 +76,7 @@ start_link(MaybeId, OriginalProps) ->
                 StoredProps
         end,
 
-    {ok, Pid} = gen_server:start_link(?MODULE, Props, []),
+    {ok, Pid} = gen_server:start_link(?MODULE, Props2, []),
     gerlshmud_index:update_pid(Id, Pid),
     {ok, Pid}.
 
@@ -213,6 +213,7 @@ handle_info({'EXIT', From, Reason}, State = #state{props = Props}) ->
     {noreply, State#state{props = Props2}};
 handle_info({replace_pid, OldPid, NewPid}, State = #state{props = Props})
   when is_pid(OldPid), is_pid(NewPid) ->
+    link(NewPid),
     Props2 = replace_pid(Props, OldPid, NewPid),
     gerlshmud:unsubscribe_dead(self(), OldPid),
     mnesia_write(Props2),

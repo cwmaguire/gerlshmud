@@ -70,11 +70,11 @@ setup_mnesia_schema() ->
     % TODO add index on PID column so we can use index_read when
     % searching by PID
     {atomic, ok} =
-        mnesia:create_table(object,
+        mnesia:create_table(dead_pid_subscription,
                             [{attributes,
                               record_info(fields, dead_pid_subscription)}]),
     {atomic, ok} =
-        mnesia:create_table(object,
+        mnesia:create_table(replacement_pid,
                             [{attributes,
                               record_info(fields, replacement_pid)}]),
     io:format("Mnesia table 'object' created~n").

@@ -206,22 +206,34 @@ ids2pids(Props) ->
     [id2pid(Prop) || Prop <- Props].
 
 id2pid({K, MaybeId}) when is_atom(MaybeId) ->
-    case gerlshmud_index:get_pid(MaybeId) of
-        undefined ->
-            {K, MaybeId};
+    case get_pid(MaybeId) of
         Pid when is_pid(Pid) ->
-            {K, Pid}
+            {K, Pid};
+        _ ->
+            {K, MaybeId}
     end;
 id2pid({K, {MaybeId, BodyPart}})
   when is_atom(MaybeId), is_atom(BodyPart) ->
-    case gerlshmud_index:get_pid(MaybeId) of
-        undefined ->
-            {K, {MaybeId, BodyPart}};
+    case get_pid(MaybeId) of
         Pid when is_pid(Pid) ->
-            {K, {Pid, BodyPart}}
+            {K, Pid};
+        _ ->
+            {K, {MaybeId, BodyPart}}
     end;
 id2pid(Prop) ->
     Prop.
+
+get_pid(MaybeId) ->
+    Fun =
+        fun() ->
+            mnesia:read(object, MaybeId)
+        end,
+    case mnesia:transaction(Fun) of
+        {atomic, []} ->
+            undefined;
+        {atomic, [Object = #object{pid = Pid} | _]} ->
+            Pid
+    end.
 
 % Need to be able to compare previous PID
 % to new PID in case of object death and
@@ -231,10 +243,18 @@ id2pid(Prop) ->
 pid2id(Prop = {pid, Pid}) when is_pid(Pid) ->
     Prop;
 pid2id({K, {Pid, BodyPart}}) when is_pid(Pid) ->
-    Id = gerlshmud_index:get_id(Pid),
+    Id = get_id(Pid),
     {K, {Id, BodyPart}};
 pid2id({K, Pid}) when is_pid(Pid) ->
-    Id = gerlshmud_index:get_id(Pid),
+    Id = get_id(Pid),
     {K, Id};
 pid2id(Prop) ->
     Prop.
+
+get_id(Pid) ->
+    case fetch_object(Pid) of
+        #object{id = Id} ->
+            Id;
+        _ ->
+            undefined
+    end.

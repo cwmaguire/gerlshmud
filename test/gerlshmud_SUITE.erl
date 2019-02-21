@@ -51,7 +51,7 @@ init_per_testcase(_, Config) ->
     {atomic, ok} = mnesia:clear_table(object),
     {ok, _Pid} = gerlshmud_test_socket:start(),
     TestObject = spawn_link(fun mock_object/0),
-    gerlshmud_index:put(TestObject, [{id, test_object}]),
+    gerlshmud_index:put([{pid, TestObject}, {id, test_object}]),
     [{test_object, TestObject} | Config].
 
 end_per_testcase(_, _Config) ->
@@ -77,7 +77,7 @@ has(Val, Obj) ->
 get_props(undefined) ->
     [];
 get_props(Obj) when is_atom(Obj) ->
-    Pid = gerlshmud_index:get_pid(Obj),
+    Pid = get_pid(Obj),
     get_props(Pid);
 get_props(Pid) when is_pid(Pid) ->
     {_RecordName, Props} = sys:get_state(Pid),
@@ -88,9 +88,9 @@ player_move(Config) ->
     %gerlshmud_dbg:add(gerlshmud_object, populate),
     %gerlshmud_dbg:add(gerlshmud_object, handle_cast_),
     start(?WORLD_1),
-    Player = gerlshmud_index:get_pid(player),
-    RoomNorth =  gerlshmud_index:get_pid(room_nw),
-    RoomSouth =  gerlshmud_index:get_pid(room_s),
+    Player = get_pid(player),
+    RoomNorth =  get_pid(room_nw),
+    RoomSouth =  get_pid(room_s),
 
     RoomNorth = val(owner, Player),
     attempt(Config, Player, {Player, move, s}),
@@ -99,8 +99,8 @@ player_move(Config) ->
 
 player_move_fail(Config) ->
     start(?WORLD_1),
-    Player = gerlshmud_index:get_pid(player),
-    RoomNorth =  gerlshmud_index:get_pid(room_nw),
+    Player = get_pid(player),
+    RoomNorth =  get_pid(room_nw),
     RoomNorth = val(owner, Player),
     attempt(Config, Player, {Player, move, non_existent_exit}),
     ?WAIT100,
@@ -108,10 +108,10 @@ player_move_fail(Config) ->
 
 player_move_exit_locked(Config) ->
     start(?WORLD_1),
-    Player = gerlshmud_index:get_pid(player),
-    RoomNorth =  gerlshmud_index:get_pid(room_nw),
-    RoomEast =  gerlshmud_index:get_pid(room_e),
-    ExitEastWest =  gerlshmud_index:get_pid(exit_ew),
+    Player = get_pid(player),
+    RoomNorth =  get_pid(room_nw),
+    RoomEast =  get_pid(room_e),
+    ExitEastWest =  get_pid(exit_ew),
     RoomNorth = val(owner, Player),
     attempt(Config, Player, {Player, move, e}),
     ?WAIT100,
@@ -123,8 +123,8 @@ player_move_exit_locked(Config) ->
 
 player_get_item(Config) ->
     start(?WORLD_2),
-    Player = gerlshmud_index:get_pid(player),
-    Sword = gerlshmud_index:get_pid(sword),
+    Player = get_pid(player),
+    Sword = get_pid(sword),
     true = has(Sword, room),
     false = has(Sword, player),
     attempt(Config, Player, {Player, get, <<"sword">>}),
@@ -133,8 +133,8 @@ player_get_item(Config) ->
 
 player_drop_item(Config) ->
     start(?WORLD_2),
-    Player = gerlshmud_index:get_pid(player),
-    Helmet = gerlshmud_index:get_pid(helmet),
+    Player = get_pid(player),
+    Helmet = get_pid(helmet),
     true = has(Helmet, player),
     attempt(Config, Player, {Player, drop, <<"helmet">>}),
     ?WAIT100,
@@ -143,12 +143,12 @@ player_drop_item(Config) ->
 
 character_owner_add_remove(Config) ->
     start(?WORLD_10),
-    Player = gerlshmud_index:get_pid(player),
-    Rifle = gerlshmud_index:get_pid(rifle),
-    Suppressor = gerlshmud_index:get_pid(suppressor),
-    Grip = gerlshmud_index:get_pid(grip),
-    Clip = gerlshmud_index:get_pid(clip),
-    Bullet = gerlshmud_index:get_pid(bullet),
+    Player = get_pid(player),
+    Rifle = get_pid(rifle),
+    Suppressor = get_pid(suppressor),
+    Grip = get_pid(grip),
+    Clip = get_pid(clip),
+    Bullet = get_pid(bullet),
     attempt(Config, Player, {Player, get, <<"rifle">>}),
     ?WAIT100,
     true = has(Rifle, player),
@@ -174,7 +174,7 @@ character_owner_add_remove(Config) ->
 
 player_attack(Config) ->
     start(?WORLD_3),
-    Player = gerlshmud_index:get_pid(player),
+    Player = get_pid(player),
     attempt(Config, Player, {Player, attack, <<"zombie">>}),
     receive after 1000 -> ok end,
     false = val(is_alive, z_life),
@@ -182,10 +182,10 @@ player_attack(Config) ->
 
 player_resource_wait(Config) ->
     start(?WORLD_3),
-    Player = gerlshmud_index:get_pid(player),
-    Fist = gerlshmud_index:get_pid(p_fist),
-    Stamina = gerlshmud_index:get_pid(p_stamina),
-    Zombie = gerlshmud_index:get_pid(zombie),
+    Player = get_pid(player),
+    Fist = get_pid(p_fist),
+    Stamina = get_pid(p_stamina),
+    Zombie = get_pid(zombie),
     gerlshmud_object:set(Stamina, {current, 5}),
     gerlshmud_object:set(Stamina, {tick_time, 10000}),
     attempt(Config, Player, {Player, attack, <<"zombie">>}),
@@ -198,8 +198,8 @@ player_resource_wait(Config) ->
 
 one_sided_fight(Config) ->
     start(?WORLD_3),
-    Player = gerlshmud_index:get_pid(player),
-    _Zombie = gerlshmud_index:get_pid(zombie),
+    Player = get_pid(player),
+    _Zombie = get_pid(zombie),
     attempt(Config, Player, {Player, attack, <<"zombie">>}),
     WaitFun =
         fun() ->
@@ -226,11 +226,11 @@ one_sided_fight(Config) ->
 
 counterattack_behaviour(Config) ->
     start(?WORLD_3),
-    Player = gerlshmud_index:get_pid(player),
+    Player = get_pid(player),
     Stamina = val(stamina, zombie),
     gerlshmud_object:set(Stamina, {current, 5}),
     gerlshmud_object:set(Stamina, {tick_time, 100000}),
-    Dexterity = gerlshmud_index:get_pid(dexterity0),
+    Dexterity = get_pid(dexterity0),
     gerlshmud_object:set(Dexterity, {defence_hit_modifier, 0}),
     ?WAIT100,
     attempt(Config, Player, {Player, attack, <<"zombie">>}),
@@ -254,10 +254,10 @@ counterattack_behaviour(Config) ->
 attack_with_modifiers(Config) ->
     gerlshmud_dbg:add(gerlshmud_handler_item_attack),
     start(?WORLD_8),
-    Room = gerlshmud_index:get_pid(room1),
-    Player = gerlshmud_index:get_pid(player),
+    Room = get_pid(room1),
+    Player = get_pid(player),
     %% TODO make sure that the giant is counterattacking
-    _Giant = gerlshmud_index:get_pid(giant),
+    _Giant = get_pid(giant),
     ?WAIT100,
     attempt(Config, Player, {<<"force field">>, move, from, Room, to, Player}),
     attempt(Config, Player, {<<"shield">>, move, from, Room, to, Player}),
@@ -291,19 +291,19 @@ attack_with_modifiers(Config) ->
 
 stop_attack_on_move(Config) ->
     start(?WORLD_8),
-    Room1 = gerlshmud_index:get_pid(room1),
-    Room2 = gerlshmud_index:get_pid(room2),
-    Player = gerlshmud_index:get_pid(player),
+    Room1 = get_pid(room1),
+    Room2 = get_pid(room2),
+    Player = get_pid(player),
 
     % TODO make sure the attack stops when the player leaves
     %  - leave
     %  - check that attack is stopped
 
-    _Giant = gerlshmud_index:get_pid(giant),
+    _Giant = get_pid(giant),
 
     %% Keep the attack going, but so that we can prove that it happened
     GiantHPAmt = 10000000,
-    GiantHP =  gerlshmud_index:get_pid(g_hp),
+    GiantHP =  get_pid(g_hp),
     gerlshmud_object:set(GiantHP, {hitpoints, GiantHPAmt}),
 
     ?WAIT100,
@@ -377,9 +377,9 @@ wait_loop(Fun, ExpectedResult, Count) ->
 
 player_wield(Config) ->
     start(?WORLD_4),
-    Player = gerlshmud_index:get_pid(player),
-    Helmet = gerlshmud_index:get_pid(helmet),
-    Head = gerlshmud_index:get_pid(head1),
+    Player = get_pid(player),
+    Helmet = get_pid(helmet),
+    Head = get_pid(head1),
     Helmet = val(item, Player),
     attempt(Config, Player, {<<"helmet">>, move, from, Player, to, <<"head">>}),
     ?WAIT100,
@@ -395,9 +395,9 @@ player_wield(Config) ->
 
 player_wield_first_available(Config) ->
     start(?WORLD_4),
-    Player = gerlshmud_index:get_pid(player),
-    Head = gerlshmud_index:get_pid(head1),
-    Helmet = gerlshmud_index:get_pid(helmet),
+    Player = get_pid(player),
+    Head = get_pid(head1),
+    Helmet = get_pid(helmet),
     attempt(Config, Player, {<<"helmet">>, move, from, Player, to, first_available_body_part}),
     ?WAIT100,
     undefined = val(item, Player),
@@ -406,9 +406,9 @@ player_wield_first_available(Config) ->
 
 player_wield_missing_body_part(Config) ->
     start(?WORLD_4),
-    Player = gerlshmud_index:get_pid(player),
-    Head = gerlshmud_index:get_pid(head1),
-    Helmet = gerlshmud_index:get_pid(helmet),
+    Player = get_pid(player),
+    Head = get_pid(head1),
+    Helmet = get_pid(helmet),
     attempt(Config, Player, {<<"helmet">>, move, from, Player, to, <<"finger">>}),
     ?WAIT100,
     undefined = val(item, head1),
@@ -421,9 +421,9 @@ player_wield_missing_body_part(Config) ->
 
 player_wield_wrong_body_part(Config) ->
     start(?WORLD_5),
-    Player = gerlshmud_index:get_pid(player),
-    Head = gerlshmud_index:get_pid(head1),
-    Helmet = gerlshmud_index:get_pid(helmet),
+    Player = get_pid(player),
+    Head = get_pid(head1),
+    Helmet = get_pid(helmet),
     attempt(Config, Player, {<<"helmet">>, move, from, Player, to, <<"finger">>}),
     ?WAIT100,
     undefined = val(item, head1),
@@ -436,11 +436,11 @@ player_wield_wrong_body_part(Config) ->
 
 player_wield_body_part_is_full(Config) ->
     start(?WORLD_6),
-    Player = gerlshmud_index:get_pid(player),
-    Finger1 = gerlshmud_index:get_pid(finger1),
-    Finger2 = gerlshmud_index:get_pid(finger2),
-    Ring1 = gerlshmud_index:get_pid(ring1),
-    Ring2 = gerlshmud_index:get_pid(ring2),
+    Player = get_pid(player),
+    Finger1 = get_pid(finger1),
+    Finger2 = get_pid(finger2),
+    Ring1 = get_pid(ring1),
+    Ring2 = get_pid(ring2),
     AllItems = [_, _] = all(item, player),
     true = lists:member(Ring1, AllItems),
     true = lists:member(Ring2, AllItems),
@@ -466,10 +466,10 @@ player_wield_body_part_is_full(Config) ->
 
 player_remove(Config) ->
     start(?WORLD_4),
-    Player = gerlshmud_index:get_pid(player),
-    Head = gerlshmud_index:get_pid(head1),
-    Helmet = gerlshmud_index:get_pid(helmet),
-    DexBuff = gerlshmud_index:get_pid(dex_buff),
+    Player = get_pid(player),
+    Head = get_pid(head1),
+    Helmet = get_pid(helmet),
+    DexBuff = get_pid(dex_buff),
     attempt(Config, Player, {<<"helmet">>, move, from, Player, to, <<"head">>}),
     ?WAIT100,
     undefined = val(item, player),
@@ -521,7 +521,7 @@ look_player_clothed(Config) ->
     start(?WORLD_7),
     gerlshmud_test_socket:send(<<"AnyLoginWillDo">>),
     gerlshmud_test_socket:send(<<"AnyPasswordWillDo">>),
-    Giant = gerlshmud_index:get_pid(giant),
+    Giant = get_pid(giant),
     attempt(Config, Giant, {<<"pants">>, move, from, Giant, to, <<"legs">>}),
     ?WAIT100,
     gerlshmud_test_socket:send(<<"look pete">>),
@@ -569,9 +569,9 @@ look_item(_Config) ->
 
 set_character(Config) ->
     start(?WORLD_9),
-    Room = gerlshmud_index:get_pid(room),
-    Dog = gerlshmud_index:get_pid(dog),
-    Collar = gerlshmud_index:get_pid(collar),
+    Room = get_pid(room),
+    Dog = get_pid(dog),
+    Collar = get_pid(collar),
     attempt(Config, Dog, {Collar, move, from, Room, to, Dog}),
     ?WAIT100,
     Dog = val(character, collar),
@@ -580,8 +580,8 @@ set_character(Config) ->
 
 counterattack_with_spell(Config) ->
     start(?WORLD_11),
-    Giant = gerlshmud_index:get_pid(giant),
-    Player = gerlshmud_index:get_pid(player),
+    Giant = get_pid(giant),
+    Player = get_pid(player),
 
     Stamina = val(stamina, giant),
     gerlshmud_object:set(Stamina, {current, 5}),
@@ -614,8 +614,8 @@ counterattack_with_spell(Config) ->
 
 cast_spell(Config) ->
     start(?WORLD_11),
-    Player = gerlshmud_index:get_pid(player),
-    _Giant = gerlshmud_index:get_pid(giant),
+    Player = get_pid(player),
+    _Giant = get_pid(giant),
     attempt(Config, Player, {Player, memorize, <<"fireball">>}),
     ?WAIT100,
     true = val(is_memorized, fireball_spell),
@@ -644,7 +644,7 @@ cast_spell(Config) ->
 revive_process(Config) ->
     start(?WORLD_3),
 
-    PlayerV1 = gerlshmud_index:get_pid(player),
+    PlayerV1 = get_pid(player),
     ct:pal("~p: PlayerV1~n\t~p~n", [?MODULE, PlayerV1]),
 
     Room = val(owner, player),
@@ -660,10 +660,31 @@ revive_process(Config) ->
     Hand = val(body_part, player),
     true = is_pid(Hand),
 
+    {atomic, Objs} = mnesia:transaction(
+        fun() ->
+            mnesia:select(object, [{'$1',
+                                    [],
+                                    ['$1']}])
+        end),
+    [ct:pal("Object: ~p~n", [Obj]) || Obj <- Objs],
+
+    {atomic, Result} = mnesia:transaction(
+        fun() ->
+            mnesia:read(object, p_hp)
+        end),
+    ct:pal("Result from mnesia:read(object, p_hp) is: ~p~n", [Result]),
+
+    PlayerV1 = val(owner, ph_p),
+    PlayerV1 = val(owner, ph_life),
+    PlayerV1 = val(owner, hand),
+    PlayerV1 = val(character, p_fist),
+    PlayerV1 = val(owner, dexterity0),
+    PlayerV1 = val(owner, p_stamina),
+
     exit(PlayerV1, kill),
     ?WAIT100,
 
-    PlayerV2 = gerlshmud_index:get_pid(player),
+    PlayerV2 = get_pid(player),
     ct:pal("~p: PlayerV2~n\t~p~n", [?MODULE, PlayerV2]),
     false = PlayerV1 == PlayerV2,
 
@@ -678,7 +699,16 @@ revive_process(Config) ->
     Stamina = val(resource, player),
     true = is_pid(Stamina),
     Hand = val(body_part, player),
-    true = is_pid(Hand).
+    true = is_pid(Hand),
+
+    PlayerV2 = val(owner, ph_p),
+    PlayerV2 = val(owner, ph_life),
+    PlayerV2 = val(owner, hand),
+    PlayerV2 = val(character, p_fist),
+    PlayerV2 = val(owner, dexterity0),
+    PlayerV2 = val(owner, p_stamina).
+
+
 
 log(_Config) ->
     {ok, Cwd} = file:get_cwd(),
@@ -686,7 +716,7 @@ log(_Config) ->
     LogFile = "../gerlshmud.log",
     start(?WORLD_7),
     ct:sleep(500),
-    Player = gerlshmud_index:get_pid(player),
+    Player = get_pid(player),
 
     gerlshmud_event_log:log(Player, debug, [{foo, bar}]),
     ?WAIT100,
@@ -747,3 +777,8 @@ mock_object() ->
             end
     end,
     mock_object().
+
+get_pid(Id) ->
+    ct:pal("Getting Pid from ID ~p~n", [Id]),
+    #object{pid = Pid} = gerlshmud_index:get(Id),
+    Pid.
