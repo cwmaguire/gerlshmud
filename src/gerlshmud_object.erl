@@ -55,28 +55,24 @@ start_link(MaybeId, OriginalProps) ->
     crypto:rand_seed(),
     Id = id(MaybeId),
 
-    Fun =
-        fun() ->
-
-            case mnesia:read(object, Id) of
-                [] ->
-                    Props = [{id, Id} | OriginalProps],
-                    mnesia_write(Props),
-                    Props;
-                [#object{properties = MProps}] ->
-                    MProps
-            end
-        end,
-    {atomic, Props} = mnesia:transaction(Fun),
-    Props2 =
+    Props =
         case gerlshmud_index:get(Id) of
             undefined ->
-                gerlshmud_index:ids2pids(Props);
+                Props_ = [{id, Id} | OriginalProps],
+                gerlshmud_index:put(Props_),
+                gerlshmud_index:ids2pids(Props_);
             #object{properties = StoredProps} ->
                 StoredProps
         end,
 
-    {ok, Pid} = gen_server:start_link(?MODULE, Props2, []),
+    {ok, Pid} = gen_server:start_link(?MODULE, Props, []),
+
+    case proplists:get_value(pid, Props) of
+        OldPid when OldPid /= Pid ->
+            gerlshmud_index:replace_dead(OldPid, Pid);
+        _ ->
+            ok
+    end,
     gerlshmud_index:update_pid(Id, Pid),
     {ok, Pid}.
 
@@ -146,27 +142,27 @@ handle_cast_({populate, ProcIds}, State = #state{props = Props}) ->
          {?EVENT, populate},
          {source, self()} |
          Props]),
-    mnesia_write(Props),
+    gerlshmud_index:put(Props),
     {noreply, State#state{props = populate_(Props, ProcIds)}};
 handle_cast_({set, Prop = {K, _}}, State = #state{props = Props}) ->
     {noreply, State#state{props = lists:keystore(K, 1, Props, Prop)}};
 handle_cast_({attempt, Msg, Procs}, State = #state{props = Props}) ->
     IsExit = proplists:get_value(is_exit, Props, false),
     NewState = #state{props = Props} = maybe_attempt(Msg, Procs, IsExit, State),
-    mnesia_write(Props),
+    gerlshmud_index:put(Props),
     {noreply, NewState};
 handle_cast_({fail, Reason, Msg}, State) ->
     case fail(Reason, Msg, State) of
         {stop, Props, LogProps} ->
             {_, ParentsList} = parents(Props),
-            mnesia_write(Props),
+            gerlshmud_index:put(Props),
             log([{stage, fail_stop},
                  {object, self()},
                  {owner, proplists:get_value(owner, Props)},
                  {message, Msg},
                  {stop_reason, Reason} |
                  Props ++ ParentsList ++ LogProps]),
-            mnesia_write(Props),
+            gerlshmud_index:put(Props),
             {stop, {shutdown, Reason}, State#state{props = Props}};
         {Props, _, _, LogProps} ->
             {_, ParentsList} = parents(Props),
@@ -175,7 +171,7 @@ handle_cast_({fail, Reason, Msg}, State) ->
                  {message, Msg},
                  {stop_reason, Reason} |
                  Props ++ ParentsList ++ LogProps]),
-            mnesia_write(Props),
+            gerlshmud_index:put(Props),
             {noreply, State#state{props = Props}}
     end;
 handle_cast_({succeed, Msg}, State) ->
@@ -187,7 +183,7 @@ handle_cast_({succeed, Msg}, State) ->
                  {message, Msg},
                  {stop_reason, Reason} |
                  Props ++ ParentsList ++ LogProps]),
-            mnesia_write(Props),
+            gerlshmud_index:put(Props),
             {stop, {shutdown, Reason}, State#state{props = Props}};
         {Props, LogProps} ->
             {_, ParentsList} = parents(Props),
@@ -195,7 +191,7 @@ handle_cast_({succeed, Msg}, State) ->
                  {object, self()},
                  {message, Msg} |
                  Props ++ ParentsList ++ LogProps]),
-            mnesia_write(Props),
+            gerlshmud_index:put(Props),
             {noreply, State#state{props = Props}}
     end.
 
@@ -209,14 +205,14 @@ handle_info({'EXIT', From, Reason}, State = #state{props = Props}) ->
     lager:info("Process ~p died~n", [From]),
     gerlshmud_index:subscribe_dead(self(), From),
     Props2 = mark_pid_dead(From, Props),
-    mnesia_write(Props2),
+    gerlshmud_index:put(Props2),
     {noreply, State#state{props = Props2}};
 handle_info({replace_pid, OldPid, NewPid}, State = #state{props = Props})
   when is_pid(OldPid), is_pid(NewPid) ->
     link(NewPid),
     Props2 = replace_pid(Props, OldPid, NewPid),
     gerlshmud:unsubscribe_dead(self(), OldPid),
-    mnesia_write(Props2),
+    gerlshmud_index:put(Props2),
     State#state{props = Props2};
 handle_info({Pid, Msg}, State) ->
     attempt(Pid, Msg),
@@ -559,9 +555,6 @@ replace_pid({K, {{dead, OldPid}, BodyPart}}, OldPid, NewPid)
     {K, {NewPid, BodyPart}};
 replace_pid(Prop, _, _) ->
     Prop.
-
-mnesia_write(Props) ->
-    gerlshmud_index:put(Props).
 
 log(Props0) ->
     Props = gerlshmud_event_log:flatten(Props0),

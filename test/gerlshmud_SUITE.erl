@@ -660,29 +660,22 @@ revive_process(Config) ->
     Hand = val(body_part, player),
     true = is_pid(Hand),
 
-    {atomic, Objs} = mnesia:transaction(
-        fun() ->
-            mnesia:select(object, [{'$1',
-                                    [],
-                                    ['$1']}])
-        end),
-    [ct:pal("Object: ~p~n", [Obj]) || Obj <- Objs],
+    %gerlshmud_dbg:add(gerlshmud_index),
 
-    {atomic, Result} = mnesia:transaction(
-        fun() ->
-            mnesia:read(object, p_hp)
-        end),
-    ct:pal("Result from mnesia:read(object, p_hp) is: ~p~n", [Result]),
-
-    PlayerV1 = val(owner, ph_p),
-    PlayerV1 = val(owner, ph_life),
-    PlayerV1 = val(owner, hand),
+    PlayerV1 = val(owner, p_hp),
+    PlayerV1 = val(owner, p_life),
+    PlayerV1 = val(owner, p_hand),
     PlayerV1 = val(character, p_fist),
     PlayerV1 = val(owner, dexterity0),
     PlayerV1 = val(owner, p_stamina),
 
+
+    gerlshmud_dbg:add(gerlshmud_object, handle_info),
+
     exit(PlayerV1, kill),
     ?WAIT100,
+
+    gerlshmud_dbg:stop(),
 
     PlayerV2 = get_pid(player),
     ct:pal("~p: PlayerV2~n\t~p~n", [?MODULE, PlayerV2]),
@@ -701,14 +694,12 @@ revive_process(Config) ->
     Hand = val(body_part, player),
     true = is_pid(Hand),
 
-    PlayerV2 = val(owner, ph_p),
-    PlayerV2 = val(owner, ph_life),
-    PlayerV2 = val(owner, hand),
+    PlayerV2 = val(owner, p_hp),
+    PlayerV2 = val(owner, p_life),
+    PlayerV2 = val(owner, p_hand),
     PlayerV2 = val(character, p_fist),
     PlayerV2 = val(owner, dexterity0),
     PlayerV2 = val(owner, p_stamina).
-
-
 
 log(_Config) ->
     {ok, Cwd} = file:get_cwd(),
@@ -779,6 +770,5 @@ mock_object() ->
     mock_object().
 
 get_pid(Id) ->
-    ct:pal("Getting Pid from ID ~p~n", [Id]),
     #object{pid = Pid} = gerlshmud_index:get(Id),
     Pid.
