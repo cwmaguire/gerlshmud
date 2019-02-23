@@ -77,11 +77,19 @@ has(Val, Obj) ->
 get_props(undefined) ->
     [];
 get_props(Obj) when is_atom(Obj) ->
+    ct:pal("~p:get_props(~p)~n", [?MODULE, Obj]),
     Pid = get_pid(Obj),
     get_props(Pid);
 get_props(Pid) when is_pid(Pid) ->
-    {_RecordName, Props} = sys:get_state(Pid),
-    Props.
+    ct:pal("~p:get_props(~p)~n", [?MODULE, Pid]),
+    case is_process_alive(Pid) of
+        true ->
+            {_RecordName, Props} = sys:get_state(Pid),
+            Props;
+        false ->
+            ct:pal("~p:get_props(~p): process is dead~n", [?MODULE, Pid]),
+            undefined
+    end.
 
 player_move(Config) ->
     %gerlshmud_dbg:add(gerlshmud_SUITE, start_obj),
@@ -669,16 +677,10 @@ revive_process(Config) ->
     PlayerV1 = val(owner, dexterity0),
     PlayerV1 = val(owner, p_stamina),
 
-
-    gerlshmud_dbg:add(gerlshmud_object, handle_info),
-
     exit(PlayerV1, kill),
     ?WAIT100,
 
-    gerlshmud_dbg:stop(),
-
     PlayerV2 = get_pid(player),
-    ct:pal("~p: PlayerV2~n\t~p~n", [?MODULE, PlayerV2]),
     false = PlayerV1 == PlayerV2,
 
     Room = val(owner, player),

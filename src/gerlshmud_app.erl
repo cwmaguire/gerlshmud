@@ -42,6 +42,7 @@ start(_Type, _Args) ->
 stop(_State) ->
 	ok.
 
+%% TODO call mnesia:wait_for_tables/2
 setup_and_or_start_mnesia() ->
     case application:get_env(mnesia, dir) of
         undefined ->

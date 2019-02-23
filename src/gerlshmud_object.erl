@@ -68,7 +68,7 @@ start_link(MaybeId, OriginalProps) ->
     {ok, Pid} = gen_server:start_link(?MODULE, Props, []),
 
     case proplists:get_value(pid, Props) of
-        OldPid when OldPid /= Pid ->
+        OldPid when is_pid(OldPid), OldPid /= Pid ->
             gerlshmud_index:replace_dead(OldPid, Pid);
         _ ->
             ok
@@ -123,6 +123,17 @@ has_pid(Props, Pid) ->
 %% gen_server.
 
 init(Props) ->
+    Self = self(),
+    Fun = fun() ->
+                  process_flag(trap_exit, true),
+                  io:format("~p spawned to watch ~p~n", [self(), Self]),
+                  receive
+                      {'EXIT', From, Reason} ->
+                          io:format("~p died because ~p~n",
+                                    [From, Reason])
+                  end
+          end,
+    spawn_link(Fun),
     process_flag(trap_exit, true),
     {ok, #state{props = [{pid, self()} | Props]}}.
 
@@ -211,10 +222,10 @@ handle_info({replace_pid, OldPid, NewPid}, State = #state{props = Props})
   when is_pid(OldPid), is_pid(NewPid) ->
     link(NewPid),
     Props2 = replace_pid(Props, OldPid, NewPid),
-    gerlshmud:unsubscribe_dead(self(), OldPid),
+    gerlshmud_index:unsubscribe_dead(self(), OldPid),
     gerlshmud_index:put(Props2),
-    State#state{props = Props2};
-handle_info({Pid, Msg}, State) ->
+    {noreply, State#state{props = Props2}};
+handle_info({Pid, Msg}, State) when is_pid(Pid) ->
     attempt(Pid, Msg),
     {noreply, State};
 handle_info(Unknown, State = #state{props = Props}) ->
@@ -353,7 +364,6 @@ ensure_message(Msg, {Handler, {Result, Sub, Props, Log}})
   when is_atom(Sub), is_list(Props), is_list(Log) ->
     {Handler, {Result, Msg, Sub, Props, Log}};
 ensure_message(_, T) ->
-    io:format(user, "T = ~p~n", [T]),
     T.
 
 ensure_log_props({Handler, {Result, Msg, Sub, Props}})
@@ -405,6 +415,8 @@ populate_(Props, IdPids) ->
     {_, Props2} = lists:foldl(fun set_pid/2, {IdPids, []}, Props),
     Props2.
 
+set_pid(Prop = {id, V}, {IdPids, Props}) ->
+    {IdPids, [Prop | Props]};
 set_pid({K, {{pid, V1}, V2}}, {IdPids, Props}) ->
     {IdPids, [{K, {proc(V1, IdPids), V2}} | Props]};
 set_pid({K, V}, {IdPids, Props}) ->
