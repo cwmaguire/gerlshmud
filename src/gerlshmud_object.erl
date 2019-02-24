@@ -158,8 +158,8 @@ handle_cast_({set, Prop = {K, _}}, State = #state{props = Props}) ->
     {noreply, State#state{props = lists:keystore(K, 1, Props, Prop)}};
 handle_cast_({attempt, Msg, Procs}, State = #state{props = Props}) ->
     IsExit = proplists:get_value(is_exit, Props, false),
-    NewState = #state{props = Props} = maybe_attempt(Msg, Procs, IsExit, State),
-    gerlshmud_index:put(Props),
+    NewState = #state{props = Props2} = maybe_attempt(Msg, Procs, IsExit, State),
+    gerlshmud_index:put(Props2),
     {noreply, NewState};
 handle_cast_({fail, Reason, Msg}, State) ->
     case fail(Reason, Msg, State) of
