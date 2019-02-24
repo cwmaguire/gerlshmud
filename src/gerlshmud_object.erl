@@ -60,7 +60,7 @@ start_link(MaybeId, OriginalProps) ->
             undefined ->
                 Props_ = [{id, Id} | OriginalProps],
                 gerlshmud_index:put(Props_),
-                gerlshmud_index:ids2pids(Props_);
+                Props_;
             #object{properties = StoredProps} ->
                 StoredProps
         end,
@@ -126,7 +126,6 @@ init(Props) ->
     Self = self(),
     Fun = fun() ->
                   process_flag(trap_exit, true),
-                  io:format("~p spawned to watch ~p~n", [self(), Self]),
                   receive
                       {'EXIT', From, Reason} ->
                           io:format("~p died because ~p~n",
