@@ -36,9 +36,6 @@ all() -> [revive_process].
      %case_spell].
 
 init_per_testcase(_, Config) ->
-    %gerlshmud_dbg:add(gerlshmud_event_log, div_),
-    %gerlshmud_dbg:add(gerlshmud_event_log),
-    %gerlshmud_dbg:add(gerlshmud_event_log, flatten),
     %gerlshmud_dbg:add(gerlshmud_index, get),
 
     %dbg:tracer(),
@@ -77,17 +74,14 @@ has(Val, Obj) ->
 get_props(undefined) ->
     [];
 get_props(Obj) when is_atom(Obj) ->
-    ct:pal("~p:get_props(~p)~n", [?MODULE, Obj]),
     Pid = get_pid(Obj),
     get_props(Pid);
 get_props(Pid) when is_pid(Pid) ->
-    ct:pal("~p:get_props(~p)~n", [?MODULE, Pid]),
     case is_process_alive(Pid) of
         true ->
             {_RecordName, Props} = sys:get_state(Pid),
             Props;
         false ->
-            ct:pal("~p:get_props(~p): process is dead~n", [?MODULE, Pid]),
             undefined
     end.
 
@@ -615,9 +609,6 @@ counterattack_with_spell(Config) ->
     false = val(is_alive, g_life),
     true = 1000 > val(hitpoints, p_hp),
     true = val(is_alive, p_life),
-    %F = fun() -> mnesia:select(object, [{'$1', [], ['$_']}]) end,
-    %Result = mnesia:transaction(F),
-    %ct:pal("Mnesia query:~n~p~n", [Result]),
     ok.
 
 cast_spell(Config) ->
@@ -643,12 +634,6 @@ cast_spell(Config) ->
     true = val(is_alive, p_life),
     false = val(is_alive, g_life).
 
-%% TODO
-%% Give a MUCH better explanation of how registering for dead
-%% pid replacements works.
-%% I rushed the commit comment to get the commit in before
-%% midnight and I gave the briefest explanation for dead
-%% pid subscriptsion.
 revive_process(Config) ->
     start(?WORLD_3),
 
@@ -667,8 +652,6 @@ revive_process(Config) ->
     true = is_pid(Stamina),
     Hand = val(body_part, player),
     true = is_pid(Hand),
-
-    %gerlshmud_dbg:add(gerlshmud_index),
 
     PlayerV1 = val(owner, p_hp),
     PlayerV1 = val(owner, p_life),
