@@ -57,7 +57,11 @@ setup_and_or_start_mnesia() ->
         false ->
             io:format("Mnesia schema doesn\'t exists~n"),
             setup_mnesia_schema()
-    end.
+    end,
+    mnesia:wait_for_tables([object,
+                            dead_pids_subscription,
+                            replacement_pid],
+                           2000).
 
 setup_mnesia_schema() ->
     ok = mnesia:create_schema([node()]),
@@ -68,14 +72,16 @@ setup_mnesia_schema() ->
         mnesia:create_table(object,
                             [{attributes,
                               record_info(fields, object)}]),
+    io:format("Mnesia table 'object' created~n"),
     % TODO add index on PID column so we can use index_read when
     % searching by PID
     {atomic, ok} =
         mnesia:create_table(dead_pid_subscription,
                             [{attributes,
                               record_info(fields, dead_pid_subscription)}]),
+    io:format("Mnesia table 'dead_pid_subscription' created~n"),
     {atomic, ok} =
         mnesia:create_table(replacement_pid,
                             [{attributes,
                               record_info(fields, replacement_pid)}]),
-    io:format("Mnesia table 'object' created~n").
+    io:format("Mnesia table 'replacement_pid' created~n").
