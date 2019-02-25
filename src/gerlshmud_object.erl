@@ -123,7 +123,6 @@ has_pid(Props, Pid) ->
 %% gen_server.
 
 init(Props) ->
-    Self = self(),
     Fun = fun() ->
                   process_flag(trap_exit, true),
                   receive
@@ -414,7 +413,7 @@ populate_(Props, IdPids) ->
     {_, Props2} = lists:foldl(fun set_pid/2, {IdPids, []}, Props),
     Props2.
 
-set_pid(Prop = {id, V}, {IdPids, Props}) ->
+set_pid(Prop = {id, _V}, {IdPids, Props}) ->
     {IdPids, [Prop | Props]};
 set_pid({K, {{pid, V1}, V2}}, {IdPids, Props}) ->
     {IdPids, [{K, {proc(V1, IdPids), V2}} | Props]};
