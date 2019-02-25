@@ -312,7 +312,7 @@ fail({Props, _, _}) ->
 attack(Props) ->
     Character = proplists:get_value(character, Props),
     Target = proplists:get_value(target, Props),
-    Types = proplists:get_value(attack_types, Props, 0),
+    Types = proplists:get_value(attack_types, Props, []),
     Hit = calc_hit(Props, Types),
     Message = {Character, calc, Types, hit, Hit, on, Target, with, self()},
     gerlshmud_object:attempt(self(), Message).
@@ -321,7 +321,12 @@ calc_hit(Props, Types) ->
     Action = proplists:get_value(attack_action, Props),
     HitBase = proplists:get_value(attack_roll, Props, 0),
     Modifier = gerlshmud_modifiers:modifier(Props, attack, Action, Types),
-    rand:uniform(HitBase) + Modifier.
+    random(HitBase) + Modifier.
+
+random(0) ->
+    0;
+random(Int) ->
+    rand:uniform(Int).
 
 should_attack(Props) ->
     is_wielded(Props) andalso is_attack(Props).
