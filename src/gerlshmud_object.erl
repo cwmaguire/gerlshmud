@@ -156,11 +156,13 @@ handle_cast_({populate, ProcIds}, State = #state{props = Props}) ->
 handle_cast_({set, Prop = {K, _}}, State = #state{props = Props}) ->
     {noreply, State#state{props = lists:keystore(K, 1, Props, Prop)}};
 handle_cast_({attempt, Msg, Procs}, State = #state{props = Props}) ->
+    ct:pal("~p:handle_cast_({attempt, ~p, ...~n", [?MODULE, Msg]),
     IsExit = proplists:get_value(is_exit, Props, false),
     NewState = #state{props = Props2} = maybe_attempt(Msg, Procs, IsExit, State),
     gerlshmud_index:put(Props2),
     {noreply, NewState};
 handle_cast_({fail, Reason, Msg}, State) ->
+    ct:pal("~p:handle_cast_({fail ...~n", [?MODULE]),
     case fail(Reason, Msg, State) of
         {stop, Props, LogProps} ->
             {_, ParentsList} = parents(Props),
@@ -195,6 +197,14 @@ handle_cast_({succeed, Msg}, State) ->
             gerlshmud_index:put(Props),
             {stop, {shutdown, Reason}, State#state{props = Props}};
         {Props, LogProps} ->
+            case Msg of
+                {_, tick, _, with, 1} ->
+                    ct:pal("~p:handle_cast_({succeed, {_, tick, _, with, 1}}, _State)~n"
+                           "Props = ~p~n",
+                           [?MODULE, Props]);
+                _ ->
+                    ok
+            end,
             {_, ParentsList} = parents(Props),
             log([{stage, succeed},
                  {object, self()},
@@ -205,6 +215,7 @@ handle_cast_({succeed, Msg}, State) ->
     end.
 
 handle_info({'EXIT', From, Reason}, State = #state{props = Props}) ->
+    ct:pal("~p:handle_info({'EXIT' ...~n", [?MODULE]),
     {_, ParentsList} = parents(Props),
     log([{?EVENT, exit},
          {object, self()},
@@ -218,12 +229,14 @@ handle_info({'EXIT', From, Reason}, State = #state{props = Props}) ->
     {noreply, State#state{props = Props2}};
 handle_info({replace_pid, OldPid, NewPid}, State = #state{props = Props})
   when is_pid(OldPid), is_pid(NewPid) ->
+    ct:pal("~p:handle_info({replace_pid...~n", [?MODULE]),
     link(NewPid),
     Props2 = replace_pid(Props, OldPid, NewPid),
     gerlshmud_index:unsubscribe_dead(self(), OldPid),
     gerlshmud_index:put(Props2),
     {noreply, State#state{props = Props2}};
 handle_info({Pid, Msg}, State) when is_pid(Pid) ->
+    ct:pal("~p:handle_info({~p, ~p}...~n", [?MODULE, Pid, Msg]),
     attempt(Pid, Msg),
     {noreply, State};
 handle_info(Unknown, State = #state{props = Props}) ->

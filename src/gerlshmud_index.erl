@@ -236,12 +236,16 @@ get_pid(MaybeId) ->
         fun() ->
             mnesia:read(object, MaybeId)
         end,
-    case mnesia:transaction(Fun) of
-        {atomic, []} ->
+    case transaction(Fun) of
+        [] ->
             undefined;
-        {atomic, [Object = #object{pid = Pid} | _]} ->
+        [Object = #object{pid = Pid} | _] ->
             Pid
     end.
+
+transaction(Fun) ->
+    {atomic, Result} = mnesia:transaction(Fun),
+    Result.
 
 % Need to be able to compare previous PID
 % to new PID in case of object death and

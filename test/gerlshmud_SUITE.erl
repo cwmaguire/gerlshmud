@@ -9,7 +9,7 @@
 
 % TODO test updating a skill when a target is killed with a weapon (or when damage is dealt, or both)
 
-all() -> [revive_process].
+all() -> [player_attack].
 %all() ->
     %[player_move,
      %player_move_fail,
@@ -33,10 +33,11 @@ all() -> [revive_process].
      %look_room,
      %look_item,
      %set_character,
-     %case_spell].
+     %cast_spell].
 
 init_per_testcase(_, Config) ->
-    %gerlshmud_dbg:add(gerlshmud_index, get),
+    %gerlshmud_dbg:add(gerlshmud_object, handle_cast_),
+    %gerlshmud_dbg:add(gerlshmud_event_log, add_index_details),
 
     %dbg:tracer(),
     %dbg:tpl(gerlshmud_event_log, '_', '_', [{'_', [], [{exception_trace}]}]),
@@ -175,9 +176,16 @@ character_owner_add_remove(Config) ->
     undefined = val(character, Bullet).
 
 player_attack(Config) ->
+    SupPid = whereis(gerlshmud_object_sup),
+    %fprof:trace([start, {file, "my_prof.trace"}, {procs, [SupPid, self()]}]),
     start(?WORLD_3),
+    ct:pal("~p:player_attack(Config) world 3 started~n", [?MODULE]),
     Player = get_pid(player),
+    ct:pal("~p: Player~n\t~p~n", [?MODULE, Player]),
     attempt(Config, Player, {Player, attack, <<"zombie">>}),
+    receive after 1000 -> ok end,
+    %fprof:trace(stop),
+    receive after 1000 -> ok end,
     receive after 1000 -> ok end,
     false = val(is_alive, z_life),
     0 = val(hitpoints, z_hp).
@@ -254,7 +262,7 @@ counterattack_behaviour(Config) ->
     ok.
 
 attack_with_modifiers(Config) ->
-    gerlshmud_dbg:add(gerlshmud_handler_item_attack),
+    %gerlshmud_dbg:add(gerlshmud_handler_item_attack),
     start(?WORLD_8),
     Room = get_pid(room1),
     Player = get_pid(player),
