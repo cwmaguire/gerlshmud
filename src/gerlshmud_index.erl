@@ -239,7 +239,7 @@ get_pid(MaybeId) ->
     case transaction(Fun) of
         [] ->
             undefined;
-        [Object = #object{pid = Pid} | _] ->
+        [_Object = #object{pid = Pid} | _] ->
             Pid
     end.
 
