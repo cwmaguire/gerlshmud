@@ -2,6 +2,7 @@ PROJECT = gerlshmud
 DEPS = cowboy jsx lists lager
 COMPILE_FIRST = gerlshmud_object gerlshmud_handler
 
+dep_jsx = git https://github.com/talentdeficit/jsx main
 dep_lists = git https://github.com/cwmaguire/lists master
 
 ## copied from erlang.mk and added +native.
