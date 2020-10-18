@@ -224,6 +224,7 @@ succeed({Props, {Item, move, from, Self, to, Target}}) when Self == self() ->
 succeed({Props, {Item, move, from, Self, to, Target, on, body_part, type, _BodyPartType}}) when Self == self() ->
 succeed({Props, _}) ->
  gerlshmud_object:attempt(Child, {self(), set_child_properties, ChildProps}).
+Message = {Target, clear_child_property, top_item, 'if', TopItem},
  gerlshmud_object:attempt(Item, Message),
 
 src/handlers/gerlshmud_handler_item_look.erl
@@ -346,6 +347,7 @@ succeed({Props, {Character, calc, Types, damage, NoDamage, to, Target, with, Sel
 succeed({Props, {Character, stop_attack}}) ->
 succeed({Props, {Character, die}}) ->
 succeed({Props, _}) ->
+Message = {Character, calc, Types, cast, Success, on, Target, with, self()},
  gerlshmud_object:attempt(self(), Message).
  gerlshmud_object:attempt(self(), {Character, unreserve, Resource, for, self()}).
  gerlshmud_object:attempt(self(), {Character, reserve, Amount, 'of', Resource, for, self()}).
@@ -375,6 +377,7 @@ attempt({#parents{top_item = TopItem}, Props, {Character, calc, Hit, on, Target,
 attempt({#parents{top_item = TopItem}, Props, {Character, damage, Damage, to, Target, with, TopItem}}) ->
 attempt({#parents{character = Character}, Props, {Attacker, calc, Hit, on, Character, with, AttackVector}}) ->
 attempt({#parents{character = Character}, Props, {Character, damage, Damage, to, Target, with, AttackVector}}) ->
+Message = {Character, calc, Damage + Amount, on, Target, with, AttackVector},
 attempt({_, _, _Msg}) ->
 succeed({Props, {Character, attack, Target}}) when is_pid(Target) ->
  gerlshmud_object:attempt(self(), {Character, attack, Target, with, self()}),
@@ -426,6 +429,7 @@ succeed({Props, {Character, calc, Types, damage, NoDamage, to, Target, with, Sel
 succeed({Props, {Character, stop_attack}}) ->
 succeed({Props, {Character, die}}) ->
 succeed({Props, _}) ->
+Message = {Character, calc, Types, hit, Hit, on, Target, with, self()},
  gerlshmud_object:attempt(self(), Message).
  gerlshmud_object:attempt(self(), {Character, unreserve, Resource, for, self()}).
  gerlshmud_object:attempt(self(), {Character, reserve, Amount, 'of', Resource, for, self()}).
