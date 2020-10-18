@@ -12,12 +12,24 @@
 # vm_args, "
 # vm.args
 
+PARAMS="\\([^)]*\\)"
+UNTIL_ARROW="[^>]*>"
+NEW_LINE='`'
+SUCCEED_OR_ATTEMPT="${NEW_LINE}(succeed|attempt)${PARAMS}${UNTIL_ARROW}"
+
+TUPLE="{[^}]*}"
+NEW_MESSAGE="NewMessage = ${TUPLE},"
+
+FROM_NEW_LINE_TO_COLON="\`[^\`:]*:"
+UNTIL_NEW_LINE="\\([^\`]*"
+NEW_ATTEMPT="${FROM_NEW_LINE_TO_COLON}attempt${UNTIL_NEW_LINE}"
+
 for f in src/handlers/gerlshmud_handler_*
 do
   echo -e "\n$f"
   cat $f | \
   tr -s '\r\n' '`' | \
   tr -s ' ' | \
-  egrep -o  -e '(NewMessage = \{.*?\},\`)|(attempt|succeed)\(.*?\)[^%]*?->`' | \
+  egrep -o  -e "($SUCCEED_OR_ATTEMPT)|(${NEW_MESSAGE})|(${NEW_ATTEMPT})" | \
   tr -d "\`"
 done | tee protocol
