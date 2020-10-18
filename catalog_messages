@@ -1,27 +1,21 @@
 #!/bin/bash
 
-# with egrep if we use multiple patterns with multiple -e flags then it doesn't work.
-# It seems that only one -e pattern can match per line even though I've tested this and
-# it doesn't seem to be the case.
-# Here's an example using relx.config:
-#
-# Put everything on one line with tr, replacing any \r and \n with a backtick
-# then run two different regex patterns on the single line
-# I even tried making the second patter fall within the first pattern and that worked too.
-# $cat relx.config | tr -s '\r\n' '`' | egrep -o -e 'vm_args,.*?"' -e 'vm\.args'
-# vm_args, "
-# vm.args
+# Collapse to one line (probably could just do multiline regex) and then find:
+# - succeed handlers
+# - attempt handlers
+# - new events being kicked off
+# - messages being modified (relies on the new message always being called NewMessage)
 
-PARAMS="\\([^)]*\\)"
-UNTIL_ARROW="[^>]*>"
-NEW_LINE='`'
+NEW_LINE='(?<=`)'
+PARAMS='\([^)]*\)'
+UNTIL_ARROW='.*? ->'
 SUCCEED_OR_ATTEMPT="${NEW_LINE}(succeed|attempt)${PARAMS}${UNTIL_ARROW}"
 
 TUPLE="{[^}]*}"
 NEW_MESSAGE="NewMessage = ${TUPLE},"
 
-FROM_NEW_LINE_TO_COLON="\`[^\`:]*:"
-UNTIL_NEW_LINE="\\([^\`]*"
+FROM_NEW_LINE_TO_COLON='`[^`:]*:'
+UNTIL_NEW_LINE='\([^`]*'
 NEW_ATTEMPT="${FROM_NEW_LINE_TO_COLON}attempt${UNTIL_NEW_LINE}"
 
 for f in src/handlers/gerlshmud_handler_*
@@ -30,6 +24,6 @@ do
   cat $f | \
   tr -s '\r\n' '`' | \
   tr -s ' ' | \
-  egrep -o  -e "($SUCCEED_OR_ATTEMPT)|(${NEW_MESSAGE})|(${NEW_ATTEMPT})" | \
+  grep -P -o -e "($SUCCEED_OR_ATTEMPT)|(${NEW_MESSAGE})|(${NEW_ATTEMPT})" | \
   tr -d "\`"
 done | tee protocol
