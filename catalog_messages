@@ -12,7 +12,7 @@ UNTIL_ARROW='.*? ->'
 SUCCEED_OR_ATTEMPT="${NEW_LINE}(succeed|attempt)${PARAMS}${UNTIL_ARROW}"
 
 TUPLE="{[^}]*}"
-NEW_MESSAGE="(New)?Message = ${TUPLE},"
+NEW_MESSAGE="(Event|(New)?Message) = ${TUPLE},"
 
 FROM_NEW_LINE_TO_COLON='`[^`:]*:'
 UNTIL_NEW_LINE='\([^`]*'

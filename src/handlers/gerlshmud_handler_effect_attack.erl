@@ -61,12 +61,12 @@ succeed({Props, {Self, affect, Target}}) ->
     PossibleSuccess = proplists:get_value(attack_hit, Props),
     Modifier = gerlshmud_modifiers:modifier(Props, attack, hit, AttackTypes),
     Success = rand:uniform(PossibleSuccess) + Modifier,
-    Event = {Character,
-             calc, AttackTypes,
-             affect, Success,
-             on, Target,
-             with, Self},
-    gerlshmud_object:attempt(self(), Event),
+    NewMessage = {Character,
+                  calc, AttackTypes,
+                  affect, Success,
+                  on, Target,
+                  with, Self},
+    gerlshmud_object:attempt(self(), NewMessage),
     {Props, Log};
 
 succeed({Props, {Character, calc, Types, affect, Success, on, Target, with, Self}})

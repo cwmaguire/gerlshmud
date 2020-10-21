@@ -164,12 +164,15 @@ attempt({_Parents, Props, {_Character, calc, Types, affect, _Success, on, Target
 attempt({_Parents, Props, {_Character, calc, Types, damage, _Damage, to, Target, with, Self}}) when Self == self() ->
 attempt({_, _, _Msg}) ->
 succeed({Props, {Self, affect, Target}}) ->
- gerlshmud_object:attempt(self(), Event),
+NewMessage = {Character, calc, AttackTypes, affect, Success, on, Target, with, Self},
+ gerlshmud_object:attempt(self(), NewMessage),
 succeed({Props, {Character, calc, Types, affect, Success, on, Target, with, Self}}) when is_pid(Target), Self == self(), Success > 0 ->
+Event = {Character, calc, Types, damage, Damage, to, Target, with, Self},
  gerlshmud_object:attempt(self(), Event),
 succeed({Props, {Character, calc, Types, effect, Miss, on, Target, with, Self}}) when is_pid(Target), Self == self() ->
  gerlshmud_object:attempt(Character, {send, Character, <<"You missed!">>}),
 succeed({Props, {Character, calc, Types, damage, Damage, to, Target, with, Self}}) when is_pid(Target), Self == self() ->
+Event = {Character, does, Types, damage, Damage, to, Target, with, Self},
  gerlshmud_object:attempt(self(), DamageEvent),
  gerlshmud_object:attempt(Character, {send, Character, Msg}),
 succeed({Props, _}) ->
