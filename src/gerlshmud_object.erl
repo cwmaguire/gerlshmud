@@ -156,7 +156,7 @@ handle_cast_({populate, ProcIds}, State = #state{props = Props}) ->
 handle_cast_({set, Prop = {K, _}}, State = #state{props = Props}) ->
     {noreply, State#state{props = lists:keystore(K, 1, Props, Prop)}};
 handle_cast_({attempt, Msg, Procs}, State = #state{props = Props}) ->
-    ct:pal("~p:handle_cast_({attempt, ~p, ...~n", [?MODULE, Msg]),
+    %ct:pal("~p:handle_cast_({attempt, ~p, ...~n", [?MODULE, Msg]),
     IsExit = proplists:get_value(is_exit, Props, false),
     NewState = #state{props = Props2} = maybe_attempt(Msg, Procs, IsExit, State),
     gerlshmud_index:put(Props2),

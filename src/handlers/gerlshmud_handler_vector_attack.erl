@@ -23,9 +23,8 @@
 %% Attacking
 attempt({#parents{character = Character},
          Props,
-         {Attacker, attack, Target}})
-  when Attacker == Character ->
-    Log = [{?SOURCE, Attacker},
+         {Character, attack, Target}}) ->
+    Log = [{?SOURCE, Character},
            {?EVENT, attack},
            {?TARGET, Target}],
     {succeed, true, Props, Log};
