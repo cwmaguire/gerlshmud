@@ -59,8 +59,8 @@ attempt({#parents{character = Character},
     case should_attack(Props) of
         true ->
             {succeed, true, Props, Log};
-        false ->
-            {{fail, <<"Vector is not activated">>}, false, Props, Log}
+        {false, Message} ->
+            {{fail, Message}, false, Props, Log}
     end;
 
 attempt({#parents{},
@@ -104,8 +104,9 @@ attempt({#parents{character = Character},
            {vector, AttackVector}],
     case should_defend(Props) of
         true ->
-            case proplists:get_value(defence_hit_modifier, Props) of
-                undefined ->
+            case gerlshmud_modifiers:modifier(Props, defence, hit, Types) of
+            %case proplists:get_value(defence_hit_modifier, Props) of
+                0 ->
                     {succeed, false, Props, Log};
                 Amount ->
                     {succeed,
@@ -319,6 +320,7 @@ attack(Props) ->
 calc_hit(Props, Types) ->
     Action = proplists:get_value(attack_action, Props),
     HitBase = proplists:get_value(attack_roll, Props, 0),
+    Modifier = proplists:get_value(attack_hit_modifier, Props, 0),
     Modifier = gerlshmud_modifiers:modifier(Props, attack, Action, Types),
     random(HitBase) + Modifier.
 
@@ -328,26 +330,8 @@ random(Int) ->
     rand:uniform(Int).
 
 should_attack(Props) ->
-    is_wielded(Props) andalso is_attack(Props).
-
-should_defend(Props) ->
-    is_wielded(Props) andalso is_defence(Props).
-
-is_wielded(Props) ->
-    BodyPart = proplists:get_value(body_part, Props),
-    is_wielded(BodyPart, Props).
-
-is_wielded({BodyPart, BodyPartType}, Props) when is_pid(BodyPart) ->
-    WieldingBodyParts = proplists:get_value(wielding_body_parts, Props, []),
-    lists:member(BodyPartType, WieldingBodyParts);
-is_wielded(_, _) ->
-    false.
-
-is_attack(Props) ->
-    true == proplists:get_value(is_attack, Props, false).
-
-is_defence(Props) ->
-    true == proplists:get_value(is_defence, Props, false).
+    ShouldAttack = proplists:get_value(should_attack_module, Props),
+    ShouldAttack(Props).
 
 unreserve(Character, Props) when is_list(Props) ->
     [unreserve(Character, Resource) || {Resource, _Amt} <- proplists:get_value(resources, Props, [])];

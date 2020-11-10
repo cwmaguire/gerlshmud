@@ -31,6 +31,8 @@ attempt({#parents{owner = Spell,
            {spell, Spell}],
     {succeed, true, Props, Log};
 
+%% I can't see how this would work
+%% Why trigger a new process when this one doesn't have an owner
 attempt({#parents{owner = undefined},
          Props,
          {Character, cast, Spell, at, Target}}) ->

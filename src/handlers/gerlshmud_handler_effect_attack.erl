@@ -60,6 +60,7 @@ succeed({Props, {Self, affect, Target}}) ->
     AttackTypes = proplists:get_value(attack_types, Props),
     PossibleSuccess = proplists:get_value(attack_hit, Props),
     Modifier = gerlshmud_modifiers:modifier(Props, attack, hit, AttackTypes),
+    %% I think this should be "roll". It would read better. :w
     Success = rand:uniform(PossibleSuccess) + Modifier,
     NewMessage = {Character,
                   calc, AttackTypes,

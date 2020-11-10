@@ -29,6 +29,7 @@ attempt({#parents{character = Character},
            {spell, Spell}],
     {succeed, true, Props, Log};
 
+%% is this just for logging?
 attempt({#parents{owner = undefined},
          Props,
          {Character, cast, Spell, at, Target}}) ->

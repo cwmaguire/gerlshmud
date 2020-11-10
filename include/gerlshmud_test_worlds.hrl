@@ -78,7 +78,7 @@
                        {hitpoints, p_hp},
                        {life, p_life},
                        {attribute, dexterity0},
-                       {attack_types, [hand]},
+                       {attack_types, [melee]},
                        %% TODO: why is stamina a first class property
                        %% instead of just an attribute?
                        %% It might not matter what the index of the property
@@ -110,8 +110,13 @@
                        ?BODY_PART_HANDLERS]},
 
                   {p_fist,
-                      [{attack_damage_modifier, 5},
+                      %% attacks have no damage on their own, the damage is from effects
+                      [%%{attack_damage_roll, 5},
+                       %%{attack_damage_modifier, 1},
+                       {name, <<"right fist">>},
+                       {attack_hit_roll, 10},
                        {attack_hit_modifier, 1},
+                       {attack_type, melee},
                        {owner, p_hand},
                        {character, player},
                        {wielding_body_parts, [hand]},
@@ -119,7 +124,15 @@
                        {is_attack, true},
                        {resources, [{stamina, 5}]},
                        {icon, body_part},
-                       ?ITEM_HANDLERS]},
+                       ?WEAPON_HANDLERS]},
+
+                  {p_fist_melee_effect,
+                      [{owner, p_fist},
+                       {character, player},
+                       {effect, blunt_force},
+                       {effect_roll, 10},
+                       {damage_roll, 10},
+                       ?EFFECT_HANDLERS]},
 
                   {dexterity0,
                       [{attack_hit_modifier, 1},
@@ -817,7 +830,7 @@
                         ?SPELL_HANDLERS]},
 
                    {fireball_effect,
-                       [{desc, <<"fireball spell">>},
+                       [{desc, <<"fireball spell_effect">>},
                         {owner, fireball_spell},
                         {character, player},
                         {attack_damage, 2},

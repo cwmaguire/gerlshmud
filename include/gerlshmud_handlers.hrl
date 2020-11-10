@@ -14,8 +14,7 @@
                                         gerlshmud_handler_char_enter_world,
                                         ?UNIVERSAL_HANDLERS]}).
 
--define(ITEM_HANDLERS, {handlers, [gerlshmud_handler_vector_attack,
-                                   gerlshmud_handler_item_look,
+-define(ITEM_HANDLERS, {handlers, [gerlshmud_handler_item_look,
                                    gerlshmud_handler_item_inv,
                                    gerlshmud_handler_item_inject_self,
                                    ?UNIVERSAL_HANDLERS]}).
@@ -52,7 +51,7 @@
                                        gerlshmud_handler_resource_reserve,
                                        ?UNIVERSAL_HANDLERS]}).
 
--define(SPELL_HANDLERS, {handlers, [gerlshmud_handler_spell_attack,
+-define(SPELL_HANDLERS, {handlers, [gerlshmud_handler_attack,
                                     gerlshmud_handler_spell_memorize,
                                     gerlshmud_handler_spell_inject_self,
                                     ?UNIVERSAL_HANDLERS]}).
@@ -60,3 +59,6 @@
 -define(EFFECT_HANDLERS, {handlers, [gerlshmud_handler_effect_create,
                                      gerlshmud_handler_effect_attack,
                                      ?UNIVERSAL_HANDLERS]}).
+
+-define(WEAPON_HANDLERS, {handlers, [gerlshmud_handler_attack |
+                                     ?ITEM_HANDLERS]).
