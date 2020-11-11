@@ -30,22 +30,22 @@ attempt({_Parents,
 
 attempt({_Parents,
          Props,
-         {_Character, calc, Types, affect, _Success, on, Target, with, Self}})
+         {_Character, _Roll, for, EffectType, on, Target, with, Self}})
   when Self == self() ->
     Log = [{?SOURCE, Self},
-           {?EVENT, calc_affect},
+           {?EVENT, roll_for_effect},
            {?TARGET, Target},
-           {types, Types}],
+           {type, EffectType}],
     {succeed, true, Props, Log};
 
 attempt({_Parents,
          Props,
-         {_Character, calc, Types, damage, _Damage, to, Target, with, Self}})
+         {_Character, _Roll, for, EffectType, on, Target, with, Self}})
   when Self == self() ->
     Log = [{?SOURCE, Self},
-           {?EVENT, calc_damage},
+           {?EVENT, roll_for_effect},
            {?TARGET, Target},
-           {types, Types}],
+           {effect_type, EffectType}],
     {succeed, true, Props, Log};
 
 attempt({_, _, _Msg}) ->
@@ -57,70 +57,62 @@ succeed({Props, {Self, affect, Target}}) ->
            {?TARGET, Target},
            {handler, ?MODULE}],
     Character = proplists:get_value(character, Props),
-    AttackTypes = proplists:get_value(attack_types, Props),
-    PossibleSuccess = proplists:get_value(attack_hit, Props),
-    Modifier = gerlshmud_modifiers:modifier(Props, attack, hit, AttackTypes),
-    %% I think this should be "roll". It would read better. :w
-    Success = rand:uniform(PossibleSuccess) + Modifier,
-    NewMessage = {Character,
-                  calc, AttackTypes,
-                  affect, Success,
-                  on, Target,
-                  with, Self},
+    EffectType = proplists:get_value(effect_type, Props),
+    EffectRoll = proplists:get_value(effect_roll, Props),
+    EffectRollBase = proplists:get_value(effect_roll_base, Props),
+    Roll = EffectRollBase + rand:uniform(EffectRoll),
+    NewMessage = {Character, Roll, for, EffectType, on, Target, with, Self},
     gerlshmud_object:attempt(self(), NewMessage),
     {Props, Log};
 
-succeed({Props, {Character, calc, Types, affect, Success, on, Target, with, Self}})
+succeed({Props, {Character, Roll, for, EffectType, on, Target, with, Self}})
   when is_pid(Target),
        Self == self(),
-       Success > 0 ->
-    PossibleDamage = proplists:get_value(attack_damage, Props, 0),
-    Modifier = gerlshmud_modifiers:modifier(Props, attack, damage, Types),
-    Damage = rand:uniform(PossibleDamage) + Modifier,
+       Roll > 0 ->
     Log = [{?SOURCE, Character},
-           {?EVENT, calc_hit},
-           {damage, Damage},
+           {?EVENT, roll_for_effect},
+           {roll, Roll},
            {?TARGET, Target},
            {handler, ?MODULE},
-           {vector, Self}],
-    Event = {Character, calc, Types, damage, Damage, to, Target, with, Self},
+           {effect, Self}],
+    Event = {Character, affect, Target, with, Roll, EffectType, with, Self},
     gerlshmud_object:attempt(self(), Event),
     {Props, Log};
 
-succeed({Props, {Character, calc, Types, effect, Miss, on, Target, with, Self}})
+% Don't say anything if nothing happens
+% Only say something if _something_ happens
+% succeed({Props, {Character, FailedRoll, for, EffectType, on, Target, with, Self}})
+%   when is_pid(Target),
+%        Self == self() ->
+%     Log = [{?SOURCE, Self},
+%            {?TARGET, Target},
+%            {?EVENT, affect},
+%            {handler, ?MODULE},
+%            {roll, FailedRoll},
+%            {effect, Self},
+%            {effect_type, EffectType}],
+%     gerlshmud_object:attempt(Character, {send, Character, <<"You missed!">>}),
+%     {Props, Log};
+
+succeed({Props, {Character, affect, Target, with, Roll, EffectType, with, Self}})
   when is_pid(Target),
        Self == self() ->
     Log = [{?SOURCE, Self},
            {?TARGET, Target},
-           {?EVENT, calc_success},
+           {?EVENT, affect},
            {handler, ?MODULE},
-           {success, Miss},
-           {effect, Self},
-           {types, Types}],
-    % TODO fill in what target they missed and with what effect
-    gerlshmud_object:attempt(Character, {send, Character, <<"You missed!">>}),
-    {Props, Log};
+           {roll, Roll},
+           {effect_type, EffectType}],
+    EffectEvent = {Character, affects, Target, with, Roll, EffectType, with, Self},
+    lager:info("~p sending event ~p~n", [?MODULE, EffectEvent]),
+    gerlshmud_object:attempt(self(), EffectEvent),
 
-succeed({Props, {Character, calc, Types, damage, Damage, to, Target, with, Self}})
-  when is_pid(Target),
-       Self == self() ->
-    Log = [{?SOURCE, Self},
-           {?TARGET, Target},
-           {?EVENT, calc_damage},
-           {handler, ?MODULE},
-           {damage, Damage},
-           {types, Types}],
-    DamageEvent = {Character, does, Types, damage, Damage, to, Target, with, Self},
-    lager:info("~p sending event ~p~n", [?MODULE, DamageEvent]),
-    gerlshmud_object:attempt(self(), DamageEvent),
-
-    Desc = proplists:get_value(desc, Props, <<"no description">>),
-    DamageBin = integer_to_binary(Damage),
+    RollBin = integer_to_binary(Roll),
     % TODO have the connection object figure out the missing information
     % by sending messages out to owners, e.g. {Target, name}
-    Msg = <<"You hit <target> with ", Desc/binary,
-            " for ", DamageBin/binary, " damage">>,
-    gerlshmud_object:attempt(Character, {send, Character, Msg}),
+    Msg = [Character, <<" does ", RollBin/binary, " of ">>,
+           EffectType, <<" to ">>, Target],
+    gerlshmud_object:attempt(Character, {send, Character, Target, Msg}),
     {Props, Log};
 
 succeed({Props, _}) ->
