@@ -21,36 +21,24 @@
 -include("include/gerlshmud.hrl").
 -include("gerlshmud_handlers.hrl").
 
-attempt({#parents{owner = Spell,
+attempt({#parents{owner = Attack,
                   character = Character},
          Props,
-         {Character, cast, Spell, at, Target}}) ->
+         {Character, attack, Target, with, Attack}}) ->
     Log = [{?SOURCE, Character},
-           {?EVENT, cast},
+           {?EVENT, attack},
            {?TARGET, Target},
-           {spell, Spell}],
+           {attack, Attack}],
     {succeed, true, Props, Log};
-
-%% I can't see how this would work
-%% Why trigger a new process when this one doesn't have an owner
-attempt({#parents{owner = undefined},
-         Props,
-         {Character, cast, Spell, at, Target}}) ->
-    Log = [{?SOURCE, Character},
-           {?EVENT, cast},
-           {?TARGET, Target},
-           {spell, Spell}],
-    {succeed, true, Props, Log};
-
 attempt({_, _, _Msg}) ->
     undefined.
 
-succeed({Props, {Character, cast, Spell, at, Target}}) ->
-    Log = [{?EVENT, cast},
+succeed({Props, {Character, attack, Target, with, Attack}}) ->
+    Log = [{?EVENT, attack},
            {?SOURCE, Character},
            {?TARGET, Target},
            {handler, ?MODULE},
-           {spell, Spell}],
+           {attack, Attack}],
     Props2 = proplists:delete(owner, Props),
     {ok, Pid} = supervisor:start_child(gerlshmud_object_sup, [undefined, Props2]),
     gerlshmud_object:attempt(Pid, {Pid, affect, Target}),
@@ -61,6 +49,3 @@ succeed({Props, _}) ->
 
 fail({Props, _, _}) ->
     Props.
-
-%log(Props) ->
-    %gerlshmud_event_log:log(debug, [{module, ?MODULE} | Props]).

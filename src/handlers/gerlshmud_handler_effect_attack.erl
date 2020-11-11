@@ -35,7 +35,7 @@ attempt({_Parents,
     Log = [{?SOURCE, Self},
            {?EVENT, roll_for_effect},
            {?TARGET, Target},
-           {type, EffectType}],
+           {effect_type, EffectType}],
     {succeed, true, Props, Log};
 
 attempt({_Parents,
