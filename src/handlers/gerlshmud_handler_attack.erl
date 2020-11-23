@@ -11,7 +11,7 @@
 %% WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 %% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
--module(gerlshmud_handler_vector_attack).
+-module(gerlshmud_handler_attack).
 -behaviour(gerlshmud_handler).
 
 -export([attempt/1]).
@@ -85,59 +85,6 @@ attempt({#parents{},
         Target ->
             Log2 = [{?TARGET, Target} | Log],
             {succeed, true, Props, Log2};
-        _ ->
-            {succeed, false, Props, Log}
-    end;
-
-%% Defending
-%% I don't think we need to know when someone attacks our character,
-%% we'll automatically get events for calc-hit and calc-damage
-
-%% Defend
-attempt({#parents{character = Character},
-         Props,
-         {Attacker, calc, Types, hit, Hit, on, Character, with, AttackVector}}) ->
-    Log = [{?SOURCE, Attacker},
-           {?EVENT, calc_hit},
-           {hit, Hit},
-           {?TARGET, Character},
-           {vector, AttackVector}],
-    case should_defend(Props) of
-        true ->
-            case gerlshmud_modifiers:modifier(Props, defence, hit, Types) of
-            %case proplists:get_value(defence_hit_modifier, Props) of
-                0 ->
-                    {succeed, false, Props, Log};
-                Amount ->
-                    {succeed,
-                     {Attacker, calc, Types, hit, Hit - Amount, on, Character, with, AttackVector},
-                     true,
-                     Props,
-                     Log}
-            end;
-        _ ->
-            {succeed, false, Props, Log}
-    end;
-attempt({#parents{character = Character},
-         Props,
-         {Attacker, calc, Types, damage, Damage, to, Character, with, AttackVector}}) ->
-    Log = [{?SOURCE, Attacker},
-           {?EVENT, calc_damage},
-           {damage, Damage},
-           {?TARGET, Character},
-           {vector, AttackVector}],
-    case should_defend(Props) of
-        true ->
-            case gerlshmud_modifiers:modifier(Props, defence, damage, Types) of
-                0 ->
-                    {succeed, false, Props, Log};
-                Amount ->
-                    {succeed,
-                     {Attacker, calc, Types, damage, Damage - Amount, to, Character, with, AttackVector},
-                     true,
-                     Props,
-                     Log}
-            end;
         _ ->
             {succeed, false, Props, Log}
     end;
