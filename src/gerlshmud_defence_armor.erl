@@ -11,17 +11,18 @@
 %% WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 %% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
--module(gerlshmud_melee_attack).
--behaviour(gerlshmud_attack).
+-module(gerlshmud_defence_armor).
+-behaviour(gerlshmud_defence).
 
--export([should_attack/1]).
+-export([should_defend/1]).
 
 -include("include/gerlshmud.hrl").
 
-should_attack(Props) ->
-    Name = proplists:get_value(name, Props),
-    Message = <<Name/binary, " is not wielded">>,
-    is_wielded(Props) andalso is_attack(Props) orelse {false, Message}.
+should_defend(Props) ->
+    is_wielded(Props) andalso is_defence(Props).
+
+is_defence(Props) ->
+    true == proplists:get_value(is_defence, Props, false).
 
 is_wielded(Props) ->
     BodyPart = proplists:get_value(body_part, Props),
@@ -33,5 +34,3 @@ is_wielded({BodyPart, BodyPartType}, Props) when is_pid(BodyPart) ->
 is_wielded(_, _) ->
     false.
 
-is_attack(Props) ->
-    true == proplists:get_value(is_attack, Props, false).
