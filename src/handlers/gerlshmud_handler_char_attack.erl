@@ -25,7 +25,7 @@ attempt({#parents{}, Props, {Attacker, attack, Self}}) when Self == self() ->
            {?EVENT, attack},
            {?TARGET, Self}],
     {succeed, true, Props, Log};
-attempt({#parents{}, Props, {Self, attack, Target, with, AttackVector}}) when Self == self() ->
+attempt({#parents{}, Props, {Self, attack, Target, with, AttackType}}) when Self == self() ->
     Log = [{?SOURCE, Self},
            {?EVENT, attack},
            {?TARGET, Target},
