@@ -29,16 +29,16 @@ attempt({#parents{}, Props, {Self, attack, Target, with, AttackType}}) when Self
     Log = [{?SOURCE, Self},
            {?EVENT, attack},
            {?TARGET, Target},
-           {vector, AttackVector}],
+           {attack_type, AttackType}],
     {succeed, true, Props, Log};
 attempt(_) ->
     undefined.
 
-succeed({Props, {Self, attack, Target, with, AttackVector}}) ->
+succeed({Props, {Self, attack, Target, with, AttackType}}) ->
     Log = [{?SOURCE, Self},
            {?EVENT, attack},
            {?TARGET, Target},
-           {vector, AttackVector}],
+           {vector, AttackType}],
     Props2 = lists:keystore(is_attacking, 1, Props, {is_attacking, true}),
     {Props2, Log};
 succeed({Props, {Attacker, attack, Self}}) ->
