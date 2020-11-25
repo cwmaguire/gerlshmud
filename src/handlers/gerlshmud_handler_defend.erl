@@ -24,21 +24,22 @@
 %% Defend
 attempt({#parents{character = Character},
          Props,
-         {Attacker, calc, Types, hit, Hit, on, Character, with, Attack}}) ->
+         {Attacker, calc, HitRoll, on, Character, with, AttackType}}) ->
     Log = [{?SOURCE, Attacker},
            {?EVENT, calc_hit},
-           {hit, Hit},
+           {hit, HitRoll},
            {?TARGET, Character},
-           {vector, AttackVector}],
+           {attack_type, AttackType}],
     case should_defend(Props) of
         true ->
-            case gerlshmud_modifiers:modifier(Props, defence, hit, Types) of
-            %case proplists:get_value(defence_hit_modifier, Props) of
-                0 ->
+            %case gerlshmud_modifiers:modifier(Props, defence, hit, AttackType) of
+            case proplists:get_value(defence_hit_roll, Props, {0, 0}) of
+                {0, 0} ->
                     {succeed, false, Props, Log};
-                Amount ->
+                {MaybeRoll, Base} ->
+                    DefenceRoll = roll(MaybeRoll, Base),
                     {succeed,
-                     {Attacker, calc, Types, hit, Hit - Amount, on, Character, with, AttackVector},
+                     {Attacker, calc, HitRoll - DefenceRoll, on, Character, with, AttackType},
                      true,
                      Props,
                      Log}
@@ -48,20 +49,21 @@ attempt({#parents{character = Character},
     end;
 attempt({#parents{character = Character},
          Props,
-         {Attacker, calc, Types, damage, Damage, to, Character, with, AttackVector}}) ->
+         {Attacker, calc, EffectRoll, on, Character, with, Effect}}) ->
     Log = [{?SOURCE, Attacker},
            {?EVENT, calc_damage},
-           {damage, Damage},
+           {effect_roll, EffectRoll},
            {?TARGET, Character},
-           {vector, AttackVector}],
+           {effect, Effect}],
     case should_defend(Props) of
         true ->
-            case gerlshmud_modifiers:modifier(Props, defence, damage, Types) of
-                0 ->
+            case proplists:get_value(defence_effect_roll, Props, {0, 0}) of
+                {_Roll = 0, _Base = 0} ->
                     {succeed, false, Props, Log};
-                Amount ->
+                {MaybeRoll, Base} ->
+                    DefenceRoll = roll(MaybeRoll, Base),
                     {succeed,
-                     {Attacker, calc, Types, damage, Damage - Amount, to, Character, with, AttackVector},
+                     {Attacker, calc, EffectRoll - DefenceRoll, damage, Character},
                      true,
                      Props,
                      Log}
@@ -69,167 +71,9 @@ attempt({#parents{character = Character},
         _ ->
             {succeed, false, Props, Log}
     end;
-
-attempt({#parents{character = Character}, Props, {Character, stop_attack}}) ->
-    Log = [{?SOURCE, Character},
-           {?EVENT, stop_attack}],
-    {succeed, true, Props, Log};
-
-attempt({#parents{character = Character},
-         Props,
-         {die, Character}}) ->
-    Log = [{?SOURCE, Character},
-           {?EVENT, die}],
-    {succeed, true, Props, Log};
 
 attempt({_, _, _Msg}) ->
     undefined.
-
-succeed({Props, {Attacker, killed, Target, with, AttackVector}}) ->
-    Log = [{?EVENT, killed},
-           {?SOURCE, Attacker},
-           {?TARGET, Target},
-           {vector, AttackVector}],
-    Character = proplists:get_value(character, Props),
-    unreserve(Character, Props),
-    Props2 = lists:keystore(target, 1, Props, {?TARGET, undefined}),
-    Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, false}),
-    {Props3, Log};
-
-succeed({Props, {Attacker, attack, Target}}) when is_pid(Target) ->
-    Log = [{?EVENT, attack},
-           {?SOURCE, Attacker},
-           {?TARGET, Target}],
-    Character = proplists:get_value(character, Props),
-    IsAttacking = proplists:get_value(is_attacking, Props, false),
-    case {Character, IsAttacking} of
-        {Attacker, false} ->
-            gerlshmud_object:attempt(self(), {Attacker, attack, Target, with, self()});
-        {Target, false} ->
-            ok;
-            %gerlshmud_object:attempt(Character, {Character, attack, Attacker});
-        _ ->
-            ok
-    end,
-    {Props, Log};
-
-succeed({Props, {Attacker, counter_attack, Target}}) when is_pid(Target) ->
-    Log = [{?SOURCE, Attacker},
-           {?EVENT, counter_attack},
-           {?TARGET, Target}],
-    Character = proplists:get_value(character, Props),
-    IsAttacking = proplists:get_value(is_attacking, Props, false),
-    case {Character, IsAttacking} of
-        {Attacker, false} ->
-            gerlshmud_object:attempt(self(), {Attacker, attack, Target, with, self()});
-        {Target, false} ->
-            gerlshmud_object:attempt(Character, {Character, attack, Attacker});
-        _ ->
-            ok
-    end,
-    {Props, Log};
-
-%% An attack by our character has been successfully instigated using this process:
-%% we'll register for resources and implement the attack when we have them.
-succeed({Props, {Character, attack, Target, with, Self}}) ->
-    Log = [{?EVENT, attack},
-           {?SOURCE, Character},
-           {?TARGET, Target},
-           {vector, Self}],
-    reserve(Character, Props),
-    Props2 = lists:keystore(target, 1, Props, {target, Target}),
-    Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, true}),
-    {Props3, Log};
-
-succeed({Props, {Resource, allocate, Amt, 'of', Type, to, Self}})
-  when Self == self() ->
-    Log = [{?EVENT, allocate},
-           {amount, Amt},
-           {resource_type, Type},
-           {?SOURCE, Resource},
-           {?TARGET, Self}],
-    Allocated = update_allocated(Amt, Type, Props),
-    Required = proplists:get_value(resources, Props, []),
-    HasResources = has_resources(Allocated, Required),
-    RemainingAllocated =
-        case HasResources of
-            true ->
-                attack(Props),
-                deallocate(Allocated, Required);
-            _ ->
-                Allocated
-        end,
-    Props2 = lists:keystore(allocated_resources, 1, Props, {allocated_resources, RemainingAllocated}),
-    {Props2, Log};
-
-succeed({Props, {Character, calc, Types, hit, Hit, on, Target, with, Self}})
-  when is_pid(Target),
-       Self == self(),
-       Hit > 0 ->
-    Damage = proplists:get_value(attack_damage_base, Props, 0),
-    Types = proplists:get_value(attack_types, Props, 0),
-    Log = [{?SOURCE, Character},
-           {?EVENT, calc_hit},
-           {hit, Hit},
-           {?TARGET, Target},
-           {vector, Self}],
-    gerlshmud_object:attempt(self(), {Character, calc, Types, damage, Damage, to, Target, with, Self}),
-    {Props, Log};
-
-succeed({Props, {Character, calc, Types, hit, Miss, on, Target, with, Self}})
-  when is_pid(Target),
-       Self == self() ->
-    Log = [{?SOURCE, Character},
-           {?EVENT, calc_hit},
-           {?TARGET, Target},
-           {hit, Miss},
-           {types, Types}],
-    % TODO: say "you missed!"
-    {Props, Log};
-
-succeed({Props, {Character, calc, Types, damage, Damage, to, Target, with, Self}})
-  when Self == self(),
-       Damage > 0 ->
-    log([{?EVENT, calc_damage},
-         {object, Self},
-         {props, Props},
-         {character, Character},
-         {damage, Damage},
-         {?TARGET, Target},
-         {damage_types, Types},
-         {result, succeed}]),
-    gerlshmud_object:attempt(self(), {Character, does, Types, damage, Damage, to, Target, with, Self}),
-    Props;
-
-succeed({Props, {Character, calc, Types, damage, NoDamage, to, Target, with, Self}})
-  when Self == self() ->
-    %% Attack failed (No damage was done)
-    %% TODO: output something to the client like
-    %% "You manage to hit <target> but fail to do any damage"
-    %%       _if_ this is a player
-    Log = [{?SOURCE, Character},
-           {?EVENT, calc_damage},
-           {damage, NoDamage},
-           {damage_types, Types},
-           {?TARGET, Target},
-           {vector, Self}],
-    {Props, Log};
-
-succeed({Props, {Character, stop_attack}}) ->
-    Log = [{?SOURCE, Character},
-           {?EVENT, stop_attack}],
-    unreserve(Character, Props),
-    Props2 = lists:keystore(target, 1, Props, {target, undefined}),
-    Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, false}),
-    {Props3, Log};
-
-succeed({Props, {Character, die}}) ->
-    Log = [{?SOURCE, Character},
-           {?EVENT, die}],
-    unreserve(Character, Props),
-    Props2 = lists:keystore(target, 1, Props, {target, undefined}),
-    Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, false}),
-    {Props3, Log};
 
 succeed({Props, _}) ->
     Props.
@@ -237,72 +81,14 @@ succeed({Props, _}) ->
 fail({Props, _, _}) ->
     Props.
 
-attack(Props) ->
-    Character = proplists:get_value(character, Props),
-    Target = proplists:get_value(target, Props),
-    Types = proplists:get_value(attack_types, Props, []),
-    Hit = calc_hit(Props, Types),
-    Message = {Character, calc, Types, hit, Hit, on, Target, with, self()},
-    gerlshmud_object:attempt(self(), Message).
-
-calc_hit(Props, Types) ->
-    Action = proplists:get_value(attack_action, Props),
-    HitBase = proplists:get_value(attack_roll, Props, 0),
-    Modifier = proplists:get_value(attack_hit_modifier, Props, 0),
-    Modifier = gerlshmud_modifiers:modifier(Props, attack, Action, Types),
-    random(HitBase) + Modifier.
-
-random(0) ->
-    0;
-random(Int) ->
-    rand:uniform(Int).
-
 should_defend(Props) ->
     ShouldDefend = proplists:get_value(should_defend_module, Props),
     ShouldDefend(Props).
 
-unreserve(Character, Props) when is_list(Props) ->
-    [unreserve(Character, Resource) || {Resource, _Amt} <- proplists:get_value(resources, Props, [])];
-unreserve(Character, Resource) ->
-    gerlshmud_object:attempt(self(), {Character, unreserve, Resource, for, self()}).
+roll(_Roll = 0, Base) ->
+    Base;
+roll(Roll, Base) ->
+    rand:uniform(Roll) + Base.
 
-reserve(Character, Props) when is_list(Props) ->
-    [reserve(Character, Resource, Amount) || {Resource, Amount} <- proplists:get_value(resources, Props, [])].
-
-reserve(Character, Resource, Amount) ->
-    gerlshmud_object:attempt(self(), {Character, reserve, Amount, 'of', Resource, for, self()}).
-
-update_allocated(New, Type, Props) ->
-    Allocated = proplists:get_value(allocated_resources, Props, #{}),
-    Curr = maps:get(Type, Allocated, 0),
-    Allocated#{Type => Curr + New}.
-
-deallocate(Allocated, Required) ->
-    lists:foldl(fun subtract_required/2, Allocated, Required).
-
-subtract_required({Type, Required}, Allocated) ->
-    #{Type := Amt} = Allocated,
-    Allocated#{Type := min(0, Amt - Required)}.
-
-has_resources(Allocated, Required) ->
-    {_, AllocApplied} = lists:foldl(fun apply_resource/2, {Allocated, []}, Required),
-    case lists:filter(fun is_resource_lacking/1, AllocApplied) of
-        [] ->
-            true;
-        _ ->
-            false
-    end.
-
-apply_resource(_Resource = {Type, Required},
-               {Allocated, Applied0}) ->
-    AllocAmt = maps:get(Type, Allocated, 0),
-    Applied1 = [{Type, Required - AllocAmt} | Applied0],
-    {Allocated#{Type => 0}, Applied1}.
-
-is_resource_lacking({_Type, Amount}) when Amount =< 0 ->
-    false;
-is_resource_lacking(_) ->
-    true.
-
-log(Props) ->
-    gerlshmud_event_log:log(debug, [{module, ?MODULE} | Props]).
+%% log(Props) ->
+%%     gerlshmud_event_log:log(debug, [{module, ?MODULE} | Props]).
