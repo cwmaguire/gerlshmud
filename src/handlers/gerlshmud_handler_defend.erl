@@ -82,8 +82,8 @@ fail({Props, _, _}) ->
     Props.
 
 should_defend(Props) ->
-    ShouldDefend = proplists:get_value(should_defend_module, Props),
-    ShouldDefend(Props).
+    ShouldDefendModule = proplists:get_value(should_defend_module, Props),
+    ShouldDefendModule:should_defend(Props).
 
 roll(_Roll = 0, Base) ->
     Base;
