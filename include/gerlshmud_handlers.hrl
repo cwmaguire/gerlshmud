@@ -61,7 +61,7 @@
                                      ?UNIVERSAL_HANDLERS]}).
 
 -define(WEAPON_HANDLERS, {handlers, [gerlshmud_handler_attack |
-                                     ?ITEM_HANDLERS]}).
+                                     element(2, ?ITEM_HANDLERS)]}).
 
 -define(ARMOR_HANDLERS, {handlers, [gerlshmud_handler_defend |
                                     ?ITEM_HANDLERS]}).
