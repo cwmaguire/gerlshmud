@@ -259,26 +259,19 @@ fail({Props, _, _}) ->
 attack(Props) ->
     Character = proplists:get_value(character, Props),
     Target = proplists:get_value(target, Props),
-    Types = proplists:get_value(attack_types, Props, []),
-    Hit = calc_hit(Props, Types),
-    Message = {Character, calc, Types, hit, Hit, on, Target, with, self()},
+    AttackType = proplists:get_value(attack_type, Props, []),
+    Hit = calc_hit(Props),
+    % TODO - defend is expecting AttackType instead of self()
+    Message = {Character, calc, Hit, on, Target, with, self()},
     gerlshmud_object:attempt(self(), Message).
 
-calc_hit(Props, Types) ->
-    Action = proplists:get_value(attack_action, Props),
-    HitBase = proplists:get_value(attack_roll, Props, 0),
-    Modifier = proplists:get_value(attack_hit_modifier, Props, 0),
-    Modifier = gerlshmud_modifiers:modifier(Props, attack, Action, Types),
-    random(HitBase) + Modifier.
-
-random(0) ->
-    0;
-random(Int) ->
-    rand:uniform(Int).
+calc_hit(Props) ->
+    Roll = proplists:get_value(attack_roll, Props, {0, 0}),
+    gerlshmud_roll:roll(Roll).
 
 should_attack(Props) ->
-    ShouldAttack = proplists:get_value(should_attack_module, Props),
-    ShouldAttack(Props).
+    ShouldAttackModule = proplists:get_value(should_attack_module, Props),
+    ShouldAttackModule:should_attack(Props).
 
 unreserve(Character, Props) when is_list(Props) ->
     [unreserve(Character, Resource) || {Resource, _Amt} <- proplists:get_value(resources, Props, [])];
