@@ -118,7 +118,7 @@
                        {is_attack, true},
                        {is_defence, false},
                        {should_attack_module, gerlshmud_attack_melee},
-                       {should_defend_module, gerlshmud_defned_melee},
+                       {should_defend_module, gerlshmud_defend_melee},
                        {attack_hit_roll, {1, 10}},
                        {resources, [{stamina, 5}]},
                        {icon, weapon},
