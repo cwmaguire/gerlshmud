@@ -1,4 +1,36 @@
 
+src/handlers/gerlshmud_handler_attack.erl
+attempt({#parents{character = Character}, Props, {Character, attack, Target}}) ->
+attempt({#parents{character = Character}, Props, {Character, counter_attack, Target}}) ->
+attempt({#parents{character = Character}, Props, {Character, attack, Target, with, Self}}) when Self == self() ->
+attempt({#parents{}, Props, {Resource, allocate, Required, 'of', Type, to, Self}}) when Self == self() ->
+attempt({#parents{}, Props, {Attacker, killed, Target, with, AttackVector}}) ->
+attempt({#parents{character = Character}, Props, {Character, stop_attack}}) ->
+attempt({#parents{character = Character}, Props, {die, Character}}) ->
+attempt({_, _, _Msg}) ->
+succeed({Props, {Attacker, killed, Target, with, AttackVector}}) ->
+succeed({Props, {Attacker, attack, Target}}) when is_pid(Target) ->
+ gerlshmud_object:attempt(self(), {Attacker, attack, Target, with, self()});
+ %gerlshmud_object:attempt(Character, {Character, attack, Attacker});
+succeed({Props, {Attacker, counter_attack, Target}}) when is_pid(Target) ->
+ gerlshmud_object:attempt(self(), {Attacker, attack, Target, with, self()});
+ gerlshmud_object:attempt(Character, {Character, attack, Attacker});
+succeed({Props, {Character, attack, Target, with, Self}}) ->
+succeed({Props, {Resource, allocate, Amt, 'of', Type, to, Self}}) when Self == self() ->
+succeed({Props, {Character, calc, _AttackType, Hit, on, Target, with, Self}}) when is_pid(Target), Self == self(), Hit > 0 ->
+ gerlshmud_object:attempt(self(), {Character, effect, Target, because, Self}),
+succeed({Props, {Character, calc, Type, hit, Miss, on, Target, with, Self}}) when is_pid(Target), Self == self() ->
+succeed({Props, {Character, calc, Types, damage, Damage, to, Target, with, Self}}) when Self == self(), Damage > 0 ->
+ gerlshmud_object:attempt(self(), {Character, does, Types, damage, Damage, to, Target, with, Self}),
+succeed({Props, {Character, calc, Types, damage, NoDamage, to, Target, with, Self}}) when Self == self() ->
+succeed({Props, {Character, stop_attack}}) ->
+succeed({Props, {Character, die}}) ->
+succeed({Props, _}) ->
+Message = {Character, calc, AttackType, Hit, on, Target, with, self()},
+ gerlshmud_object:attempt(self(), Message).
+ gerlshmud_object:attempt(self(), {Character, unreserve, Resource, for, self()}).
+ gerlshmud_object:attempt(self(), {Character, reserve, Amount, 'of', Resource, for, self()}).
+
 src/handlers/gerlshmud_handler_attack_resource.erl
 attempt({#parents{character = Character, owner = Owner}, Props, {Character, attack, Target, with, Owner}}) ->
 attempt({#parents{character = Character}, Props, {move, Character, From, To, Exit}}) ->
@@ -70,9 +102,9 @@ succeed({Props, _}) ->
 
 src/handlers/gerlshmud_handler_char_attack.erl
 attempt({#parents{}, Props, {Attacker, attack, Self}}) when Self == self() ->
-attempt({#parents{}, Props, {Self, attack, Target, with, AttackVector}}) when Self == self() ->
+attempt({#parents{}, Props, {Self, attack, Target, with, AttackType}}) when Self == self() ->
 attempt(_) ->
-succeed({Props, {Self, attack, Target, with, AttackVector}}) ->
+succeed({Props, {Self, attack, Target, with, AttackType}}) ->
 succeed({Props, {Attacker, attack, Self}}) ->
  gerlshmud_object:attempt(self(), {self(), counter_attack, Attacker})
 succeed({Props, _}) ->
@@ -158,30 +190,34 @@ succeed({Props, {Self, counter_attack, Target}}) ->
  gerlshmud_object:attempt(self(), {self(), attack, Target}),
 succeed({Props, _}) ->
 
+src/handlers/gerlshmud_handler_defend.erl
+attempt({#parents{character = Character}, Props, {Attacker, calc, HitRoll, on, Character, with, AttackType}}) ->
+attempt({#parents{character = Character}, Props, {Attacker, calc, EffectRoll, on, Character, with, Effect}}) ->
+attempt({_, _, _Msg}) ->
+succeed({Props, _}) ->
+
 src/handlers/gerlshmud_handler_effect_attack.erl
 attempt({_Parents, Props, {Self, affect, Target}}) when Self == self() ->
-attempt({_Parents, Props, {_Character, calc, Types, affect, _Success, on, Target, with, Self}}) when Self == self() ->
-attempt({_Parents, Props, {_Character, calc, Types, damage, _Damage, to, Target, with, Self}}) when Self == self() ->
+attempt({_Parents, Props, {_Character, _Roll, for, EffectType, on, Target, with, Self}}) when Self == self() ->
+attempt({_Parents, Props, {_Character, _Roll, for, EffectType, on, Target, with, Self}}) when Self == self() ->
 attempt({_, _, _Msg}) ->
 succeed({Props, {Self, affect, Target}}) ->
-NewMessage = {Character, calc, AttackTypes, affect, Success, on, Target, with, Self},
+NewMessage = {Character, Roll, for, EffectType, on, Target, with, Self},
  gerlshmud_object:attempt(self(), NewMessage),
-succeed({Props, {Character, calc, Types, affect, Success, on, Target, with, Self}}) when is_pid(Target), Self == self(), Success > 0 ->
-Event = {Character, calc, Types, damage, Damage, to, Target, with, Self},
+succeed({Props, {Character, calc, EffectType, EffectAmount, on, Target, with, Self}}) when is_pid(Target), Self == self(), EffectAmount > 0 ->
+Event = {Character, cause, EffectType, EffectAmount, on, Target, with, Self},
  gerlshmud_object:attempt(self(), Event),
-succeed({Props, {Character, calc, Types, effect, Miss, on, Target, with, Self}}) when is_pid(Target), Self == self() ->
- gerlshmud_object:attempt(Character, {send, Character, <<"You missed!">>}),
-succeed({Props, {Character, calc, Types, damage, Damage, to, Target, with, Self}}) when is_pid(Target), Self == self() ->
-Event = {Character, does, Types, damage, Damage, to, Target, with, Self},
- gerlshmud_object:attempt(self(), DamageEvent),
- gerlshmud_object:attempt(Character, {send, Character, Msg}),
+% gerlshmud_object:attempt(Character, {send, Character, <<"You missed!">>}),
+succeed({Props, {Character, affect, Target, with, Roll, EffectType, with, Self}}) when is_pid(Target), Self == self() ->
+Event = {Character, affects, Target, with, Roll, EffectType, with, Self},
+ gerlshmud_object:attempt(self(), EffectEvent),
+ gerlshmud_object:attempt(Character, {send, Character, Target, Msg}),
 succeed({Props, _}) ->
 
 src/handlers/gerlshmud_handler_effect_create.erl
-attempt({#parents{owner = Spell, character = Character}, Props, {Character, cast, Spell, at, Target}}) ->
-attempt({#parents{owner = undefined}, Props, {Character, cast, Spell, at, Target}}) ->
+attempt({#parents{owner = Attack, character = Character}, Props, {Character, effect, Target, because, Attack}}) ->
 attempt({_, _, _Msg}) ->
-succeed({Props, {Character, cast, Spell, at, Target}}) ->
+succeed({Props, {Character, effect, Target, because, Attack}}) ->
  gerlshmud_object:attempt(Pid, {Pid, affect, Target}),
 succeed({Props, _}) ->
 
@@ -199,9 +235,9 @@ attempt(_) ->
 succeed({Props, Msg}) ->
 
 src/handlers/gerlshmud_handler_hitpoints_attack.erl
-attempt({#parents{owner = Owner}, Props, {Character, does, Types, damage, Damage, to, Owner, with, AttackVector}}) ->
+attempt({#parents{owner = Owner}, Props, {Attacker, cause, melee, Damage, on, Owner, with, Attack}}) ->
 attempt(_) ->
-succeed({Props, _Msg = {Attacker, does, Types, damage, Damage, to, Owner, with, AttackVector}}) ->
+succeed({Props, {Attacker, cause, melee, Damage, on, Owner, with, Attack}}) ->
 succeed({Props, _Msg}) ->
  gerlshmud_object:attempt(Owner, {Attacker, killed, Owner, with, AttackVector});
 
@@ -324,37 +360,6 @@ attempt({_, Props, {_, set_child_property, _, _}}) ->
 attempt(_) ->
 succeed({Props, _Msg}) ->
 
-src/handlers/gerlshmud_handler_spell_attack.erl
-attempt({#parents{character = Character}, Props, {Attacker, attack, Target}}) when Attacker == Character ->
-attempt({#parents{character = Character}, Props, {Character, counter_attack, Target}}) ->
-attempt({#parents{character = Character}, Props, {Character, attack, Target, with, Self}}) when Self == self() ->
-attempt({#parents{}, Props, {Resource, allocate, Required, 'of', Type, to, Self}}) when Self == self() ->
-attempt({#parents{}, Props, {Attacker, killed, Target, with, AttackVector}}) ->
-attempt({#parents{character = Character}, Props, {Character, stop_attack}}) ->
-attempt({#parents{character = Character}, Props, {die, Character}}) ->
-attempt({_, _, _Msg}) ->
-succeed({Props, {Attacker, killed, Target, with, AttackVector}}) ->
-succeed({Props, {Attacker, attack, Target}}) when is_pid(Target) ->
- gerlshmud_object:attempt(self(), {Attacker, attack, Target, with, self()});
-succeed({Props, {Attacker, counter_attack, Target}}) when is_pid(Target) ->
- gerlshmud_object:attempt(self(), {Attacker, attack, Target, with, self()});
- gerlshmud_object:attempt(Character, {Character, attack, Attacker});
-succeed({Props, {Character, attack, Target, with, Self}}) ->
-succeed({Props, {Resource, allocate, Amt, 'of', Type, to, Self}}) when Self == self() ->
-succeed({Props, {Character, calc, Types, cast, Success, on, Target, with, Self}}) when is_pid(Target), Self == self(), Success > 0 ->
- gerlshmud_object:attempt(self(), {Effect, affect, Target}),
-succeed({Props, {Character, calc, Types, cast, Miss, on, Target, with, Self}}) when is_pid(Target), Self == self() ->
-succeed({Props, {Character, calc, Types, damage, Damage, to, Target, with, Self}}) when Self == self(), Damage > 0 ->
- gerlshmud_object:attempt(self(), {Character, does, Types, damage, Damage, to, Target, with, Self}),
-succeed({Props, {Character, calc, Types, damage, NoDamage, to, Target, with, Self}}) when Self == self() ->
-succeed({Props, {Character, stop_attack}}) ->
-succeed({Props, {Character, die}}) ->
-succeed({Props, _}) ->
-Message = {Character, calc, Types, cast, Success, on, Target, with, self()},
- gerlshmud_object:attempt(self(), Message).
- gerlshmud_object:attempt(self(), {Character, unreserve, Resource, for, self()}).
- gerlshmud_object:attempt(self(), {Character, reserve, Amount, 'of', Resource, for, self()}).
-
 src/handlers/gerlshmud_handler_spell_inject_self.erl
 attempt({#parents{character = Character}, Props, {Character, memorize, SpellName}}) when is_binary(SpellName) ->
 NewMessage = {Character, memorize, self()},
@@ -402,37 +407,3 @@ succeed({Props, {killed, Attack, Source, Owner}}) ->
  gerlshmud_object:attempt(self(), {die, Owner}),
 succeed({Props, {die, Target}}) ->
 succeed({Props, _Msg}) ->
-
-src/handlers/gerlshmud_handler_vector_attack.erl
-attempt({#parents{character = Character}, Props, {Character, attack, Target}}) ->
-attempt({#parents{character = Character}, Props, {Character, counter_attack, Target}}) ->
-attempt({#parents{character = Character}, Props, {Character, attack, Target, with, Self}}) when Self == self() ->
-attempt({#parents{}, Props, {Resource, allocate, Required, 'of', Type, to, Self}}) when Self == self() ->
-attempt({#parents{}, Props, {Attacker, killed, Target, with, AttackVector}}) ->
-attempt({#parents{character = Character}, Props, {Attacker, calc, Types, hit, Hit, on, Character, with, AttackVector}}) ->
-attempt({#parents{character = Character}, Props, {Attacker, calc, Types, damage, Damage, to, Character, with, AttackVector}}) ->
-attempt({#parents{character = Character}, Props, {Character, stop_attack}}) ->
-attempt({#parents{character = Character}, Props, {die, Character}}) ->
-attempt({_, _, _Msg}) ->
-succeed({Props, {Attacker, killed, Target, with, AttackVector}}) ->
-succeed({Props, {Attacker, attack, Target}}) when is_pid(Target) ->
- gerlshmud_object:attempt(self(), {Attacker, attack, Target, with, self()});
- %gerlshmud_object:attempt(Character, {Character, attack, Attacker});
-succeed({Props, {Attacker, counter_attack, Target}}) when is_pid(Target) ->
- gerlshmud_object:attempt(self(), {Attacker, attack, Target, with, self()});
- gerlshmud_object:attempt(Character, {Character, attack, Attacker});
-succeed({Props, {Character, attack, Target, with, Self}}) ->
-succeed({Props, {Resource, allocate, Amt, 'of', Type, to, Self}}) when Self == self() ->
-succeed({Props, {Character, calc, Types, hit, Hit, on, Target, with, Self}}) when is_pid(Target), Self == self(), Hit > 0 ->
- gerlshmud_object:attempt(self(), {Character, calc, Types, damage, Damage, to, Target, with, Self}),
-succeed({Props, {Character, calc, Types, hit, Miss, on, Target, with, Self}}) when is_pid(Target), Self == self() ->
-succeed({Props, {Character, calc, Types, damage, Damage, to, Target, with, Self}}) when Self == self(), Damage > 0 ->
- gerlshmud_object:attempt(self(), {Character, does, Types, damage, Damage, to, Target, with, Self}),
-succeed({Props, {Character, calc, Types, damage, NoDamage, to, Target, with, Self}}) when Self == self() ->
-succeed({Props, {Character, stop_attack}}) ->
-succeed({Props, {Character, die}}) ->
-succeed({Props, _}) ->
-Message = {Character, calc, Types, hit, Hit, on, Target, with, self()},
- gerlshmud_object:attempt(self(), Message).
- gerlshmud_object:attempt(self(), {Character, unreserve, Resource, for, self()}).
- gerlshmud_object:attempt(self(), {Character, reserve, Amount, 'of', Resource, for, self()}).
