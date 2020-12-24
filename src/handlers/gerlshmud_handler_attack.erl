@@ -181,28 +181,28 @@ succeed({Props, {Resource, allocate, Amt, 'of', Type, to, Self}})
     Props2 = lists:keystore(allocated_resources, 1, Props, {allocated_resources, RemainingAllocated}),
     {Props2, Log};
 
-succeed({Props, {Character, calc, Types, hit, Hit, on, Target, with, Self}})
+succeed({Props, {Character, calc, _AttackType, Hit, on, Target, with, Self}})
   when is_pid(Target),
        Self == self(),
        Hit > 0 ->
-    Damage = proplists:get_value(attack_damage_base, Props, 0),
-    Types = proplists:get_value(attack_types, Props, 0),
+    %Damage = proplists:get_value(attack_damage_base, Props, 0),
+    %Type = proplists:get_value(attack_type, Props, undefined),
     Log = [{?SOURCE, Character},
            {?EVENT, calc_hit},
            {hit, Hit},
            {?TARGET, Target},
-           {vector, Self}],
-    gerlshmud_object:attempt(self(), {Character, calc, Types, damage, Damage, to, Target, with, Self}),
+           {attack, Self}],
+    gerlshmud_object:attempt(self(), {Character, effect, Target, because, Self}),
     {Props, Log};
 
-succeed({Props, {Character, calc, Types, hit, Miss, on, Target, with, Self}})
+succeed({Props, {Character, calc, Type, hit, Miss, on, Target, with, Self}})
   when is_pid(Target),
        Self == self() ->
     Log = [{?SOURCE, Character},
            {?EVENT, calc_hit},
            {?TARGET, Target},
            {hit, Miss},
-           {types, Types}],
+           {type, Type}],
     % TODO: say "you missed!"
     {Props, Log};
 
@@ -262,11 +262,11 @@ attack(Props) ->
     AttackType = proplists:get_value(attack_type, Props, []),
     Hit = calc_hit(Props),
     % TODO - defend is expecting AttackType instead of self()
-    Message = {Character, calc, Hit, on, Target, with, self()},
+    Message = {Character, calc, AttackType, Hit, on, Target, with, self()},
     gerlshmud_object:attempt(self(), Message).
 
 calc_hit(Props) ->
-    Roll = proplists:get_value(attack_roll, Props, {0, 0}),
+    Roll = proplists:get_value(attack_hit_roll, Props, {0, 0}),
     gerlshmud_roll:roll(Roll).
 
 should_attack(Props) ->

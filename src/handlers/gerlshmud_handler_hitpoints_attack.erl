@@ -23,25 +23,26 @@
 
 attempt({#parents{owner = Owner},
          Props,
-         {Character, does, Types, damage, Damage, to, Owner, with, AttackVector}}) ->
+         {Attacker, cause, melee, Damage, on, Owner, with, Attack}}) ->
     Log = [{?EVENT, damage},
-           {?SOURCE, Character},
+           {?SOURCE, Attacker},
            {?TARGET, Owner},
            {damage, Damage},
-           {vector, AttackVector},
-           {types, Types}],
+           {attack, Attack},
+           {type, melee}],
     {succeed, true, Props, Log};
 attempt(_) ->
     undefined.
 
-succeed({Props, _Msg = {Attacker, does, Types, damage, Damage, to, Owner, with, AttackVector}}) ->
+succeed({Props,
+         {Attacker, cause, melee, Damage, on, Owner, with, Attack}}) ->
     Log = [{?EVENT, damage},
            {?TARGET, Owner},
            {from, Attacker},
            {damage, Damage},
-           {vector, AttackVector},
-           {types, Types}],
-    {Props2, Log2} = take_damage(Attacker, Owner, Damage, AttackVector, Props),
+           {attack, Attack},
+           {type, melee}],
+    {Props2, Log2} = take_damage(Attacker, Owner, Damage, Attack, Props),
     {Props2, Log2 ++ Log};
 succeed({Props, _Msg}) ->
     Props.

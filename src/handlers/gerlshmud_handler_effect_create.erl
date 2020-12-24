@@ -24,7 +24,7 @@
 attempt({#parents{owner = Attack,
                   character = Character},
          Props,
-         {Character, attack, Target, with, Attack}}) ->
+         {Character, effect, Target, because, Attack}}) ->
     Log = [{?SOURCE, Character},
            {?EVENT, attack},
            {?TARGET, Target},
@@ -33,14 +33,14 @@ attempt({#parents{owner = Attack,
 attempt({_, _, _Msg}) ->
     undefined.
 
-succeed({Props, {Character, attack, Target, with, Attack}}) ->
+succeed({Props, {Character, effect, Target, because, Attack}}) ->
     Log = [{?EVENT, attack},
            {?SOURCE, Character},
            {?TARGET, Target},
            {handler, ?MODULE},
            {attack, Attack}],
-    Props2 = proplists:delete(owner, Props),
-    {ok, Pid} = supervisor:start_child(gerlshmud_object_sup, [undefined, Props2]),
+    %Props2 = proplists:delete(owner, Props),
+    {ok, Pid} = supervisor:start_child(gerlshmud_object_sup, [undefined, Props]),
     gerlshmud_object:attempt(Pid, {Pid, affect, Target}),
     {Props, Log};
 

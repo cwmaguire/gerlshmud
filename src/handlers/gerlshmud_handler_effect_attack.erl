@@ -65,17 +65,17 @@ succeed({Props, {Self, affect, Target}}) ->
     gerlshmud_object:attempt(self(), NewMessage),
     {Props, Log};
 
-succeed({Props, {Character, Roll, for, EffectType, on, Target, with, Self}})
+succeed({Props, {Character, calc, EffectType, EffectAmount, on, Target, with, Self}})
   when is_pid(Target),
        Self == self(),
-       Roll > 0 ->
+       EffectAmount > 0 ->
     Log = [{?SOURCE, Character},
            {?EVENT, roll_for_effect},
-           {roll, Roll},
+           {amount, EffectAmount},
            {?TARGET, Target},
            {handler, ?MODULE},
            {effect, Self}],
-    Event = {Character, affect, Target, with, Roll, EffectType, with, Self},
+    Event = {Character, cause, EffectType, EffectAmount, on, Target, with, Self},
     gerlshmud_object:attempt(self(), Event),
     {Props, Log};
 
