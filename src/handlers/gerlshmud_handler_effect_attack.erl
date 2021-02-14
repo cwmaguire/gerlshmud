@@ -20,6 +20,10 @@
 
 -include("include/gerlshmud.hrl").
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% ATTEMPT
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 attempt({_Parents,
          Props,
          {Self, affect, Target}}) when Self == self() ->
@@ -30,18 +34,9 @@ attempt({_Parents,
 
 attempt({_Parents,
          Props,
-         {_Character, _Roll, for, EffectType, on, Target, with, Self}})
-  when Self == self() ->
-    Log = [{?SOURCE, Self},
-           {?EVENT, roll_for_effect},
-           {?TARGET, Target},
-           {effect_type, EffectType}],
-    {succeed, true, Props, Log};
-
-attempt({_Parents,
-         Props,
-         {_Character, _Roll, for, EffectType, on, Target, with, Self}})
-  when Self == self() ->
+         {_Character, roll, _Roll, for, HitOrEffect, with, EffectType, on, Target, with, Self}})
+  when Self == self(),
+       HitOrDmg == hit; HitOrEffect == Effect ->
     Log = [{?SOURCE, Self},
            {?EVENT, roll_for_effect},
            {?TARGET, Target},
@@ -51,21 +46,79 @@ attempt({_Parents,
 attempt({_, _, _Msg}) ->
     undefined.
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% SUCCEED
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 succeed({Props, {Self, affect, Target}}) ->
     Log = [{?EVENT, affect},
            {?SOURCE, Self},
            {?TARGET, Target},
            {handler, ?MODULE}],
     Character = proplists:get_value(character, Props),
-    EffectType = proplists:get_value(effect_type, Props),
-    EffectRoll = proplists:get_value(effect_roll, Props),
-    EffectRollBase = proplists:get_value(effect_roll_base, Props),
-    Roll = EffectRollBase + rand:uniform(EffectRoll),
-    NewMessage = {Character, Roll, for, EffectType, on, Target, with, Self},
-    gerlshmud_object:attempt(self(), NewMessage),
+    reserve(Character, Props),
     {Props, Log};
 
-succeed({Props, {Character, calc, EffectType, EffectAmount, on, Target, with, Self}})
+succeed({Props, {Resource, allocate, Amt, 'of', Type, to, Self}})
+  when Self == self() ->
+    Log = [{?EVENT, allocate},
+           {amount, Amt},
+           {resource_type, Type},
+           {?SOURCE, Resource},
+           {?TARGET, Self}],
+    Allocated = update_allocated(Amt, Type, Props),
+    Required = proplists:get_value(resources, Props, []),
+    HasResources = has_resources(Allocated, Required),
+    RemainingAllocated =
+        case HasResources of
+            true ->
+                affect(Props),
+                deallocate(Allocated, Required);
+            _ ->
+                Allocated
+        end,
+    Props2 = lists:keystore(allocated_resources, 1, Props, {allocated_resources, RemainingAllocated}),
+    {Props2, Log};
+
+succeed({Props, {Character, roll, SuccessRoll, for, hit, with, EffectType, on, Target, with, Self}})
+  when is_pid(Target),
+       Self == self()
+       SuccessRoll > 0 ->
+    Log = [{?SOURCE, Character},
+           {?EVENT, roll_for_hit},
+           {amount, EffectAmount},
+           {?TARGET, Target},
+           {handler, ?MODULE},
+           {effect, Self}],
+
+    gerlshmud_object:attempt(self(), Event);
+    {Props, Log};
+
+succeed({Props, {Character, roll, FailRoll, for, hit, with, EffectType, on, Target, with, Self}})
+  when is_pid(Target),
+       Self == self() ->
+    Log = [{?SOURCE, Character},
+           {?EVENT, roll_for_hit},
+           {amount, EffectAmount},
+           {?TARGET, Target},
+           {handler, ?MODULE},
+           {effect, Self}],
+
+    CharacterSubstitutions = [{<<"<target>">>, Target}],
+    AmountBin = <<" [", (itob(Roll))/binary, "]">>.
+    CharacterMsg = <<"You miss <target> with ",
+            (gerlshmud_util:atob(EffectType))/binary,
+            AmountBin/binary>>,
+    gerlshmud_object:attempt(Target, {send, Character, CharacterMsg, Substitutions}),
+
+    TargetSubstitutions = [{<<"<character>">>, Character}],
+    TargetMsg = <<"<character> misses you with ", (gerlshmud_util:atob(EffectType))/binary>>,
+    Substitutions = [{<<"<target>">>, Target},
+                     {<<"<character>">>, Character},
+    gerlshmud_object:attempt(Target, {send, Target, TargetMsg, Substitutions}),
+    {Props, Log};
+
+succeed({Props, {Character, roll, Roll, for, effect, with, EffectType, on, Target, with, Self}})
   when is_pid(Target),
        Self == self(),
        EffectAmount > 0 ->
@@ -75,24 +128,130 @@ succeed({Props, {Character, calc, EffectType, EffectAmount, on, Target, with, Se
            {?TARGET, Target},
            {handler, ?MODULE},
            {effect, Self}],
-    Event = {Character, cause, EffectType, EffectAmount, on, Target, with, Self},
+    %Event = {Character, cause, EffectType, EffectAmount, on, Target, with, Self},
+    Event = {Character, affect, Target, with, EffectType, doing, EffectAmount, with, Self},
     gerlshmud_object:attempt(self(), Event),
+
+    %% TODO go again?
     {Props, Log};
 
-% Don't say anything if nothing happens
-% Only say something if _something_ happens
-% succeed({Props, {Character, FailedRoll, for, EffectType, on, Target, with, Self}})
-%   when is_pid(Target),
-%        Self == self() ->
-%     Log = [{?SOURCE, Self},
-%            {?TARGET, Target},
-%            {?EVENT, affect},
-%            {handler, ?MODULE},
-%            {roll, FailedRoll},
-%            {effect, Self},
-%            {effect_type, EffectType}],
-%     gerlshmud_object:attempt(Character, {send, Character, <<"You missed!">>}),
-%     {Props, Log};
+succeed({Props, {Character, roll, FailRoll, for, effect, with, EffectType, on, Target, with, Self}})
+  when is_pid(Target),
+       Self == self() ->
+    Log = [{?SOURCE, Character},
+           {?EVENT, roll_for_effect},
+           {amount, EffectAmount},
+           {?TARGET, Target},
+           {handler, ?MODULE},
+           {effect, Self}],
+
+    CharacterSubstitutions = [{<<"<target>">>, Target}],
+    AmountBin = <<" [", (itob(Roll))/binary, "]">>.
+    CharacterMsg = <<(atob(EffectType))/binary, " has no effect on <target>",
+            (gerlshmud_util:atob(EffectType))/binary,
+            AmountBin/binary>>,
+    gerlshmud_object:attempt(Target, {send, Character, CharacterMsg, Substitutions}),
+
+    TargetSubstitutions = [{<<"<character>">>, Character}],
+    TargetMsg = <<"<character>'s ", (gerlshmud_util:atob(EffectType))/binary, " has no effect">>,
+    Substitutions = [{<<"<target>">>, Target},
+                     {<<"<character>">>, Character},
+    gerlshmud_object:attempt(Target, {send, Target, TargetMsg, Substitutions}),
+    {Props, Log};
+
+reserve(Character, Props) when is_list(Props) ->
+    [reserve(Character, Resource, Amount) || {Resource, Amount} <- proplists:get_value(resources, Props, [])].
+
+reserve(Character, Resource, Amount) ->
+    gerlshmud_object:attempt(self(), {Character, reserve, Amount, 'of', Resource, for, self()}).
+
+succeed({Props, {Resource, allocate, Amt, 'of', Type, to, Self}})
+  when Self == self() ->
+    Log = [{?EVENT, allocate},
+           {amount, Amt},
+           {resource_type, Type},
+           {?SOURCE, Resource},
+           {?TARGET, Self}],
+    Allocated = update_allocated(Amt, Type, Props),
+    Required = proplists:get_value(resources, Props, []),
+    HasResources = has_resources(Allocated, Required),
+    RemainingAllocated =
+        case HasResources of
+            true ->
+                affect(Props),
+                deallocate(Allocated, Required);
+            _ ->
+                Allocated
+        end,
+    Props2 = lists:keystore(allocated_resources, 1, Props, {allocated_resources, RemainingAllocated}),
+    {Props2, Log};
+
+update_allocated(New, Type, Props) ->
+    Allocated = proplists:get_value(allocated_resources, Props, #{}),
+    Curr = maps:get(Type, Allocated, 0),
+    Allocated#{Type => Curr + New}.
+
+has_resources(Allocated, Required) ->
+    {_, AllocApplied} = lists:foldl(fun apply_resource/2, {Allocated, []}, Required),
+    case lists:filter(fun is_resource_lacking/1, AllocApplied) of
+        [] ->
+            true;
+        _ ->
+            false
+    end.
+
+update_allocated(New, Type, Props) ->
+    Allocated = proplists:get_value(allocated_resources, Props, #{}),
+    Curr = maps:get(Type, Allocated, 0),
+    Allocated#{Type => Curr + New}.
+
+has_resources(Allocated, Required) ->
+    {_, AllocApplied} = lists:foldl(fun apply_resource/2, {Allocated, []}, Required),
+    case lists:filter(fun is_resource_lacking/1, AllocApplied) of
+        [] ->
+            true;
+        _ ->
+            false
+    end.
+
+apply_resource(_Resource = {Type, Required},
+               {Allocated, Applied0}) ->
+    AllocAmt = maps:get(Type, Allocated, 0),
+    Applied1 = [{Type, Required - AllocAmt} | Applied0],
+    {Allocated#{Type => 0}, Applied1}.
+
+is_resource_lacking({_Type, Amount}) when Amount =< 0 ->
+    false;
+is_resource_lacking(_) ->
+    true.
+
+affect(Props) ->
+    Character = proplists:get_value(character, Props),
+    EffectType = proplists:get_value(effect_type, Props),
+    Target = proplists:get_value(target, Target),
+    Roll = calc_hit_roll(Props),
+    NewMessage = {Character, Roll, for, EffectType, on, Target, with, self()},
+    gerlshmud_object:attempt(self(), NewMessage),
+
+
+    Target = proplists:get_value(target, Props),
+    AttackType = proplists:get_value(attack_type, Props, []),
+    Hit = calc_hit(Props),
+
+    Event = {Character, roll, 0, for, affect, with, EffectType, on, Target, with, Self}
+    % I think we're auto-subscribed
+    gerlshmud_object:attempt(self(), Event).
+
+calc_hit_roll(Props) ->
+    Roll = proplists:get_value(effect_hit_roll, Props, {0, 0}),
+    gerlshmud_roll:roll(Roll).
+
+deallocate(Allocated, Required) ->
+    lists:foldl(fun subtract_required/2, Allocated, Required).
+
+subtract_required({Type, Required}, Allocated) ->
+    #{Type := Amt} = Allocated,
+    Allocated#{Type := min(0, Amt - Required)}.
 
 succeed({Props, {Character, affect, Target, with, Roll, EffectType, with, Self}})
   when is_pid(Target),

@@ -21,6 +21,10 @@
 -include("include/gerlshmud.hrl").
 -include("gerlshmud_handlers.hrl").
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% ATTEMPT
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 attempt({#parents{owner = Attack,
                   character = Character},
          Props,
@@ -32,6 +36,10 @@ attempt({#parents{owner = Attack,
     {succeed, true, Props, Log};
 attempt({_, _, _Msg}) ->
     undefined.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% SUCCEED
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 succeed({Props, {Character, effect, Target, because, Attack}}) ->
     Log = [{?EVENT, attack},

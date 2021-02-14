@@ -149,51 +149,31 @@ succeed({Props, {Attacker, counter_attack, Target}}) when is_pid(Target) ->
     {Props, Log};
 
 %% An attack by our character has been successfully instigated using this process:
-%% we'll register for resources and implement the attack when we have them.
 succeed({Props, {Character, attack, Target, with, Self}}) ->
     Log = [{?EVENT, attack},
            {?SOURCE, Character},
            {?TARGET, Target},
            {vector, Self}],
-    reserve(Character, Props),
+
+    % TODO move this to the effect process
+
     Props2 = lists:keystore(target, 1, Props, {target, Target}),
     Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, true}),
     {Props3, Log};
 
-succeed({Props, {Resource, allocate, Amt, 'of', Type, to, Self}})
-  when Self == self() ->
-    Log = [{?EVENT, allocate},
-           {amount, Amt},
-           {resource_type, Type},
-           {?SOURCE, Resource},
-           {?TARGET, Self}],
-    Allocated = update_allocated(Amt, Type, Props),
-    Required = proplists:get_value(resources, Props, []),
-    HasResources = has_resources(Allocated, Required),
-    RemainingAllocated =
-        case HasResources of
-            true ->
-                attack(Props),
-                deallocate(Allocated, Required);
-            _ ->
-                Allocated
-        end,
-    Props2 = lists:keystore(allocated_resources, 1, Props, {allocated_resources, RemainingAllocated}),
-    {Props2, Log};
-
-succeed({Props, {Character, calc, _AttackType, Hit, on, Target, with, Self}})
-  when is_pid(Target),
-       Self == self(),
-       Hit > 0 ->
-    %Damage = proplists:get_value(attack_damage_base, Props, 0),
-    %Type = proplists:get_value(attack_type, Props, undefined),
-    Log = [{?SOURCE, Character},
-           {?EVENT, calc_hit},
-           {hit, Hit},
-           {?TARGET, Target},
-           {attack, Self}],
-    gerlshmud_object:attempt(self(), {Character, effect, Target, because, Self}),
-    {Props, Log};
+%succeed({Props, {Character, calc, _AttackType, Hit, on, Target, with, Self}})
+%  when is_pid(Target),
+%       Self == self(),
+%       Hit > 0 ->
+%    %Damage = proplists:get_value(attack_damage_base, Props, 0),
+%    %Type = proplists:get_value(attack_type, Props, undefined),
+%    Log = [{?SOURCE, Character},
+%           {?EVENT, calc_hit},
+%           {hit, Hit},
+%           {?TARGET, Target},
+%           {attack, Self}],
+%    gerlshmud_object:attempt(self(), {Character, effect, Target, because, Self}),
+%    {Props, Log};
 
 succeed({Props, {Character, calc, Type, hit, Miss, on, Target, with, Self}})
   when is_pid(Target),
@@ -256,19 +236,6 @@ succeed({Props, _}) ->
 fail({Props, _, _}) ->
     Props.
 
-attack(Props) ->
-    Character = proplists:get_value(character, Props),
-    Target = proplists:get_value(target, Props),
-    AttackType = proplists:get_value(attack_type, Props, []),
-    Hit = calc_hit(Props),
-    % TODO - defend is expecting AttackType instead of self()
-    Message = {Character, calc, AttackType, Hit, on, Target, with, self()},
-    gerlshmud_object:attempt(self(), Message).
-
-calc_hit(Props) ->
-    Roll = proplists:get_value(attack_hit_roll, Props, {0, 0}),
-    gerlshmud_roll:roll(Roll).
-
 should_attack(Props) ->
     ShouldAttackModule = proplists:get_value(should_attack_module, Props),
     ShouldAttackModule:should_attack(Props).
@@ -278,43 +245,6 @@ unreserve(Character, Props) when is_list(Props) ->
 unreserve(Character, Resource) ->
     gerlshmud_object:attempt(self(), {Character, unreserve, Resource, for, self()}).
 
-reserve(Character, Props) when is_list(Props) ->
-    [reserve(Character, Resource, Amount) || {Resource, Amount} <- proplists:get_value(resources, Props, [])].
-
-reserve(Character, Resource, Amount) ->
-    gerlshmud_object:attempt(self(), {Character, reserve, Amount, 'of', Resource, for, self()}).
-
-update_allocated(New, Type, Props) ->
-    Allocated = proplists:get_value(allocated_resources, Props, #{}),
-    Curr = maps:get(Type, Allocated, 0),
-    Allocated#{Type => Curr + New}.
-
-deallocate(Allocated, Required) ->
-    lists:foldl(fun subtract_required/2, Allocated, Required).
-
-subtract_required({Type, Required}, Allocated) ->
-    #{Type := Amt} = Allocated,
-    Allocated#{Type := min(0, Amt - Required)}.
-
-has_resources(Allocated, Required) ->
-    {_, AllocApplied} = lists:foldl(fun apply_resource/2, {Allocated, []}, Required),
-    case lists:filter(fun is_resource_lacking/1, AllocApplied) of
-        [] ->
-            true;
-        _ ->
-            false
-    end.
-
-apply_resource(_Resource = {Type, Required},
-               {Allocated, Applied0}) ->
-    AllocAmt = maps:get(Type, Allocated, 0),
-    Applied1 = [{Type, Required - AllocAmt} | Applied0],
-    {Allocated#{Type => 0}, Applied1}.
-
-is_resource_lacking({_Type, Amount}) when Amount =< 0 ->
-    false;
-is_resource_lacking(_) ->
-    true.
 
 log(Props) ->
     gerlshmud_event_log:log(debug, [{module, ?MODULE} | Props]).
