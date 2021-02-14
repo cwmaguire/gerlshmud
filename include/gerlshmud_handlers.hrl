@@ -56,11 +56,12 @@
                                     gerlshmud_handler_spell_inject_self,
                                     ?UNIVERSAL_HANDLERS]}).
 
+-define(EFFECT_PROTOTYPE_HANDLERS, {handlers, [gerlshmud_handler_effect_create]}).
+
 -define(EFFECT_HANDLERS, {handlers, [gerlshmud_handler_effect_attack,
                                      ?UNIVERSAL_HANDLERS]}).
 
--define(WEAPON_HANDLERS, {handlers, [gerlshmud_handler_attack,
-                                     gerlshmud_handler_effect_create |
+-define(WEAPON_HANDLERS, {handlers, [gerlshmud_handler_attack |
                                      element(2, ?ITEM_HANDLERS)]}).
 
 -define(ARMOR_HANDLERS, {handlers, [gerlshmud_handler_defend |
