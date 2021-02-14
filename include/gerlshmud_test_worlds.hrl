@@ -135,6 +135,7 @@
                        {lifecycle, once},
                        {hit_roll, {1, 10}},
                        {effect_roll, 10},
+                       {child_handlers, ?EFFECT_HANDLERS}, %% e.g. {child_handlers, {handlers, [...]}}
                        ?EFFECT_PROTOTYPE_HANDLERS]},
 
                   {dexterity0,
