@@ -69,6 +69,17 @@ attempt({#parents{character = Character},
 
 attempt({#parents{},
          Props,
+         {Resource, allocate, Required, 'of', Type, to, Self}})
+  when Self == self() ->
+    Log = [{?EVENT, allocate},
+           {amount, Required},
+           {resource_type, Type},
+           {?SOURCE, Resource},
+           {?TARGET, Self}],
+    {succeed, true, Props, Log};
+
+attempt({#parents{},
+         Props,
          {Attacker, killed, Target, with, AttackVector}}) ->
     Log = [{?SOURCE, Attacker},
            {?EVENT, killed},
@@ -154,6 +165,27 @@ succeed({Props, {Character, die}}) ->
     Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, false}),
     {Props3, Log};
 
+succeed({Props, {Resource, allocate, Amt, 'of', Type, to, Self}})
+  when Self == self() ->
+    Log = [{?EVENT, allocate},
+           {amount, Amt},
+           {resource_type, Type},
+           {?SOURCE, Resource},
+           {?TARGET, Self}],
+    Allocated = update_allocated(Amt, Type, Props),
+    Required = proplists:get_value(resources, Props, []),
+    HasResources = has_resources(Allocated, Required),
+    RemainingAllocated =
+        case HasResources of
+            true ->
+                affect(Props),
+                deallocate(Allocated, Required);
+            _ ->
+                Allocated
+        end,
+    Props2 = lists:keystore(allocated_resources, 1, Props, {allocated_resources, RemainingAllocated}),
+    {Props2, Log};
+
 succeed({Props, _}) ->
     Props.
 
@@ -164,11 +196,48 @@ should_attack(Props) ->
     ShouldAttackModule = proplists:get_value(should_attack_module, Props),
     ShouldAttackModule:should_attack(Props).
 
+reserve(Character, Props) when is_list(Props) ->
+    [reserve(Character, Resource, Amount) || {Resource, Amount} <- proplists:get_value(resources, Props, [])].
+
+reserve(Character, Resource, Amount) ->
+    gerlshmud_object:attempt(self(), {Character, reserve, Amount, 'of', Resource, for, self()}).
+
 unreserve(Character, Props) when is_list(Props) ->
     [unreserve(Character, Resource) || {Resource, _Amt} <- proplists:get_value(resources, Props, [])];
 unreserve(Character, Resource) ->
     gerlshmud_object:attempt(self(), {Character, unreserve, Resource, for, self()}).
 
+update_allocated(New, Type, Props) ->
+    Allocated = proplists:get_value(allocated_resources, Props, #{}),
+    Curr = maps:get(Type, Allocated, 0),
+    Allocated#{Type => Curr + New}.
 
-log(Props) ->
-    gerlshmud_event_log:log(debug, [{module, ?MODULE} | Props]).
+has_resources(Allocated, Required) ->
+    {_, AllocApplied} = lists:foldl(fun apply_resource/2, {Allocated, []}, Required),
+    case lists:filter(fun is_resource_lacking/1, AllocApplied) of
+        [] ->
+            true;
+        _ ->
+            false
+    end.
+
+apply_resource(_Resource = {Type, Required},
+               {Allocated, Applied0}) ->
+    AllocAmt = maps:get(Type, Allocated, 0),
+    Applied1 = [{Type, Required - AllocAmt} | Applied0],
+    {Allocated#{Type => 0}, Applied1}.
+
+is_resource_lacking({_Type, Amount}) when Amount =< 0 ->
+    false;
+is_resource_lacking(_) ->
+    true.
+
+deallocate(Allocated, Required) ->
+    lists:foldl(fun subtract_required/2, Allocated, Required).
+
+subtract_required({Type, Required}, Allocated) ->
+    #{Type := Amt} = Allocated,
+    Allocated#{Type := min(0, Amt - Required)}.
+
+%log(Props) ->
+    %gerlshmud_event_log:log(debug, [{module, ?MODULE} | Props]).
