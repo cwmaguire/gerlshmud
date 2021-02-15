@@ -20,6 +20,10 @@
 
 -include("include/gerlshmud.hrl").
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% ATTEMPT
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 %% Attacking
 attempt({#parents{character = Character},
          Props,
@@ -65,17 +69,6 @@ attempt({#parents{character = Character},
 
 attempt({#parents{},
          Props,
-         {Resource, allocate, Required, 'of', Type, to, Self}})
-  when Self == self() ->
-    Log = [{?EVENT, allocate},
-           {amount, Required},
-           {resource_type, Type},
-           {?SOURCE, Resource},
-           {?TARGET, Self}],
-    {succeed, true, Props, Log};
-
-attempt({#parents{},
-         Props,
          {Attacker, killed, Target, with, AttackVector}}) ->
     Log = [{?SOURCE, Attacker},
            {?EVENT, killed},
@@ -104,6 +97,10 @@ attempt({#parents{character = Character},
 attempt({_, _, _Msg}) ->
     undefined.
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% SUCCEED
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 succeed({Props, {Attacker, killed, Target, with, AttackVector}}) ->
     Log = [{?EVENT, killed},
            {?SOURCE, Attacker},
@@ -115,104 +112,31 @@ succeed({Props, {Attacker, killed, Target, with, AttackVector}}) ->
     Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, false}),
     {Props3, Log};
 
-succeed({Props, {Attacker, attack, Target}}) when is_pid(Target) ->
+succeed({Props, {Attacker, Attack, Target}})
+  when is_pid(Target),
+       Attack = attack; Attack == counter_attack ->
     Log = [{?EVENT, attack},
            {?SOURCE, Attacker},
            {?TARGET, Target}],
     Character = proplists:get_value(character, Props),
     IsAttacking = proplists:get_value(is_attacking, Props, false),
-    case {Character, IsAttacking} of
-        {Attacker, false} ->
-            gerlshmud_object:attempt(self(), {Attacker, attack, Target, with, self()});
-        {Target, false} ->
-            ok;
-            %gerlshmud_object:attempt(Character, {Character, attack, Attacker});
+    case IsAttacking of
+        false ->
+            gerlshmud_object:attempt(self(), {Character, attack, Target, with, self()});
         _ ->
             ok
     end,
     {Props, Log};
 
-succeed({Props, {Attacker, counter_attack, Target}}) when is_pid(Target) ->
-    Log = [{?SOURCE, Attacker},
-           {?EVENT, counter_attack},
-           {?TARGET, Target}],
-    Character = proplists:get_value(character, Props),
-    IsAttacking = proplists:get_value(is_attacking, Props, false),
-    case {Character, IsAttacking} of
-        {Attacker, false} ->
-            gerlshmud_object:attempt(self(), {Attacker, attack, Target, with, self()});
-        {Target, false} ->
-            gerlshmud_object:attempt(Character, {Character, attack, Attacker});
-        _ ->
-            ok
-    end,
-    {Props, Log};
-
-%% An attack by our character has been successfully instigated using this process:
 succeed({Props, {Character, attack, Target, with, Self}}) ->
     Log = [{?EVENT, attack},
            {?SOURCE, Character},
            {?TARGET, Target},
            {vector, Self}],
 
-    % TODO move this to the effect process
-
     Props2 = lists:keystore(target, 1, Props, {target, Target}),
     Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, true}),
     {Props3, Log};
-
-%succeed({Props, {Character, calc, _AttackType, Hit, on, Target, with, Self}})
-%  when is_pid(Target),
-%       Self == self(),
-%       Hit > 0 ->
-%    %Damage = proplists:get_value(attack_damage_base, Props, 0),
-%    %Type = proplists:get_value(attack_type, Props, undefined),
-%    Log = [{?SOURCE, Character},
-%           {?EVENT, calc_hit},
-%           {hit, Hit},
-%           {?TARGET, Target},
-%           {attack, Self}],
-%    gerlshmud_object:attempt(self(), {Character, effect, Target, because, Self}),
-%    {Props, Log};
-
-succeed({Props, {Character, calc, Type, hit, Miss, on, Target, with, Self}})
-  when is_pid(Target),
-       Self == self() ->
-    Log = [{?SOURCE, Character},
-           {?EVENT, calc_hit},
-           {?TARGET, Target},
-           {hit, Miss},
-           {type, Type}],
-    % TODO: say "you missed!"
-    {Props, Log};
-
-succeed({Props, {Character, calc, Types, damage, Damage, to, Target, with, Self}})
-  when Self == self(),
-       Damage > 0 ->
-    log([{?EVENT, calc_damage},
-         {object, Self},
-         {props, Props},
-         {character, Character},
-         {damage, Damage},
-         {?TARGET, Target},
-         {damage_types, Types},
-         {result, succeed}]),
-    gerlshmud_object:attempt(self(), {Character, does, Types, damage, Damage, to, Target, with, Self}),
-    Props;
-
-succeed({Props, {Character, calc, Types, damage, NoDamage, to, Target, with, Self}})
-  when Self == self() ->
-    %% Attack failed (No damage was done)
-    %% TODO: output something to the client like
-    %% "You manage to hit <target> but fail to do any damage"
-    %%       _if_ this is a player
-    Log = [{?SOURCE, Character},
-           {?EVENT, calc_damage},
-           {damage, NoDamage},
-           {damage_types, Types},
-           {?TARGET, Target},
-           {vector, Self}],
-    {Props, Log};
 
 succeed({Props, {Character, stop_attack}}) ->
     Log = [{?SOURCE, Character},

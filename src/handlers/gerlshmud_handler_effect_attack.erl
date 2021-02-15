@@ -32,6 +32,17 @@ attempt({_Parents,
            {?TARGET, Target}],
     {succeed, true, Props, Log};
 
+attempt({#parents{},
+         Props,
+         {Resource, allocate, Required, 'of', Type, to, Self}})
+  when Self == self() ->
+    Log = [{?EVENT, allocate},
+           {amount, Required},
+           {resource_type, Type},
+           {?SOURCE, Resource},
+           {?TARGET, Self}],
+    {succeed, true, Props, Log};
+
 attempt({_Parents,
          Props,
          {_Character, roll, _Roll, for, HitOrEffect, with, EffectType, on, Target, with, Self}})
