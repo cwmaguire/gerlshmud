@@ -47,7 +47,8 @@ succeed({Props, {Character, effect, Target, because, Attack}}) ->
            {?TARGET, Target},
            {handler, ?MODULE},
            {attack, Attack}],
-    %Props2 = proplists:delete(owner, Props),
+    {handlers, _Handlers} = Handlers = proplists:get_value(child_handlers, Props)
+    Props2 = [Handlers, proplists:delete(handlers, Props)],
     {ok, Pid} = supervisor:start_child(gerlshmud_object_sup, [undefined, Props]),
     gerlshmud_object:attempt(Pid, {Pid, affect, Target}),
     {Props, Log};
