@@ -47,9 +47,8 @@ succeed({Props, {Character, effect, Target, because, Attack}}) ->
            {?TARGET, Target},
            {handler, ?MODULE},
            {attack, Attack}],
-    {handlers, _Handlers} = Handlers = proplists:get_value(child_handlers, Props)
-    Props2 = [Handlers, proplists:delete(handlers, Props)],
-    {ok, Pid} = supervisor:start_child(gerlshmud_object_sup, [undefined, Props]),
+    ChildProps = replace_handlers_with_child_handlers(Props),
+    {ok, Pid} = supervisor:start_child(gerlshmud_object_sup, [undefined, ChildProps]),
     gerlshmud_object:attempt(Pid, {Pid, affect, Target}),
     {Props, Log};
 
@@ -58,3 +57,6 @@ succeed({Props, _}) ->
 
 fail({Props, _, _}) ->
     Props.
+
+replace_handlers_with_child_handlers(Props) ->
+    lists:keystore(handlers, 1, Props, proplists:get_value(child_handlers, Props)).

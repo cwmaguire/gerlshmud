@@ -125,7 +125,7 @@ succeed({Props, {Attacker, killed, Target, with, AttackVector}}) ->
 
 succeed({Props, {Attacker, Attack, Target}})
   when is_pid(Target),
-       Attack = attack; Attack == counter_attack ->
+       Attack == attack; Attack == counter_attack ->
     Log = [{?EVENT, attack},
            {?SOURCE, Attacker},
            {?TARGET, Target}],
@@ -133,7 +133,7 @@ succeed({Props, {Attacker, Attack, Target}})
     IsAttacking = proplists:get_value(is_attacking, Props, false),
     case IsAttacking of
         false ->
-            gerlshmud_object:attempt(self(), {Character, attack, Target, with, self()});
+            reserve(Character, Props);
         _ ->
             ok
     end,
@@ -178,7 +178,9 @@ succeed({Props, {Resource, allocate, Amt, 'of', Type, to, Self}})
     RemainingAllocated =
         case HasResources of
             true ->
-                affect(Props),
+                Target = proplists:get_value(target, Props),
+                Event = {effect, Target, because, Self},
+                gerlshmud_object:attempt(self(), Event, false),
                 deallocate(Allocated, Required);
             _ ->
                 Allocated
