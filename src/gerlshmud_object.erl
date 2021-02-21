@@ -197,14 +197,6 @@ handle_cast_({succeed, Msg}, State) ->
             gerlshmud_index:put(Props),
             {stop, {shutdown, Reason}, State#state{props = Props}};
         {Props, LogProps} ->
-            case Msg of
-                {_, tick, _, with, 1} ->
-                    ct:pal("~p:handle_cast_({succeed, {_, tick, _, with, 1}}, _State)~n"
-                           "Props = ~p~n",
-                           [?MODULE, Props]);
-                _ ->
-                    ok
-            end,
             {_, ParentsList} = parents(Props),
             log([{stage, succeed},
                  {object, self()},
@@ -236,7 +228,7 @@ handle_info({replace_pid, OldPid, NewPid}, State = #state{props = Props})
     gerlshmud_index:put(Props2),
     {noreply, State#state{props = Props2}};
 handle_info({Pid, Msg}, State) when is_pid(Pid) ->
-    ct:pal("~p:handle_info({~p, ~p}...~n", [?MODULE, Pid, Msg]),
+    %ct:pal("~p:handle_info({~p, ~p}...~n", [?MODULE, Pid, Msg]),
     attempt(Pid, Msg),
     {noreply, State};
 handle_info(Unknown, State = #state{props = Props}) ->
