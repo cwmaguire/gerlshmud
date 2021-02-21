@@ -84,7 +84,7 @@
                        %% It might not matter what the index of the property
                        %% is if we don't look them up by index
                        {resource, p_stamina},
-                       {body_part, p_hand},
+                       {body_part, p_hand_right},
                        {icon, person},
                        ?CHARACTER_HANDLERS]},
 
@@ -100,7 +100,7 @@
                        {icon, stat},
                        ?LIFE_HANDLERS]},
 
-                  {p_hand,
+                  {p_hand_right,
                       [{name, <<"right hand">>},
                        {item, p_fist_right},
                        {owner, player},
@@ -119,11 +119,14 @@
                        {is_defence, false},
                        {should_attack_module, gerlshmud_attack_melee},
                        {should_defend_module, gerlshmud_defend_melee},
+                       {effect_prototype, p_fist_melee_effect_prototype},
                        {attack_type, melee},
                        {resources, [{stamina, 5}]},
                        {icon, weapon},
                        ?WEAPON_HANDLERS]},
 
+                  %% does the character need a link to this?
+                  %% or the attack?
                   {p_fist_melee_effect_prototype,
                       [{owner, p_fist_right},
                        {character, player},
