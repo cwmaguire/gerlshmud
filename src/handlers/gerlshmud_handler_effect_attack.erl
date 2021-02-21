@@ -26,11 +26,13 @@
 
 attempt({#parents{owner = Attack},
          Props,
-         {Character, affect, Target, because, Attack}}) ->
-    Log = [{?SOURCE, Character},
+         {Self, affect, Target}})
+  when Self == self() ->
+    Log = [{?SOURCE, Attack},
            {?EVENT, affect},
            {?TARGET, Target}],
-    {succeed, true, Props, Log};
+    ShouldSubscribe = proplists:get_value(target, Props, undefined) == Target,
+    {succeed, ShouldSubscribe, Props, Log};
 
 attempt({_Parents,
          Props,
@@ -55,11 +57,13 @@ attempt({_, _, _Msg}) ->
 %% SUCCEED
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-succeed({Props, {Character, attack, Target, beacuse, Attack}}) ->
-    Log = [{?EVENT, attack},
-           {?SOURCE, Character},
+succeed({Props, {_Self, affect, Target}}) ->
+    Attack = proplists:get_value(owner, Props),
+    Log = [{?SOURCE, Attack},
+           {?EVENT, affect},
            {?TARGET, Target},
            {vector, Attack}],
+    Character = proplists:get_value(character, Props),
     EffectType = proplists:get_value(type, Props),
     Event = {Character, roll, calc_hit_roll(Props), for, hit, with, EffectType, on, Target, with, self()},
     gerlshmud_object:attempt(self(), Event),
@@ -99,15 +103,17 @@ succeed({Props, {Character, roll, FailRoll, for, hit, with, EffectType, on, Targ
           (gerlshmud_util:atob(EffectType))/binary,
           AmountBin/binary>>,
     gerlshmud_object:attempt(Target, {send, Character, CharacterMsg, CharacterSubstitutions}),
+    ct:pal("~p: CharacterMsg~n\t~p~n", [?MODULE, CharacterMsg]),
 
     TargetSubstitutions = [{<<"<character>">>, Character}],
     TargetMsg = <<"<character> misses you with ", (gerlshmud_util:atob(EffectType))/binary>>,
     TargetSubstitutions = [{<<"<target>">>, Target},
                            {<<"<character>">>, Character}],
     gerlshmud_object:attempt(Target, {send, Target, TargetMsg, TargetSubstitutions}),
+    ct:pal("~p: TargetMsg~n\t~p~n", [?MODULE, TargetMsg]),
     {Props, Log};
 
-succeed({Props, {Character, roll, EffectAmount, for, effect, with, _EffectType, on, Target, with, Self}})
+succeed({Props, {Character, roll, EffectAmount, for, effect, with, EffectType, on, Target, with, Self}})
   when is_pid(Target),
        Self == self(),
        EffectAmount > 0 ->
@@ -118,21 +124,24 @@ succeed({Props, {Character, roll, EffectAmount, for, effect, with, _EffectType, 
            {handler, ?MODULE},
            {effect, Self}],
 
+    EffectEvent = {Character, cause, EffectAmount, 'of', EffectType, to, Target, with, Self},
+    gerlshmud_object:attempt(Target, EffectEvent, false),
+
     maybe_repeat(Props),
     {Props, Log};
 
-succeed({Props, {Character, roll, EffectAmount, for, effect, with, EffectType, on, Target, with, Self}})
+succeed({Props, {Character, roll, IneffectiveAmount, for, effect, with, EffectType, on, Target, with, Self}})
   when is_pid(Target),
        Self == self() ->
     Log = [{?SOURCE, Character},
            {?EVENT, roll_for_effect},
-           {amount, EffectAmount},
+           {amount, IneffectiveAmount},
            {?TARGET, Target},
            {handler, ?MODULE},
            {effect, Self}],
 
     CharacterSubstitutions = [{<<"<target>">>, Target}],
-    AmountBin = <<" [", (gerlshmud_util:itob(EffectAmount))/binary, "]">>,
+    AmountBin = <<" [", (gerlshmud_util:itob(IneffectiveAmount))/binary, "]">>,
     CharacterMsg =
         <<(gerlshmud_util:atob(EffectType))/binary,
           " has no effect on <target> (",
@@ -147,26 +156,36 @@ succeed({Props, {Character, roll, EffectAmount, for, effect, with, EffectType, o
     gerlshmud_object:attempt(Target, {send, Target, TargetMsg, TargetSubstitutions}),
     {Props, Log};
 
-succeed({Props, {Character, affect, Target, with, Roll, EffectType, with, Self}})
+succeed({Props, {Attacker, do, EffectAmount, 'of', EffectType, to, Target, with, Self}})
   when is_pid(Target),
        Self == self() ->
     Log = [{?SOURCE, Self},
            {?TARGET, Target},
            {?EVENT, affect},
            {handler, ?MODULE},
-           {roll, Roll},
            {effect_type, EffectType}],
-    EffectEvent = {Character, affects, Target, with, Roll, EffectType, with, Self},
-    lager:info("~p sending event ~p~n", [?MODULE, EffectEvent]),
-    gerlshmud_object:attempt(self(), EffectEvent),
 
-    RollBin = integer_to_binary(Roll),
-    % TODO have the connection object figure out the missing information
-    % by sending messages out to owners, e.g. {Target, name}
-    Msg = [Character, <<" does ", RollBin/binary, " of ">>,
-           EffectType, <<" to ">>, Target],
-    gerlshmud_object:attempt(Character, {send, Character, Target, Msg}),
+    AttackerSubstitutions = [{<<"<target>">>, self()}],
+    AmountBin = <<" [", (gerlshmud_util:itob(EffectAmount))/binary, "]">>,
+    AttackerMsg =
+        <<"You do ",
+          AmountBin/binary,
+          " damage to <target> with ",
+          (gerlshmud_util:atob(EffectType))/binary>>,
+    gerlshmud_object:attempt(Attacker, {send, Attacker, AttackerMsg, AttackerSubstitutions}, _Sub = false),
+
+    TargetSubstitutions = [{<<"<attacker>">>, Attacker}],
+    TargetMsg = <<"<attacker> does ",
+                  AmountBin/binary,
+                  " damage to you with ",
+                  (gerlshmud_util:atob(EffectType))/binary>>,
+    gerlshmud_object:attempt(Target, {send, Target, TargetMsg, TargetSubstitutions}, _Sub = false),
+
+
     {Props, Log};
+
+succeed({Props, {stop, Self}}) when Self == self() ->
+    {stop, finished, Props, _LogProps = []};
 
 succeed({Props, _}) ->
     Props.
@@ -201,8 +220,14 @@ calc_effect_roll(Props) ->
 % TODO implement repeat logic for effects that keep going
 % maybe re-roll for hit?
 % maybe check wait time?
-maybe_repeat(_Props) ->
+maybe_repeat(Props) ->
+    stop(Props),
     ok.
+
+stop(Props) ->
+    Owner = proplists:get_value(owner, Props),
+    StopEvent = {delete, self()},
+    gerlshmud_object:attempt(Owner, StopEvent).
 
 
 %log(Props) ->

@@ -28,27 +28,28 @@
 attempt({#parents{owner = Attack,
                   character = Character},
          Props,
-         {Character, effect, Target, because, Attack}}) ->
+         {Character, affect, Target, because, Attack}}) ->
     Log = [{?SOURCE, Character},
            {?EVENT, attack},
            {?TARGET, Target},
            {attack, Attack}],
     {succeed, true, Props, Log};
-attempt({_, _, _Msg}) ->
+attempt(_Other = {_, _, _Msg}) ->
     undefined.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% SUCCEED
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-succeed({Props, {Character, effect, Target, because, Attack}}) ->
+succeed({Props, {Character, affect, Target, because, Attack}}) ->
     Log = [{?EVENT, attack},
            {?SOURCE, Character},
            {?TARGET, Target},
            {handler, ?MODULE},
            {attack, Attack}],
     ChildProps = replace_handlers_with_child_handlers(Props),
-    {ok, Pid} = supervisor:start_child(gerlshmud_object_sup, [undefined, ChildProps]),
+    ChildPropsWithTarget = [{target, Target} | ChildProps],
+    {ok, Pid} = supervisor:start_child(gerlshmud_object_sup, [undefined, ChildPropsWithTarget]),
     gerlshmud_object:attempt(Pid, {Pid, affect, Target}),
     {Props, Log};
 

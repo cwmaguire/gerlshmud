@@ -33,38 +33,51 @@ attempt({#parents{character = Character},
            {?TARGET, Target}],
     {succeed, true, Props, Log};
 
+%% If our character is attacking and we're not, tell ourself, specifically, to attempt an attack
 attempt({#parents{character = Character},
          Props,
-         {Character, counter_attack, Target}}) ->
+         {Character, Attack, Target}})
+  when is_pid(Target),
+       Attack == attack; Attack == counter_attack ->
+    Log = [{?SOURCE, Character},
+           {?EVENT, Attack},
+           {?TARGET, Target}],
+    IsAttacking = proplists:get_value(is_attacking, Props, false),
+    case IsAttacking of
+        false ->
+            gerlshmud_object:attempt(self(), {Character, attack, Target, with, self()});
+         _ ->
+             ok
+     end,
+     {Props, Log};
+
+%% We've told ourself, specifically, to attack but can't, then fail the attempt that is specific to us
+attempt({#parents{character = Character},
+         Props,
+         {Character, Attack, Target, with, Self}})
+  when Self == self(),
+       Attack == attack; Attack == counter_attack ->
     IsAttacking = proplists:get_value(is_attacking, Props, false),
     Log = [{?EVENT, attack},
            {?SOURCE, Character},
            {?TARGET, Target},
            {is_attacking, IsAttacking}],
-    case IsAttacking of
-        false ->
+    case (not IsAttacking) andalso should_attack(Props) of
+        true ->
+            ct:pal("~p: IsAttacking~n\t~p~n", [?MODULE, IsAttacking]),
+            ShouldAttack = should_attack(Props),
+            ct:pal("~p: ShouldAttack~n\t~p~n", [?MODULE, ShouldAttack]),
             {succeed, true, Props, Log};
+        {false, Message} ->
+            ct:pal("~p: Message~n\t~p~n", [?MODULE, Message]),
+            {{fail, Message}, false, Props, Log};
         _ ->
+            ct:pal("~p: IsAttacking~n\t~p~n", [?MODULE, IsAttacking]),
             %% If _other_ vectors aren't yet attacking the Target then they'll join in.
             %% I'm not sure how that would happen unless the player can set what they're
             %% attacking with for each individual attack. In that case they'll need to
             %% set what their default counterattack is.
             {succeed, false, Props, Log}
-    end;
-
-attempt({#parents{character = Character},
-         Props,
-         {Character, attack, Target, with, Self}})
-  when Self == self() ->
-    Log = [{?SOURCE, Character},
-           {?EVENT, attack},
-           {?TARGET, Target},
-           {vector, Self}],
-    case should_attack(Props) of
-        true ->
-            {succeed, true, Props, Log};
-        {false, Message} ->
-            {{fail, Message}, false, Props, Log}
     end;
 
 attempt({#parents{},
@@ -123,8 +136,23 @@ succeed({Props, {Attacker, killed, Target, with, AttackVector}}) ->
     Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, false}),
     {Props3, Log};
 
-succeed({Props, {Attacker, Attack, Target}})
+succeed({Props, {Character, Attack, Target}})
   when is_pid(Target),
+       Attack == attack; Attack == counter_attack ->
+    Log = [{?SOURCE, Character},
+           {?EVENT, Attack},
+           {?TARGET, Target}],
+    IsAttacking = proplists:get_value(is_attacking, Props, false),
+    case IsAttacking of
+        false ->
+            gerlshmud_object:attempt(self(), {Character, attack, Target, with, self()});
+         _ ->
+             ok
+     end,
+     {Props, Log};
+
+succeed({Props, {Attacker, Attack, Target, with, Self}})
+  when Self == self(),
        Attack == attack; Attack == counter_attack ->
     Log = [{?EVENT, attack},
            {?SOURCE, Attacker},
@@ -133,21 +161,14 @@ succeed({Props, {Attacker, Attack, Target}})
     IsAttacking = proplists:get_value(is_attacking, Props, false),
     case IsAttacking of
         false ->
-            reserve(Character, Props);
+            ct:pal("~p: IsAttacking~n\t~p~n", [?MODULE, IsAttacking]),
+            reserve(Character, Props),
+            Props2 = lists:keystore(target, 1, Props, {target, Target}),
+            Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, true}),
+            {Props3, Log};
         _ ->
-            ok
-    end,
-    {Props, Log};
-
-succeed({Props, {Character, attack, Target, with, Self}}) ->
-    Log = [{?EVENT, attack},
-           {?SOURCE, Character},
-           {?TARGET, Target},
-           {vector, Self}],
-
-    Props2 = lists:keystore(target, 1, Props, {target, Target}),
-    Props3 = lists:keystore(is_attacking, 1, Props2, {is_attacking, true}),
-    {Props3, Log};
+            {Props, Log}
+    end;
 
 succeed({Props, {Character, stop_attack}}) ->
     Log = [{?SOURCE, Character},
@@ -178,8 +199,9 @@ succeed({Props, {Resource, allocate, Amt, 'of', Type, to, Self}})
     RemainingAllocated =
         case HasResources of
             true ->
+                Character = proplists:get_value(character, Props),
                 Target = proplists:get_value(target, Props),
-                Event = {effect, Target, because, Self},
+                Event = {Character, affect, Target, because, Self},
                 gerlshmud_object:attempt(self(), Event, false),
                 deallocate(Allocated, Required);
             _ ->
