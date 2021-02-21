@@ -176,7 +176,7 @@ character_owner_add_remove(Config) ->
     undefined = val(character, Bullet).
 
 player_attack(Config) ->
-    SupPid = whereis(gerlshmud_object_sup),
+    _SupPid = whereis(gerlshmud_object_sup),
     %fprof:trace([start, {file, "my_prof.trace"}, {procs, [SupPid, self()]}]),
     start(?WORLD_3),
     ct:pal("~p:player_attack(Config) world 3 started~n", [?MODULE]),
@@ -185,10 +185,30 @@ player_attack(Config) ->
     attempt(Config, Player, {Player, attack, <<"zombie">>}),
     receive after 1000 -> ok end,
     %fprof:trace(stop),
-    receive after 1000 -> ok end,
-    receive after 1000 -> ok end,
-    false = val(is_alive, z_life),
-    0 = val(hitpoints, z_hp).
+    Conditions =
+        [{"Zombie is dead",
+          fun() -> val(is_alive, z_life) == false end},
+         {"Zombie hp < 1",
+          fun() -> val(hitpoints, z_hp) =< 0 end}],
+    wait_for(Conditions, 20).
+
+wait_for(_NoUnmetConditions = [], _) ->
+    ok;
+wait_for(Conditions, Count) when Count =< 0 ->
+    {Failures, _} = lists:unzip(Conditions),
+    ct:fail("Failed waiting for conditions: ~p~n", [Failures]);
+wait_for(Conditions, Count) ->
+    {Descriptions, _} = lists:unzip(Conditions),
+    ct:pal("Checking conditions: ~p~n", [Descriptions]),
+    timer:sleep(1000),
+    {_, ConditionsUnmet} = lists:partition(fun run_condition/1, Conditions),
+    wait_for(ConditionsUnmet, Count - 1).
+
+run_condition({_Desc, Fun}) ->
+    Fun().
+
+    %false = val(is_alive, z_life),
+    %true = val(hitpoints, z_hp) =< 0.
 
 player_resource_wait(Config) ->
     start(?WORLD_3),
