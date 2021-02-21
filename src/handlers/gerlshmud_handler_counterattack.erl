@@ -47,8 +47,9 @@ succeed({Props, {Attacker, attack, Target}}) ->
            {?TARGET, Target}],
     case proplists:get_value(owner, Props) of
         Attacker ->
-            Props = lists:keystore(is_attacking, 1, Props, {is_attacking, true}),
-            {Props, Log};
+            % TODO why would I need this here when it's handled in g_h_attack?
+            Props2 = lists:keystore(is_attacking, 1, Props, {is_attacking, true}),
+            {Props2, Log};
         Target ->
             case proplists:get_value(is_attacking, Props) of
                 true ->
