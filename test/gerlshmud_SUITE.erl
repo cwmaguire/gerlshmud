@@ -9,31 +9,34 @@
 
 % TODO test updating a skill when a target is killed with a weapon (or when damage is dealt, or both)
 
-all() -> [player_attack].
+%all() -> [player_attack].
 %all() ->
-    %[player_move,
-     %player_move_fail,
-     %player_move_exit_locked,
-     %player_get_item,
-     %player_drop_item,
-     %character_owner_add_remove,
-     %player_attack,
-     %player_resource_wait,
-     %attack_with_modifiers,
-     %one_sided_fight,
-     %counterattack_behaviour,
-     %stop_attack_on_move,
-     %player_wield,
-     %player_wield_first_available,
-     %player_wield_missing_body_part,
-     %player_wield_wrong_body_part,
-     %player_wield_body_part_is_full,
-     %player_remove,
-     %look_player,
-     %look_room,
-     %look_item,
-     %set_character,
-     %cast_spell].
+    %[player_resource_wait,
+     %player_move].
+all() ->
+    [player_move,
+     player_move_fail,
+     player_move_exit_locked,
+     player_get_item,
+     player_drop_item,
+     character_owner_add_remove,
+     player_attack,
+     player_resource_wait,
+     attack_with_modifiers,
+     one_sided_fight,
+     counterattack_behaviour,
+     stop_attack_on_move,
+     player_wield,
+     player_wield_first_available,
+     player_wield_missing_body_part,
+     player_wield_wrong_body_part,
+     player_wield_body_part_is_full,
+     player_remove,
+     look_player,
+     look_room,
+     look_item,
+     set_character,
+     cast_spell].
 
 init_per_testcase(_, Config) ->
     %gerlshmud_dbg:add(gerlshmud_object, handle_cast_),
@@ -662,7 +665,7 @@ cast_spell(Config) ->
     true = val(is_alive, p_life),
     false = val(is_alive, g_life).
 
-revive_process(Config) ->
+revive_process(_Config) ->
     start(?WORLD_3),
 
     PlayerV1 = get_pid(player),

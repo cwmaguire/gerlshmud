@@ -6651,12 +6651,16 @@ CT_RUN = ct_run \
 	-dir $(TEST_DIR) \
 	-logdir $(CT_LOGS_DIR)
 
+# if we've specifically set CT_SUITES to empty, or if no test directory *_SUITE.erl files were found,
+# then run the apps-ct target
 ifeq ($(CT_SUITES),)
 ct: $(if $(IS_APP)$(ROOT_DIR),,apps-ct)
 else
 # We do not run tests if we are in an apps/* with no test directory.
+# That is, if $IS_APP = 1 and we don't find a TEST_DIR, then 1 concatenated with TEST_DIR will be 1
 ifneq ($(IS_APP)$(wildcard $(TEST_DIR)),1)
 ct: test-build $(if $(IS_APP)$(ROOT_DIR),,apps-ct)
+	$(verbose) @echo "running ct: CT_SUITES = " $(CT_SUITES) " CT_EXTRA = " $(CT_EXTRA) " CT_OPTS = " $(CT_OPTS)
 	$(verbose) mkdir -p $(CT_LOGS_DIR)
 	$(gen_verbose) $(CT_RUN) -sname ct_$(PROJECT) -suite $(addsuffix _SUITE,$(CT_SUITES)) $(CT_OPTS)
 endif
@@ -6690,6 +6694,7 @@ endif
 
 define ct_suite_target
 ct-$(1): test-build
+	$(verbose) @echo "running ct-" $(1)
 	$(verbose) mkdir -p $(CT_LOGS_DIR)
 	$(gen_verbose_esc) $(CT_RUN) -sname ct_$(PROJECT) -suite $(addsuffix _SUITE,$(1)) $(CT_EXTRA) $(CT_OPTS)
 endef
