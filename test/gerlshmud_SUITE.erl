@@ -216,17 +216,17 @@ run_condition({_Desc, Fun}) ->
 player_resource_wait(Config) ->
     start(?WORLD_3),
     Player = get_pid(player),
-    Fist = get_pid(p_fist),
+    Fist = get_pid(p_fist_right),
     Stamina = get_pid(p_stamina),
     Zombie = get_pid(zombie),
     gerlshmud_object:set(Stamina, {current, 5}),
     gerlshmud_object:set(Stamina, {tick_time, 10000}),
     attempt(Config, Player, {Player, attack, <<"zombie">>}),
     ct:pal("Waiting for player_resource_wait"),
-    wait_value(z_hp, hitpoints, 5, 5),
-    5 = val(hitpoints, z_hp),
+    wait_loop(fun() -> val(hitpoints, z_hp) < 10 end, true, 5),
+    true = val(hitpoints, z_hp) < 10,
     true = val(is_alive, z_life),
-    true = val(is_attacking, p_fist),
+    true = val(is_attacking, p_fist_right),
     Zombie = val(target, Fist).
 
 one_sided_fight(Config) ->
@@ -395,17 +395,17 @@ wait_value(ObjectId, Key, ExpectedValue, Count) ->
         end,
     true = wait_loop(WaitFun, ExpectedValue, Count).
 
-wait_loop(Fun, ExpectedResult, _Count = 0) ->
+wait_loop(Fun, ExpectedValue, _Count = 0) ->
     ct:pal("Mismatched function result:~n\tFunction: ~p~n\tResult: ~p",
-           [erlang:fun_to_list(Fun), ExpectedResult]),
+           [erlang:fun_to_list(Fun), ExpectedValue]),
     false;
-wait_loop(Fun, ExpectedResult, Count) ->
-    case Fun() == ExpectedResult of
+wait_loop(Fun, ExpectedValue, Count) ->
+    case Fun() == ExpectedValue of
         true ->
             true;
         false ->
             ?WAIT100,
-            wait_loop(Fun, ExpectedResult, Count - 1)
+            wait_loop(Fun, ExpectedValue, Count - 1)
     end.
 
 player_wield(Config) ->
@@ -686,8 +686,8 @@ revive_process(_Config) ->
 
     PlayerV1 = val(owner, p_hp),
     PlayerV1 = val(owner, p_life),
-    PlayerV1 = val(owner, p_hand),
-    PlayerV1 = val(character, p_fist),
+    PlayerV1 = val(owner, p_hand_right),
+    PlayerV1 = val(character, p_fist_right),
     PlayerV1 = val(owner, dexterity0),
     PlayerV1 = val(owner, p_stamina),
 
@@ -712,8 +712,8 @@ revive_process(_Config) ->
 
     PlayerV2 = val(owner, p_hp),
     PlayerV2 = val(owner, p_life),
-    PlayerV2 = val(owner, p_hand),
-    PlayerV2 = val(character, p_fist),
+    PlayerV2 = val(owner, p_hand_right),
+    PlayerV2 = val(character, p_fist_right),
     PlayerV2 = val(owner, dexterity0),
     PlayerV2 = val(owner, p_stamina).
 
