@@ -57,6 +57,7 @@ init_per_testcase(_, Config) ->
 
 end_per_testcase(_, _Config) ->
     ct:pal("~p stopping gerlshmud~n", [?MODULE]),
+    receive after 1000 -> ok end,
     gerlshmud_test_socket:stop(),
     application:stop(gerlshmud).
 
@@ -243,16 +244,7 @@ one_sided_fight(Config) ->
                     false
             end
         end,
-    true = wait_loop(WaitFun, true, 30),
-    ?WAIT100,
-    ?WAIT100,
-    ?WAIT100,
-    ?WAIT100,
-    ?WAIT100,
-    ?WAIT100,
-    ?WAIT100,
-    ?WAIT100,
-    ?WAIT100,
+    true = wait_loop(WaitFun, true, 60),
     1000 = val(hitpoints, p_hp),
     true = val(is_alive, p_life),
     false = val(is_alive, z_life).
@@ -279,9 +271,24 @@ counterattack_behaviour(Config) ->
         end,
     true = wait_loop(WaitFun, true, 40),
 
-    false = val(is_alive, z_life),
-    true = 1000 > val(hitpoints, p_hp),
-    true = val(is_alive, p_life),
+    case val(is_alive, z_life) of
+        true ->
+            ct:fail("Zombie should be dead but isn't~n", []);
+        _ ->
+            ok
+    end,
+    case val(hitpoints, p_hp) of
+        LessThan1000 when LessThan1000 < 1000 ->
+            ct:fail("Player hitpoints should be 1000 or more but are ~p~n", [LessThan1000]);
+        _ ->
+            ok
+    end,
+    case val(is_alive, p_life) of
+        false ->
+            ct:fail("Player should be alive but isn't~n", []);
+        _ ->
+            ok
+    end,
     ok.
 
 attack_with_modifiers(Config) ->
@@ -311,10 +318,11 @@ attack_with_modifiers(Config) ->
                 ZeroOrLess when is_integer(ZeroOrLess), ZeroOrLess =< 0 ->
                     true;
                 _ ->
+                    ct:pal("Giant hitpoints: ~p~n", [val(hitpoints, g_hp)]),
                     false
             end
         end,
-    true = wait_loop(WaitFun, true, 30),
+    true = wait_loop(WaitFun, true, 40),
     WaitFun2 =
         fun() ->
             val('is_alive', g_hp)

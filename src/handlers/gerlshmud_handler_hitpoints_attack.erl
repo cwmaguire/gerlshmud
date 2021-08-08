@@ -61,6 +61,7 @@ take_damage(Attacker, Owner, Amount, EffectType, Props) ->
     case Hp of
         X when X < 1 ->
             Owner = proplists:get_value(owner, Props),
+            ct:pal("Killing ~p~n", [Owner]),
             gerlshmud_object:attempt(Owner, {Attacker, killed, Owner, with, EffectType});
         _ ->
             ok
