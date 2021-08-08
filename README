@@ -20,85 +20,13 @@ without any of the original participants needing to know about it. Every
 event initiator simply fires the event out into the world and sees what,
 if anything, comes back.
 
-How it Works (LOOOOONG version):
+Video on how it works:
 https://www.youtube.com/watch?v=dcuv_M4Po0g
 
-In order to explain GERLSHMUD I'm going to start with an elaborate analogy
-involving a prisoner of war (PoW) camp. After, I'll break down the analogy
-and explain how GERLSHMUD maps to that analogy.
+How it Works in Detail:
 
-Imagine a PoW camp where PoWs can only communicate by passing
-paper notes from cell to cell and building to building.  In order to account
-for new prisoners, maximize knowledge transer and because the prisoners
-have nothing else to occupy their time, they operate a transparent society
-and prisoners typically don't have private conversations. However, since
-some local conversations are known to be only interesting to specific
-prisoners, some conversations can be limited.
-
-Since the notes take different routes, each prisoner, upon seeing a note, writes
-their name on the back of the note to mark that they've seen it. There can
-be unlimited notes but only one prisoner will have any note at any one time.
-Every prisoner can add to a note, send more notes, or destroy a note. There
-are never multiple copies of a note in circulation so a prisoner with a
-note has complete confidence that have the most up-to-date version of the
-note since they have the only copy.
-
-Since the prisoners see many notes they do not try to remember anything
-on each note but rather add any information that anyone may need to the note.
-Many conversations take place among the prisoners but each prisoner is
-typically only interested in some of the conversations. If a prisoner
-receives a note containing a conversation they are not interested in then
-they will simply mark that they've read it and pass it on.
-
-At times a prisoner will add new information to a conversation that all the
-prisoners will need to see again. In this case the prisoner creates a new note,
-copies all the information from the original note, makes their changes and only
-writes their own name on the back. Now the note will be passed to everyone
-again.
-
-When prisoners have questions about a conversation they will copy the note, add
-their question, and send the note through the prison again. A prisoner with
-the answer to a question on a note will create a new note, answer the question
-and send it back to the originator to be passed around again.
-
-The prison camp is huge and passing messages through the hands of thousands of
-prisoners would be take too long. Instead the prisoners limit how far
-each message will travel from the source.
-
-Since prisoners will sometimes need to resend the same message with new
-information they mark the message with the original source so that it doesn't
-travel farther than the original note.
-
-If a proposal is to be decided on then prisoners can add their name to the list
-of people to be notified whether the proposal was accepted or rejected, along with
-the the final version of the message. Notifications of decisions are passed
-directly to the prisoners who request them. Notifications of proposal outcomes
-will often spark new conversations.
-
-Now that you have this situation in your imagination we can map GERLSHMUD to it.
-
-In GERLSHMUD the prisoners are the MUD objects and are modelled by processes. The
-objects are lists of properties which include modules for event handling.
-The processes cannot communicate with each other to ask questions
-directly so information is gathered by sending questions to every process
-that receives the message: any other process that has the answer can update the
-message and resend it. "Buildings", or "time to live" (TTL), is modelled by
-only having events travel a limited distance in the MUD; currently the only TTL
-is "maximum one room away".
-
-The notes are Erlang messages. The conversations are events in the MUD: opening
-doors, attacking things, putting on clothing and pickup stuff up. The "proposals"
-are called "attempts" in the MUD and are questions about whether events
-succeed: can this door be opened? can this item be worn on the head?
-
-Passing notes is controlled by the erlmud_object module which uses an object's
-properties pointing to sibling objects to route messages through the MUD.
-
-Prisoners knowing each other is modelled by objects having properties that have
-PIDs pointing to other objects.
-
-So, GERLSHMUD is a graph of asynchronous processes representing every aspect
-of game world: rooms, spells, attributes, attacks, players, etc. Events
+GERLSHMUD is a graph of asynchronous processes representing every aspect
+of a game world: rooms, spells, attributes, attacks, players, etc. Events
 in the MUD flow through the graph and touch one process at a time.
 Each process takes in events, modifies it's internal state and either
 passes on the event or triggers one or more new events.
@@ -124,21 +52,30 @@ listens for particluar events and so processes that cooperate to resolve
 an event will need to agree on a protocol to communicate via the process
 graph.
 
-Let's tie this together with a short example.
+Example:
 
 A player types "go north".
 
-This brings up a couple questions that other
-processes will need answered: who's going north? where are they now? and
-what is north from there? Not to mention: _can_ that character move north?
-_Is_ there a north? Is there free travel to the north? You get the idea.
+We're immediately missing information:
+Who's going north?
+Where are they now?
+What is north from there?
+Can that character move north?
+Is there a north?
+Is there free travel to the north?
+
+Eventually every process within reach will see this message.
 
 The player's character process, C, knows that it is "in" room R1. Character C
 resends the message as "C move north from R1".
 
+The current message is abandoned. There is now a new message.
+
 An exit process, E, which knows about room R1 also knows that room R1 connects
 to room R2 to the north. E drops "north" since it's redundant and resends
 "P move from R1 to R2".
+
+The current message is abandoned. There is now a new message.
 
 Exit E or room R2 might see the message "go north" and ignore it before C updates
 the message. The "graph traversal" must restart after the message is updated by
@@ -215,6 +152,10 @@ Feb 11, 2019 - implemented spells and effects
 How to run the tests: (Which is all I've been doing lately)
 
 ./t
+
+or with a test case:
+
+./t look_player
 
 How to run it:
 
