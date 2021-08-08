@@ -533,22 +533,31 @@ look_player(_Config) ->
     gerlshmud_test_socket:send(<<"AnyLoginWillDo">>),
     gerlshmud_test_socket:send(<<"AnyPasswordWillDo">>),
     ?WAIT100,
+    _LoginMessages = gerlshmud_test_socket:messages(),
     gerlshmud_test_socket:send(<<"look pete">>),
     ?WAIT100,
     ?WAIT100,
     ?WAIT100,
     NakedDescriptions = gerlshmud_test_socket:messages(),
-    ExpectedDescriptions = lists:sort([<<"character Pete">>,
-                                       <<"Pete -> 400.0kg">>,
-                                       <<"Pete -> gender: male">>,
-                                       <<"Pete -> race: giant">>,
-                                       <<"Pete -> 4.0m tall">>,
-                                       <<"Pete -> body part hands">>,
-                                       <<"Pete -> body part legs">>,
-                                       <<"Pete -> item pants_: pants">>,
-                                       <<"Pete -> item sword_: sword">>,
-                                       <<"Pete -> item scroll_: scroll">>]),
-    ExpectedDescriptions = lists:sort(NakedDescriptions).
+
+    ExpectedDescriptions =
+        [<<"Pete -> 4.0m tall">>,
+         <<"Pete -> 400.0kg">>,
+         <<"Pete -> body part hands">>,
+         <<"Pete -> body part legs">>,
+         <<"Pete -> gender: male">>,
+         <<"Pete -> item pants_: pants">>,
+         <<"Pete -> item scroll_: scroll">>,
+         <<"Pete -> item sword_: sword">>,
+         <<"Pete -> race: giant">>,
+         <<"character Pete">>],
+
+    case lists:sort(NakedDescriptions) of
+        ExpectedDescriptions ->
+            ok;
+        _ ->
+            ct:fail("Got descriptions:~p~nbut expected~p~n", [lists:sort(NakedDescriptions), ExpectedDescriptions])
+    end.
 
 look_player_clothed(Config) ->
     start(?WORLD_7),

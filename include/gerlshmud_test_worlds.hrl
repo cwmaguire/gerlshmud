@@ -354,7 +354,6 @@
                       [{owner, player},
                        {type, weight},
                        {value, <<"128">>},
-                       {desc, [<<"weighs ">>, value, <<"kg">>]},
                        {icon, stat},
                        ?ATTRIBUTE_HANDLERS]},
 
@@ -393,7 +392,6 @@
                       [{owner, giant},
                        {type, height},
                        {value, <<"4.0">>},
-                       {desc, [value, <<"m tall">>]},
                        {icon, stat},
                        ?ATTRIBUTE_HANDLERS]},
 
@@ -401,7 +399,6 @@
                       [{owner, giant},
                        {type, weight},
                        {value, <<"400.0">>},
-                       {desc, [<<"weighs ">>, value, <<"kg">>]},
                        {icon, stat},
                        ?ATTRIBUTE_HANDLERS]},
 
@@ -409,7 +406,6 @@
                       [{owner, giant},
                        {type, gender},
                        {value, <<"male">>},
-                       {desc, [value]},
                        {icon, stat},
                        ?ATTRIBUTE_HANDLERS]},
 
@@ -417,7 +413,6 @@
                       [{owner, giant},
                        {type, race},
                        {value, <<"giant">>},
-                       {desc, [value]},
                        {icon, stat},
                        ?ATTRIBUTE_HANDLERS]},
 

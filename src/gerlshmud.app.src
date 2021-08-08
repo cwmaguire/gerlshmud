@@ -23,7 +23,7 @@
              {room, [name, <<": ">>, desc]},
              {height, [value, <<"m tall">>]},
              {weight, [value, <<"kg">>]},
-             {race, [<<"race: ">>, desc]}
+             {race, [<<"race: ">>, value]}
           ]},
 
          {context_verbs, [{giant, [{hand, [{sword, <<"is wielding">>},
