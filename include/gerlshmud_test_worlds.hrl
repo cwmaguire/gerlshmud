@@ -119,7 +119,6 @@
                        {is_defence, false},
                        {should_attack_module, gerlshmud_attack_melee},
                        {should_defend_module, gerlshmud_defence_melee},
-                       {effect_prototype, p_fist_melee_effect_prototype},
                        {attack_type, melee},
                        {resources, [{stamina, 5}]},
                        {icon, weapon},
@@ -841,28 +840,34 @@
                         {owner, player},
                         {character, player},
                         {name, <<"fireball">>},
-                        {effects, [fireball_effect]},
-                        {attack_hit, 10},
                         {attack_type, spell},
                         {is_attack, true},
+                        {is_defence, false},
                         {is_auto_attack, true},
+
+                        {should_attack_module, gerlshmud_attack_melee},
+                        {should_defend_module, gerlshmud_defence_melee},
+
                         {resources, [{mana, 5}]},
                         {is_memorized, false},
                         {icon, spell},
                         ?SPELL_HANDLERS]},
 
-                   {fireball_effect,
-                       [{desc, <<"fireball spell effect">>},
-                        {owner, fireball_spell},
+                   {p_fireball_effect_prototype,
+                       [{owner, fireball_spell},
                         {character, player},
-                        {attack_damage, 2},
-                        {attack_hit, 10},
-                        {attack_effect_hit_modifier, 10},
-                        {effect, fire},
-                        {is_attack, false},
-                        {is_defence, false},
+
+                        %% FIXME need to create effect icon?
                         {icon, effect},
-                        ?EFFECT_HANDLERS]},
+
+                        {type, fire},
+
+                        %% TODO Hmmmm, light them on fire?
+                        {lifecycle, once},
+                        {hit_roll, {1, 10}},
+                        {effect_roll, 10},
+                        {child_handlers, ?EFFECT_HANDLERS},
+                        ?EFFECT_PROTOTYPE_HANDLERS]},
 
                    {giant,
                        [{owner, room},
