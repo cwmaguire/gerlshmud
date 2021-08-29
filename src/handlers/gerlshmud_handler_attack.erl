@@ -238,12 +238,7 @@ update_allocated(New, Type, Props) ->
 
 has_resources(Allocated, Required) ->
     {_, AllocApplied} = lists:foldl(fun apply_resource/2, {Allocated, []}, Required),
-    case lists:filter(fun is_resource_lacking/1, AllocApplied) of
-        [] ->
-            true;
-        _ ->
-            false
-    end.
+    not lists:any(fun is_resource_lacking/1, AllocApplied).
 
 apply_resource(_Resource = {Type, Required},
                {Allocated, Applied0}) ->
