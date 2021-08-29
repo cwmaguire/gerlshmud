@@ -2,7 +2,6 @@
 -compile(export_all).
 
 -include("gerlshmud.hrl").
--include("gerlshmud_handlers.hrl").
 -include("gerlshmud_test_worlds.hrl").
 
 -define(WAIT100, receive after 100 -> ok end).

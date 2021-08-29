@@ -1,3 +1,6 @@
+-ifndef(GERLSHMUD_HANDLERS_HRL).
+-define(GERLSHMUD_HANDLERS_HRL,already_included).
+
 -define(UNIVERSAL_HANDLERS, [gerlshmud_handler_set_child_property,
                              gerlshmud_handler_delete_property]).
 
@@ -67,3 +70,5 @@
 
 -define(ARMOR_HANDLERS, {handlers, [gerlshmud_handler_defend |
                                     element(2, ?ITEM_HANDLERS)]}).
+
+-endif.

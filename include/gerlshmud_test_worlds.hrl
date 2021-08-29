@@ -1,3 +1,5 @@
+-include("gerlshmud_handlers.hrl").
+
 -define(TEST_CONN_HANDLERS, {handlers, [gerlshmud_handler_test_connection_attack,
                                         ?UNIVERSAL_HANDLERS]}).
 

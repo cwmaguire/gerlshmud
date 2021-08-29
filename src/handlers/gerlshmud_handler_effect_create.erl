@@ -19,7 +19,6 @@
 -export([fail/1]).
 
 -include("include/gerlshmud.hrl").
--include("gerlshmud_handlers.hrl").
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% ATTEMPT

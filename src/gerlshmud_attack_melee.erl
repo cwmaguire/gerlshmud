@@ -16,8 +16,6 @@
 
 -export([should_attack/1]).
 
--include("include/gerlshmud.hrl").
-
 should_attack(Props) ->
     Name = proplists:get_value(name, Props),
     Message = <<Name/binary, " is not wielded">>,
