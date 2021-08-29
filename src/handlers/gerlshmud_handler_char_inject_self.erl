@@ -23,6 +23,7 @@
 attempt({#parents{}, Props, {Source, Action, TargetName}})
   when is_binary(TargetName) andalso
       (Action == look orelse Action == attack) ->
+    ct:pal("Running char inject self handler: ~p ~p ~p", [Source, Action, TargetName]),
     Log = [{?SOURCE, Source},
            {?EVENT, Action}],
     case is_name(Props, TargetName) of
@@ -32,6 +33,8 @@ attempt({#parents{}, Props, {Source, Action, TargetName}})
             Result = {resend, Source, NewMessage},
             {Result, true, Props, Log2};
         _ ->
+            Name = proplists:get_value(name, Props, ""),
+            ct:pal("Character (~p) name ~p does not match target name ~p", [self(), Name, TargetName]),
             Log2 = [{?TARGET, TargetName} | Log],
             {succeed, _Subscribe = false, Props, Log2}
     end;

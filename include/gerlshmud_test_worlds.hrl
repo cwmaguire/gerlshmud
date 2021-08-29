@@ -1,3 +1,5 @@
+-include("gerlshmud_handlers.hrl").
+
 -define(TEST_CONN_HANDLERS, {handlers, [gerlshmud_handler_test_connection_attack,
                                         ?UNIVERSAL_HANDLERS]}).
 
@@ -78,13 +80,13 @@
                        {hitpoints, p_hp},
                        {life, p_life},
                        {attribute, dexterity0},
-                       {attack_types, [hand]},
+                       {attack_types, [melee]},
                        %% TODO: why is stamina a first class property
                        %% instead of just an attribute?
                        %% It might not matter what the index of the property
                        %% is if we don't look them up by index
                        {resource, p_stamina},
-                       {body_part, p_hand},
+                       {body_part, p_hand_right},
                        {icon, person},
                        ?CHARACTER_HANDLERS]},
 
@@ -100,40 +102,53 @@
                        {icon, stat},
                        ?LIFE_HANDLERS]},
 
-                  {p_hand,
-                      [{name, <<"hand0">>},
-                       {item, p_fist},
+                  {p_hand_right,
+                      [{name, <<"right hand">>},
+                       {item, p_fist_right},
                        {owner, player},
                        {max_items, 1},
                        {body_part, hand},
                        {icon, body_part},
                        ?BODY_PART_HANDLERS]},
 
-                  {p_fist,
-                      [{attack_damage_modifier, 5},
-                       {attack_hit_modifier, 1},
-                       {owner, p_hand},
+                  {p_fist_right,
+                      [{name, <<"right fist">>},
+                       {owner, p_hand_right},
                        {character, player},
                        {wielding_body_parts, [hand]},
-                       {body_part, {?PID(p_hand), hand}},
+                       {body_part, {?PID(p_hand_right), hand}},
                        {is_attack, true},
+                       {is_defence, false},
+                       {should_attack_module, gerlshmud_attack_melee},
+                       {should_defend_module, gerlshmud_defence_melee},
+                       {effect_prototype, p_fist_melee_effect_prototype},
+                       {attack_type, melee},
                        {resources, [{stamina, 5}]},
-                       {icon, body_part},
-                       ?ITEM_HANDLERS]},
+                       {icon, weapon},
+                       ?WEAPON_HANDLERS]},
+
+                  {p_fist_melee_effect_prototype,
+                      [{owner, p_fist_right},
+                       {character, player},
+                       {type, blunt_force},
+                       {lifecycle, once},
+                       {hit_roll, {1, 10}},
+                       {effect_roll, 10},
+                       {child_handlers, ?EFFECT_HANDLERS}, %% e.g. {child_handlers, {handlers, [...]}}
+                       ?EFFECT_PROTOTYPE_HANDLERS]},
 
                   {dexterity0,
                       [{attack_hit_modifier, 1},
                        {defence_hit_modifier, 99},
                        {owner, player},
                        {character, player},
-                       {icon, stat},
-                       ?ATTRIBUTE_HANDLERS]},
+                       {icon, stat}, ?ATTRIBUTE_HANDLERS]},
 
                   {p_stamina,
                       [{owner, player},
                        {type, stamina},
                        {per_tick, 1},
-                       {tick_time, 500},
+                       {tick_time, 100},
                        {max, 10},
                        {icon, resource},
                        ?RESOURCE_HANDLERS]},
@@ -338,7 +353,6 @@
                       [{owner, player},
                        {type, weight},
                        {value, <<"128">>},
-                       {desc, [<<"weighs ">>, value, <<"kg">>]},
                        {icon, stat},
                        ?ATTRIBUTE_HANDLERS]},
 
@@ -377,7 +391,6 @@
                       [{owner, giant},
                        {type, height},
                        {value, <<"4.0">>},
-                       {desc, [value, <<"m tall">>]},
                        {icon, stat},
                        ?ATTRIBUTE_HANDLERS]},
 
@@ -385,7 +398,6 @@
                       [{owner, giant},
                        {type, weight},
                        {value, <<"400.0">>},
-                       {desc, [<<"weighs ">>, value, <<"kg">>]},
                        {icon, stat},
                        ?ATTRIBUTE_HANDLERS]},
 
@@ -393,7 +405,6 @@
                       [{owner, giant},
                        {type, gender},
                        {value, <<"male">>},
-                       {desc, [value]},
                        {icon, stat},
                        ?ATTRIBUTE_HANDLERS]},
 
@@ -401,7 +412,6 @@
                       [{owner, giant},
                        {type, race},
                        {value, <<"giant">>},
-                       {desc, [value]},
                        {icon, stat},
                        ?ATTRIBUTE_HANDLERS]},
 
@@ -584,17 +594,29 @@
 
                   {p_fist,
                       [{name, <<"left fist">>},
-                       {attack_damage_modifier, 50},
-                       {attack_hit_modifier, 1},
-                       {owner, p_hand},
+                       {owner, hand0},
                        {character, player},
                        {wielding_body_parts, [hand]},
                        {body_part, {?PID(hand0), hand}},
                        {is_attack, true},
+                       {is_defence, false},
                        {is_auto_attack, true},
+                       {should_attack_module, gerlshmud_attack_melee},
+                       {should_defend_module, gerlshmud_defence_melee},
+                       {effect_prototype, p_fist_melee_effect_prototype},
                        {resources, [{stamina, 5}]},
-                       {icon, body_part},
-                       ?ITEM_HANDLERS]},
+                       {icon, weapon},
+                       ?WEAPON_HANDLERS]},
+
+                  {p_fist_melee_effect_prototype,
+                      [{owner, p_fist},
+                       {character, player},
+                       {type, blunt_force},
+                       {lifecycle, once},
+                       {hit_roll, {1, 10}},
+                       {effect_roll, 30},
+                       {child_handlers, ?EFFECT_HANDLERS}, %% e.g. {child_handlers, {handlers, [...]}}
+                       ?EFFECT_PROTOTYPE_HANDLERS]},
 
                   {p_back,
                       [{name, <<"back">>},
@@ -681,10 +703,25 @@
                        {wielding_body_parts, [hand]},
                        {body_part, {?PID(g_hand_r), hand}},
                        {is_attack, true},
+                       {is_defence, false},
                        {is_auto_attack, true},
+                       {should_attack_module, gerlshmud_attack_melee},
+                       {should_defend_module, gerlshmud_defence_melee},
+                       {effect_prototype, g_glub_melee_effect_prototype},
+                       {attack_type, melee},
                        {resources, [{stamina, 5}]},
                        {icon, weapon},
-                       ?ITEM_HANDLERS]}
+                       ?ITEM_HANDLERS]},
+
+                  {g_club_melee_effect_prototype,
+                      [{owner, p_fist},
+                       {character, giant},
+                       {type, blunt_force},
+                       {lifecycle, once},
+                       {hit_roll, {1, 10}},
+                       {effect_roll, 30},
+                       {child_handlers, ?EFFECT_HANDLERS}, %% e.g. {child_handlers, {handlers, [...]}}
+                       ?EFFECT_PROTOTYPE_HANDLERS]}
                  ]).
 
 -define(WORLD_9, [{room,
@@ -806,28 +843,35 @@
                         {owner, player},
                         {character, player},
                         {name, <<"fireball">>},
-                        {effect, fireball_effect},
-                        {attack_hit, 10},
-                        {attack_types, [spell]},
+                        {attack_type, spell},
                         {is_attack, true},
+                        {is_defence, false},
                         {is_auto_attack, true},
+
+                        {should_attack_module, gerlshmud_attack_spell},
+                        {should_defend_module, gerlshmud_defence_spell},
+                        {effect_prototype, p_fireball_effect_prototype},
+
                         {resources, [{mana, 5}]},
                         {is_memorized, false},
                         {icon, spell},
                         ?SPELL_HANDLERS]},
 
-                   {fireball_effect,
-                       [{desc, <<"fireball spell">>},
-                        {owner, fireball_spell},
+                   {p_fireball_effect_prototype,
+                       [{owner, fireball_spell},
                         {character, player},
-                        {attack_damage, 2},
-                        {attack_hit, 10},
-                        {attack_effect_hit_modifier, 10},
-                        {attack_types, [effect, fire]},
-                        {is_attack, false},
-                        {is_defence, false},
+
+                        %% FIXME need to create effect icon?
                         {icon, effect},
-                        ?EFFECT_HANDLERS]},
+
+                        {type, fire},
+
+                        %% TODO Hmmmm, light them on fire?
+                        {lifecycle, once},
+                        {hit_roll, {1, 10}},
+                        {effect_roll, 10},
+                        {child_handlers, ?EFFECT_HANDLERS},
+                        ?EFFECT_PROTOTYPE_HANDLERS]},
 
                    {giant,
                        [{owner, room},

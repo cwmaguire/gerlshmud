@@ -2,38 +2,40 @@
 -compile(export_all).
 
 -include("gerlshmud.hrl").
--include("gerlshmud_handlers.hrl").
 -include("gerlshmud_test_worlds.hrl").
 
 -define(WAIT100, receive after 100 -> ok end).
 
 % TODO test updating a skill when a target is killed with a weapon (or when damage is dealt, or both)
 
-all() -> [player_attack].
+%all() -> [player_attack].
 %all() ->
-    %[player_move,
-     %player_move_fail,
-     %player_move_exit_locked,
-     %player_get_item,
-     %player_drop_item,
-     %character_owner_add_remove,
-     %player_attack,
-     %player_resource_wait,
-     %attack_with_modifiers,
-     %one_sided_fight,
-     %counterattack_behaviour,
-     %stop_attack_on_move,
-     %player_wield,
-     %player_wield_first_available,
-     %player_wield_missing_body_part,
-     %player_wield_wrong_body_part,
-     %player_wield_body_part_is_full,
-     %player_remove,
-     %look_player,
-     %look_room,
-     %look_item,
-     %set_character,
-     %cast_spell].
+    %[player_resource_wait,
+     %player_move].
+all() ->
+    [player_move,
+     player_move_fail,
+     player_move_exit_locked,
+     player_get_item,
+     player_drop_item,
+     character_owner_add_remove,
+     player_attack,
+     player_resource_wait,
+     attack_with_modifiers,
+     one_sided_fight,
+     counterattack_behaviour,
+     stop_attack_on_move,
+     player_wield,
+     player_wield_first_available,
+     player_wield_missing_body_part,
+     player_wield_wrong_body_part,
+     player_wield_body_part_is_full,
+     player_remove,
+     look_player,
+     look_room,
+     look_item,
+     set_character,
+     cast_spell].
 
 init_per_testcase(_, Config) ->
     %gerlshmud_dbg:add(gerlshmud_object, handle_cast_),
@@ -54,6 +56,7 @@ init_per_testcase(_, Config) ->
 
 end_per_testcase(_, _Config) ->
     ct:pal("~p stopping gerlshmud~n", [?MODULE]),
+    receive after 1000 -> ok end,
     gerlshmud_test_socket:stop(),
     application:stop(gerlshmud).
 
@@ -176,7 +179,7 @@ character_owner_add_remove(Config) ->
     undefined = val(character, Bullet).
 
 player_attack(Config) ->
-    SupPid = whereis(gerlshmud_object_sup),
+    _SupPid = whereis(gerlshmud_object_sup),
     %fprof:trace([start, {file, "my_prof.trace"}, {procs, [SupPid, self()]}]),
     start(?WORLD_3),
     ct:pal("~p:player_attack(Config) world 3 started~n", [?MODULE]),
@@ -185,25 +188,45 @@ player_attack(Config) ->
     attempt(Config, Player, {Player, attack, <<"zombie">>}),
     receive after 1000 -> ok end,
     %fprof:trace(stop),
-    receive after 1000 -> ok end,
-    receive after 1000 -> ok end,
-    false = val(is_alive, z_life),
-    0 = val(hitpoints, z_hp).
+    Conditions =
+        [{"Zombie is dead",
+          fun() -> val(is_alive, z_life) == false end},
+         {"Zombie hp < 1",
+          fun() -> val(hitpoints, z_hp) =< 0 end}],
+    wait_for(Conditions, 20).
+
+wait_for(_NoUnmetConditions = [], _) ->
+    ok;
+wait_for(Conditions, Count) when Count =< 0 ->
+    {Failures, _} = lists:unzip(Conditions),
+    ct:fail("Failed waiting for conditions: ~p~n", [Failures]);
+wait_for(Conditions, Count) ->
+    {Descriptions, _} = lists:unzip(Conditions),
+    ct:pal("Checking conditions: ~p~n", [Descriptions]),
+    timer:sleep(1000),
+    {_, ConditionsUnmet} = lists:partition(fun run_condition/1, Conditions),
+    wait_for(ConditionsUnmet, Count - 1).
+
+run_condition({_Desc, Fun}) ->
+    Fun().
+
+    %false = val(is_alive, z_life),
+    %true = val(hitpoints, z_hp) =< 0.
 
 player_resource_wait(Config) ->
     start(?WORLD_3),
     Player = get_pid(player),
-    Fist = get_pid(p_fist),
+    Fist = get_pid(p_fist_right),
     Stamina = get_pid(p_stamina),
     Zombie = get_pid(zombie),
     gerlshmud_object:set(Stamina, {current, 5}),
     gerlshmud_object:set(Stamina, {tick_time, 10000}),
     attempt(Config, Player, {Player, attack, <<"zombie">>}),
     ct:pal("Waiting for player_resource_wait"),
-    wait_value(z_hp, hitpoints, 5, 5),
-    5 = val(hitpoints, z_hp),
+    wait_loop(fun() -> val(hitpoints, z_hp) < 10 end, true, 5),
+    true = val(hitpoints, z_hp) < 10,
     true = val(is_alive, z_life),
-    true = val(is_attacking, p_fist),
+    true = val(is_attacking, p_fist_right),
     Zombie = val(target, Fist).
 
 one_sided_fight(Config) ->
@@ -220,16 +243,7 @@ one_sided_fight(Config) ->
                     false
             end
         end,
-    true = wait_loop(WaitFun, true, 30),
-    ?WAIT100,
-    ?WAIT100,
-    ?WAIT100,
-    ?WAIT100,
-    ?WAIT100,
-    ?WAIT100,
-    ?WAIT100,
-    ?WAIT100,
-    ?WAIT100,
+    true = wait_loop(WaitFun, true, 60),
     1000 = val(hitpoints, p_hp),
     true = val(is_alive, p_life),
     false = val(is_alive, z_life).
@@ -256,9 +270,24 @@ counterattack_behaviour(Config) ->
         end,
     true = wait_loop(WaitFun, true, 40),
 
-    false = val(is_alive, z_life),
-    true = 1000 > val(hitpoints, p_hp),
-    true = val(is_alive, p_life),
+    case val(is_alive, z_life) of
+        true ->
+            ct:fail("Zombie should be dead but isn't~n", []);
+        _ ->
+            ok
+    end,
+    case val(hitpoints, p_hp) of
+        LessThan1000 when LessThan1000 < 1000 ->
+            ct:fail("Player hitpoints should be 1000 or more but are ~p~n", [LessThan1000]);
+        _ ->
+            ok
+    end,
+    case val(is_alive, p_life) of
+        false ->
+            ct:fail("Player should be alive but isn't~n", []);
+        _ ->
+            ok
+    end,
     ok.
 
 attack_with_modifiers(Config) ->
@@ -288,10 +317,11 @@ attack_with_modifiers(Config) ->
                 ZeroOrLess when is_integer(ZeroOrLess), ZeroOrLess =< 0 ->
                     true;
                 _ ->
+                    ct:pal("Giant hitpoints: ~p~n", [val(hitpoints, g_hp)]),
                     false
             end
         end,
-    true = wait_loop(WaitFun, true, 30),
+    true = wait_loop(WaitFun, true, 40),
     WaitFun2 =
         fun() ->
             val('is_alive', g_hp)
@@ -372,17 +402,17 @@ wait_value(ObjectId, Key, ExpectedValue, Count) ->
         end,
     true = wait_loop(WaitFun, ExpectedValue, Count).
 
-wait_loop(Fun, ExpectedResult, _Count = 0) ->
+wait_loop(Fun, ExpectedValue, _Count = 0) ->
     ct:pal("Mismatched function result:~n\tFunction: ~p~n\tResult: ~p",
-           [erlang:fun_to_list(Fun), ExpectedResult]),
+           [erlang:fun_to_list(Fun), ExpectedValue]),
     false;
-wait_loop(Fun, ExpectedResult, Count) ->
-    case Fun() == ExpectedResult of
+wait_loop(Fun, ExpectedValue, Count) ->
+    case Fun() == ExpectedValue of
         true ->
             true;
         false ->
             ?WAIT100,
-            wait_loop(Fun, ExpectedResult, Count - 1)
+            wait_loop(Fun, ExpectedValue, Count - 1)
     end.
 
 player_wield(Config) ->
@@ -510,22 +540,31 @@ look_player(_Config) ->
     gerlshmud_test_socket:send(<<"AnyLoginWillDo">>),
     gerlshmud_test_socket:send(<<"AnyPasswordWillDo">>),
     ?WAIT100,
+    _LoginMessages = gerlshmud_test_socket:messages(),
     gerlshmud_test_socket:send(<<"look pete">>),
     ?WAIT100,
     ?WAIT100,
     ?WAIT100,
     NakedDescriptions = gerlshmud_test_socket:messages(),
-    ExpectedDescriptions = lists:sort([<<"character Pete">>,
-                                       <<"Pete -> 400.0kg">>,
-                                       <<"Pete -> gender: male">>,
-                                       <<"Pete -> race: giant">>,
-                                       <<"Pete -> 4.0m tall">>,
-                                       <<"Pete -> body part hands">>,
-                                       <<"Pete -> body part legs">>,
-                                       <<"Pete -> item pants_: pants">>,
-                                       <<"Pete -> item sword_: sword">>,
-                                       <<"Pete -> item scroll_: scroll">>]),
-    ExpectedDescriptions = lists:sort(NakedDescriptions).
+
+    ExpectedDescriptions =
+        [<<"Pete -> 4.0m tall">>,
+         <<"Pete -> 400.0kg">>,
+         <<"Pete -> body part hands">>,
+         <<"Pete -> body part legs">>,
+         <<"Pete -> gender: male">>,
+         <<"Pete -> item pants_: pants">>,
+         <<"Pete -> item scroll_: scroll">>,
+         <<"Pete -> item sword_: sword">>,
+         <<"Pete -> race: giant">>,
+         <<"character Pete">>],
+
+    case lists:sort(NakedDescriptions) of
+        ExpectedDescriptions ->
+            ok;
+        _ ->
+            ct:fail("Got descriptions:~p~nbut expected~p~n", [lists:sort(NakedDescriptions), ExpectedDescriptions])
+    end.
 
 look_player_clothed(Config) ->
     start(?WORLD_7),
@@ -555,6 +594,7 @@ look_room(_Config) ->
     gerlshmud_test_socket:send(<<"AnyLoginWillDo">>),
     gerlshmud_test_socket:send(<<"AnyPasswordWillDo">>),
     ?WAIT100,
+    _LoginMessages = gerlshmud_test_socket:messages(),
     gerlshmud_test_socket:send(<<"look">>),
     ?WAIT100,
     Descriptions = lists:sort(gerlshmud_test_socket:messages()),
@@ -570,6 +610,7 @@ look_item(_Config) ->
     gerlshmud_test_socket:send(<<"AnyLoginWillDo">>),
     gerlshmud_test_socket:send(<<"AnyPasswordWillDo">>),
     ?WAIT100,
+    _LoginMessages = gerlshmud_test_socket:messages(),
     gerlshmud_test_socket:send(<<"look bread">>),
     ?WAIT100,
     Descriptions = lists:sort(gerlshmud_test_socket:messages()),
@@ -642,7 +683,7 @@ cast_spell(Config) ->
     true = val(is_alive, p_life),
     false = val(is_alive, g_life).
 
-revive_process(Config) ->
+revive_process(_Config) ->
     start(?WORLD_3),
 
     PlayerV1 = get_pid(player),
@@ -663,8 +704,8 @@ revive_process(Config) ->
 
     PlayerV1 = val(owner, p_hp),
     PlayerV1 = val(owner, p_life),
-    PlayerV1 = val(owner, p_hand),
-    PlayerV1 = val(character, p_fist),
+    PlayerV1 = val(owner, p_hand_right),
+    PlayerV1 = val(character, p_fist_right),
     PlayerV1 = val(owner, dexterity0),
     PlayerV1 = val(owner, p_stamina),
 
@@ -689,8 +730,8 @@ revive_process(Config) ->
 
     PlayerV2 = val(owner, p_hp),
     PlayerV2 = val(owner, p_life),
-    PlayerV2 = val(owner, p_hand),
-    PlayerV2 = val(character, p_fist),
+    PlayerV2 = val(owner, p_hand_right),
+    PlayerV2 = val(character, p_fist_right),
     PlayerV2 = val(owner, dexterity0),
     PlayerV2 = val(owner, p_stamina).
 

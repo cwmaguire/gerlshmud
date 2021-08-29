@@ -19,38 +19,36 @@
 -export([fail/1]).
 
 -include("include/gerlshmud.hrl").
--include("gerlshmud_handlers.hrl").
 
-attempt({#parents{owner = Spell,
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% ATTEMPT
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+attempt({#parents{owner = Attack,
                   character = Character},
          Props,
-         {Character, cast, Spell, at, Target}}) ->
+         {Character, affect, Target, because, Attack}}) ->
     Log = [{?SOURCE, Character},
-           {?EVENT, cast},
+           {?EVENT, attack},
            {?TARGET, Target},
-           {spell, Spell}],
+           {attack, Attack}],
     {succeed, true, Props, Log};
-
-attempt({#parents{owner = undefined},
-         Props,
-         {Character, cast, Spell, at, Target}}) ->
-    Log = [{?SOURCE, Character},
-           {?EVENT, cast},
-           {?TARGET, Target},
-           {spell, Spell}],
-    {succeed, true, Props, Log};
-
-attempt({_, _, _Msg}) ->
+attempt(_Other = {_, _, _Msg}) ->
     undefined.
 
-succeed({Props, {Character, cast, Spell, at, Target}}) ->
-    Log = [{?EVENT, cast},
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% SUCCEED
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+succeed({Props, {Character, affect, Target, because, Attack}}) ->
+    Log = [{?EVENT, attack},
            {?SOURCE, Character},
            {?TARGET, Target},
            {handler, ?MODULE},
-           {spell, Spell}],
-    Props2 = proplists:delete(owner, Props),
-    {ok, Pid} = supervisor:start_child(gerlshmud_object_sup, [undefined, Props2]),
+           {attack, Attack}],
+    ChildProps = replace_handlers_with_child_handlers(Props),
+    ChildPropsWithTarget = [{target, Target} | ChildProps],
+    {ok, Pid} = supervisor:start_child(gerlshmud_object_sup, [undefined, ChildPropsWithTarget]),
     gerlshmud_object:attempt(Pid, {Pid, affect, Target}),
     {Props, Log};
 
@@ -60,5 +58,5 @@ succeed({Props, _}) ->
 fail({Props, _, _}) ->
     Props.
 
-%log(Props) ->
-    %gerlshmud_event_log:log(debug, [{module, ?MODULE} | Props]).
+replace_handlers_with_child_handlers(Props) ->
+    lists:keystore(handlers, 1, Props, proplists:get_value(child_handlers, Props)).

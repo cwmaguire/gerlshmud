@@ -27,6 +27,7 @@
 -export([unsubscribe_dead/2]).
 -export([replace_dead/2]).
 -export([del/1]).
+-export([get_pid/1]).
 
 %% gen_server
 

@@ -1,4 +1,4 @@
-%% Copyright (c) 2019, Chris Maguire <cwmaguire@gmail.com>
+%% Copyright (c) 2020, Chris Maguire <cwmaguire@gmail.com>
 %%
 %% Permission to use, copy, modify, and/or distribute this software for any
 %% purpose with or without fee is hereby granted, provided that the above
@@ -11,23 +11,6 @@
 %% WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 %% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
--module(gerlshmud_modifiers).
+-module(gerlshmud_attack).
 
--export([modifier/4]).
-
-get(defence, damage, fire) -> defence_fire_damage_modifier;
-get(defence, damage, melee) -> defence_melee_damage_modifier;
-
-get(attack, damage, fire) -> attack_fire_damage_modifier;
-
-get(attack, hit, melee) -> attack_melee_hit_modifier;
-get(attack, hit, effect) -> attack_effect_hit_modifier;
-
-get(attack, cast, spell) -> attack_spell_cast_modifier;
-
-get(_, _, _) -> undefined.
-
-modifier(Props, Direction, Action, Types) ->
-    Keys = [get(Direction, Action, T) || T <- Types],
-    Modifiers = [proplists:get_value(K, Props, 0) || K <- Keys],
-    lists:sum(Modifiers).
+-callback should_attack(tuple()) -> boolean().
