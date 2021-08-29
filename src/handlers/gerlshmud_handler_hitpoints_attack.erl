@@ -71,6 +71,8 @@ take_damage(Attacker, Owner, Amount, EffectType, Props) ->
 
 is_hp_effect(blunt_force) ->
     true;
+is_hp_effect(fire) ->
+    true;
 is_hp_effect(_) ->
     false.
 
