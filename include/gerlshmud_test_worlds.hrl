@@ -121,8 +121,7 @@
                        {is_defence, false},
                        {should_attack_module, gerlshmud_attack_melee},
                        {should_defend_module, gerlshmud_defence_melee},
-                       %% FIXME add link to melee effect prototype?
-                       %% (see world 8)
+                       {effect_prototype, p_fist_melee_effect_prototype},
                        {attack_type, melee},
                        {resources, [{stamina, 5}]},
                        {icon, weapon},
