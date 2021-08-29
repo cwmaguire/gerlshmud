@@ -127,8 +127,7 @@ succeed({Props, {Character, roll, EffectAmount, for, effect, with, EffectType, o
     EffectEvent = {Character, cause, EffectAmount, 'of', EffectType, to, Target, with, Self},
     gerlshmud_object:attempt(Target, EffectEvent, false),
 
-    maybe_repeat(Props),
-    {Props, Log};
+    maybe_repeat(Props, Log);
 
 succeed({Props, {Character, roll, IneffectiveAmount, for, effect, with, EffectType, on, Target, with, Self}})
   when is_pid(Target),
@@ -220,14 +219,14 @@ calc_effect_roll(Props) ->
 % TODO implement repeat logic for effects that keep going
 % maybe re-roll for hit?
 % maybe check wait time?
-maybe_repeat(Props) ->
-    stop(Props),
-    ok.
+maybe_repeat(Props, Log) ->
+    stop(Props, Log).
 
-stop(Props) ->
+stop(Props, Log) ->
     Owner = proplists:get_value(owner, Props),
     StopEvent = {delete, self()},
-    gerlshmud_object:attempt(Owner, StopEvent).
+    gerlshmud_object:attempt(Owner, StopEvent),
+    {stop, finished, Props, Log}.
 
 
 %log(Props) ->
