@@ -132,7 +132,8 @@ attempt_clause(Name, {clause, _Line, Head, GuardGroups, Body}) ->
     lists:map(fun expr/1, Body).
 
 attempt_head(Parents, Props, Event) ->
-    {Parents, Props, Event}.
+    %{Parents, Props, Event}.
+    separate(<<"|">>, [bin(Parents), bin(Props), bin(Event)]).
 
 attempt_guards(Guards) ->
     Guards.
@@ -153,7 +154,8 @@ succeed_clause(Name, {clause, _Line, Head, GuardGroups, Body}) ->
     lists:map(fun expr/1, Body).
 
 succeed_head(Props, Event) ->
-    {Props, Event}.
+    %{Props, Event}.
+    separate(<<"|">>, [bin(Props), bin(Event)]).
 
 succeed_guards(Guards) ->
     Guards.
@@ -237,10 +239,6 @@ expr({op,_Line,'==',L,R}) ->
     expr(L) ++ expr(R);
 expr({op, _Line, _Op, L, R}) ->
     expr(L) ++ expr(R);
-expr({remote, _Line, {atom, _MLine, Module}, {atom, _FLine, Function}}) ->
-    % TODO how do I catch remove function calls like gerlshmud_object:attempt(blah, blah)
-    io:format("Got remote on line ~p with ~p:~p, not sure what to do with it~n", [_Line, Module, Function]),
-    [];
 expr({tuple,_Line,Exprs}) ->
     lists:map(fun expr/1, Exprs);
 %% There's a special case for all cons's after the first: {tail, _}
@@ -296,3 +294,30 @@ lc_bc_qual({b_generate,_Line,Target,Source}) ->
     expr(Target) ++ expr(Source);
 lc_bc_qual(FilterExpression) ->
     expr(FilterExpression).
+
+bin({var, _Line, VarName}) ->
+    a2b(VarName);
+bin({atom, _Line, Atom}) ->
+    a2b(Atom);
+bin({record, _Line, parents, Fields}) ->
+    [<<"#parents{">> | map_separate(fun bin/1, Fields)] ++ [<<"}">>];
+bin({record_field, _Line, {atom, _Line, FieldName}, {var, _VarLine, VarName}}) ->
+    [a2b(FieldName), <<" = ">>, a2b(VarName)];
+bin({tuple, _Line, Expressions}) ->
+    [<<"{">> | map_separate(fun bin/1, Expressions)] ++ [<<"}">>].
+
+
+%separate(List) when is_list(List) ->
+    %separate(<<", ">>, List).
+
+separate(Separator, List) ->
+    lists:join(Separator, List).
+
+map_separate(Fun, List) ->
+    map_separate(<<", ">>, Fun, List).
+
+map_separate(Separator, Fun, List) ->
+    separate(Separator, lists:map(Fun, List)).
+
+a2b(Atom) ->
+    list_to_binary(atom_to_list(Atom)).
