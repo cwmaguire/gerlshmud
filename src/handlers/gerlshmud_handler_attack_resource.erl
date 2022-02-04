@@ -13,6 +13,7 @@
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 -module(gerlshmud_handler_attack_resource).
 -behaviour(gerlshmud_handler).
+-compile({parse_transform, gerlshmud_protocol_parse_transform}).
 
 %% respond to resources being added to the owner by reserving
 %% those resources and kicking off attacks

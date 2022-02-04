@@ -36,7 +36,9 @@ parse_transform(Forms, Options) ->
               [Forms, Options]),
 
     HtmlFilename = html_filename(Filename),
-    io:format(user, "Filename: ~p~n", [HtmlFilename]),
+    io:format(user, "HtmlFilename: ~p~n", [HtmlFilename]),
+    CsvFilename = csv_filename(Filename),
+    io:format(user, "CsvFilename = ~p~n", [CsvFilename]),
 
     Events = events(Forms),
 
@@ -52,6 +54,15 @@ parse_transform(Forms, Options) ->
     %Forms.
     %
     [io:format("Event: ~p~n", [Event]) || Event <- Events],
+
+    {ok, CsvFile} = file:open(CsvFilename, [write, append]),
+    case file:write(CsvFile, [Events, <<"\n">>]) of
+        ok ->
+            io:format(user, "Write successful~n", []);
+        Error ->
+            io:format(user, "Write failed: ~p~n", [Error])
+    end,
+    file:close(CsvFile),
     Forms.
 
 filename(Options) ->
@@ -64,6 +75,9 @@ filename(Options) ->
 
 html_filename(Filename) ->
     filename:rootname(Filename) ++ ".html".
+
+csv_filename(Filename) ->
+    filename:rootname(Filename) ++ ".csv".
 
 
 escape(String0) ->
@@ -98,7 +112,7 @@ catch_clause({clause, _Line, Exception, GuardGroups, Body}) ->
     [{tuple, _Line, [Class, ExceptionPattern, _Wild]}] = Exception,
     expr(Class) ++
     expr(ExceptionPattern) ++
-    lists:map(fun guard_group/1, GuardGroups) ++
+    guard_groups(GuardGroups) ++
     lists:map(fun expr/1, Body).
 
 clause({clause, _Line, Head, GuardGroups, Body}) ->
@@ -122,9 +136,11 @@ attempt_clause(Name, {clause, _Line, Head, GuardGroups, Body}) ->
     io:format("Got event clause with name ~p~n", [Name]),
 
     [{tuple, _Line, [Parents, Props, Event]}] = Head,
-    Attempt = {attempt,
+    Attempt = [<<"attempt|">>,
                attempt_head(Parents, Props, Event),
-               attempt_guards(GuardGroups)},
+               <<"|">>,
+               guard_groups(GuardGroups),
+               <<"\n">>],
     %head(Head)
     %lists:map(fun guard_group/1, GuardGroups) ++
 
@@ -135,9 +151,6 @@ attempt_head(Parents, Props, Event) ->
     %{Parents, Props, Event}.
     separate(<<"|">>, [bin(Parents), bin(Props), bin(Event)]).
 
-attempt_guards(Guards) ->
-    Guards.
-
 %% I don't think you can get a function clause without a name
 %succeed_clause({clause, _Line, Head, GuardGroups, Body}) ->
     %succeed_clause('', {clause, _Line, Head, GuardGroups, Body}).
@@ -146,9 +159,12 @@ succeed_clause(Name, {clause, _Line, Head, GuardGroups, Body}) ->
     io:format("Got event clause with name ~p~n", [Name]),
 
     [{tuple, _Line, [Props, Event]}] = Head,
-    Succeed = {succeed,
+    Succeed = [<<"succeed|">>,
+               _NoParents = <<"|">>,
                succeed_head(Props, Event),
-               succeed_guards(GuardGroups)},
+               <<"|">>,
+               guard_groups(GuardGroups),
+               <<"\n">>],
 
     [Succeed] ++
     lists:map(fun expr/1, Body).
@@ -157,17 +173,13 @@ succeed_head(Props, Event) ->
     %{Props, Event}.
     separate(<<"|">>, [bin(Props), bin(Event)]).
 
-succeed_guards(Guards) ->
-    Guards.
-
 case_clause({clause, _Line, [Head], GuardGroups, Body}) ->
      expr(Head) ++
      case GuardGroups of
          [] ->
              [];
          _ ->
-             F = fun guard_group/1,
-             lists:map(F, GuardGroups)
+             guard_groups(GuardGroups)
      end ++
      lists:map(fun expr/1, Body).
 
@@ -218,7 +230,9 @@ expr({call, _Line,
        {atom, _AtomLine, gerlshmud_object},
        {atom, _FunAtomLine, attempt}},
       [Arg1, Arg2]}) ->
-    {new, Arg1, Arg2};
+    %NoParents = <<"|">>,
+    NoProps = <<"|">>,
+    [<<"new|">>, bin(Arg1), NoProps, <<"|">>, bin(Arg2), <<"\n">>];
 
 expr({call,_Line,__Fun, _Args}) ->
     %io:format("Got call with fun ~p and args ~p~n", [_Fun, Args]),
@@ -282,8 +296,11 @@ expr_field({record_field, _Lf, {atom, _La, _F}, Expr}) ->
 expr_field({record_field, _Lf, {var,_La,'_'}, Expr}) ->
     expr(Expr).
 
-guard_group(GuardGroup) ->
-    lists:map(fun expr/1, GuardGroup).
+guard_groups(GuardGroups) ->
+    map_separate(<<"; ">>, fun guard_group_conjunction/1, GuardGroups).
+
+guard_group_conjunction(GuardGroupConjunctionExpressions) ->
+    map_separate(<<", ">>, fun bin/1, GuardGroupConjunctionExpressions).
 
 %% This is a list of generators _or_ filters
 %% which are simply expressions
@@ -304,7 +321,12 @@ bin({record, _Line, parents, Fields}) ->
 bin({record_field, _Line, {atom, _Line, FieldName}, {var, _VarLine, VarName}}) ->
     [a2b(FieldName), <<" = ">>, a2b(VarName)];
 bin({tuple, _Line, Expressions}) ->
-    [<<"{">> | map_separate(fun bin/1, Expressions)] ++ [<<"}">>].
+    [<<"{">> | map_separate(fun bin/1, Expressions)] ++ [<<"}">>];
+bin({op, _Line, Operator, Expr1, Expr2}) ->
+    [bin(Expr1), <<" ">>, a2b(Operator), <<" ">>, bin(Expr2)];
+bin({call, _Line, {atom, _Line2, FunctionName}, Params}) ->
+    ParamBins = map_separate(<<", ">>, fun bin/1, Params),
+    [a2b(FunctionName), <<"(">>, ParamBins, <<")">>].
 
 
 %separate(List) when is_list(List) ->
