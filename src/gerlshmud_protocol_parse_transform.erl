@@ -13,97 +13,86 @@
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 -module(gerlshmud_protocol_parse_transform).
 
--export([write_html/1]).
-%-export([write_file/1]).
 -export([parse_transform/2]).
--export([escape/1]).
 
-write_html(Filename) ->
-    io:format(user, "Compiling ~p~n", [Filename]),
-    Result = compile:file(Filename, [report_errors,
-                                     return_errors,
-                                     {parse_transform, ?MODULE},
-                                     {d, filename, Filename}]),
-    io:format(user, "Compile result:~n~p~n", [Result]).
+parse_transform(Forms, _Options) ->
+    io:format("~~", []),
 
-parse_transform(Forms, Options) ->
-    Filename = filename(Options),
+    start_module_proc(Forms),
 
-    io:format(user, "Parse transforming forms: ~n"
-                    "\t~p~n"
-                    "\t with Options:~n"
-                    "\t~p~n",
-              [Forms, Options]),
-
-    HtmlFilename = html_filename(Filename),
-    io:format(user, "HtmlFilename: ~p~n", [HtmlFilename]),
-    CsvFilename = csv_filename(Filename),
-    io:format(user, "CsvFilename = ~p~n", [CsvFilename]),
+    CsvFilename = csv_filename("protocol"),
 
     Events = events(Forms),
 
-    %io:format(user, "HTML = ~p~n", [HTML]),
-    %{ok, HtmlFile} = file:open(HtmlFilename, [write]),
-
-    %case file:write(HtmlFile, [HTML, <<"\n">>]) of
-        %ok ->
-            %io:format(user, "Write successful~n", []);
-        %Error ->
-            %io:format(user, "Write failed: ~p~n", [Error])
-    %end,
-    %Forms.
-    %
-    [io:format("Event: ~p~n", [Event]) || Event <- Events],
-
     {ok, CsvFile} = file:open(CsvFilename, [write, append]),
-    case file:write(CsvFile, [Events, <<"\n">>]) of
+    case file:write(CsvFile, [Events]) of
         ok ->
-            io:format(user, "Write successful~n", []);
+            %io:format(user, "Write successful~n", []);
+            ok;
         Error ->
             io:format(user, "Write failed: ~p~n", [Error])
     end,
     file:close(CsvFile),
+    stop_module_proc(),
     Forms.
 
-filename(Options) ->
-    case [Filename || {d, filename, Filename} <- Options] of
-        [] ->
-            "protocol";
-        [Filename | _] ->
-            Filename % test comment
+start_module_proc(Forms) ->
+    Module = module(Forms),
+    io:format("~p module process for ~p starting~n", [self(), Module]),
+    ModuleProcFun =
+        fun() ->
+            Fun = fun(Module_, Self) ->
+                      receive
+                          {Pid, module} ->
+                              %io:format("~p sending back module name ~p~n", [self(), Module_]),
+                              Pid ! {module, Module},
+                              Self(Module_, Self);
+                          die ->
+                              io:format("~p module process for ~p dying~n", [self(), Module_]),
+                              ok
+                      end
+                  end,
+            Fun(Module, Fun)
+        end,
+    ModuleProc = spawn(ModuleProcFun),
+    true = register(module, ModuleProc).
+
+stop_module_proc() ->
+    module ! die.
+
+module([{attribute, _Line, module, Module} | _]) ->
+    remove_prefix(<<"gerlshmud_handler_">>, a2b(Module));
+module([_ | Forms]) ->
+    module(Forms);
+module(_) ->
+    <<"unknown">>.
+
+module() ->
+    module ! {self(), module},
+    receive
+        {module, Module} ->
+            Module
+    after 10 ->
+        <<"no_module">>
     end.
 
-html_filename(Filename) ->
-    filename:rootname(Filename) ++ ".html".
+remove_prefix(Prefix, Bin) ->
+    case Bin of
+        <<Prefix:(size(Prefix))/binary, Rest/binary>> ->
+            Rest;
+        Bin ->
+            Bin
+    end.
 
 csv_filename(Filename) ->
     filename:rootname(Filename) ++ ".csv".
 
-
-escape(String0) ->
-    % TODO might need to "no_parse" these
-    Lt = <<"<">>,
-    HtmlLt = <<"&lt;">>,
-    Gt = <<">">>,
-    HtmlGt = <<"&gt;">>,
-    % TODO This is showing up without the backslash
-    Quote = <<"\"">>,
-    HtmlQuote = <<"&quot;">>,
-    Replacements = [{Gt, HtmlGt},
-                    {Lt, HtmlLt},
-                    {Quote, HtmlQuote}],
-
-    lists:foldl(fun({Old, New}, String) ->
-                    string:replace(String, Old, New, all)
-                end, String0, Replacements).
-
 events(Forms) when is_list(Forms) ->
     lists:flatten([events(Form) || Form <- Forms]);
-
 events({function,_Line, Name,_Arity,Clauses}) when Name == 'attempt' ->
-    lists:map(fun(Clause) -> attempt_clause(Name, Clause) end, Clauses);
+    lists:map(fun(Clause) -> attempt_clause(Clause) end, Clauses);
 events({function,_Line, Name,_Arity,Clauses}) when Name == 'succeed' ->
-    lists:map(fun(Clause) -> succeed_clause(Name, Clause) end, Clauses);
+    lists:map(fun(Clause) -> succeed_clause(Clause) end, Clauses);
 events(_) ->
     [].
 
@@ -118,25 +107,54 @@ catch_clause({clause, _Line, Exception, GuardGroups, Body}) ->
 clause({clause, _Line, Head, GuardGroups, Body}) ->
     clause('', {clause, _Line, Head, GuardGroups, Body}).
 
-clause(Name, {clause, _Line, _Head, _GuardGroups, Body}) ->
-    io:format("Got non-event clause with name ~p~n", [Name]),
-
+clause(_Name, {clause, _Line, _Head, _GuardGroups, Body}) ->
     % Don't look at function arguments and guards that aren't attempt or succeed
-    %head(Head) ++
-    %lists:map(fun guard_group/1, GuardGroups) ++
-
     % but do look for any calls to gerlshmud_object:attempt/2 calls
     lists:map(fun expr/1, Body).
 
-%% I don't think you can get a function clause without a name
-%attempt_clause({clause, _Line, Head, GuardGroups, Body}) ->
-    %attempt_clause('', {clause, _Line, Head, GuardGroups, Body}).
+%% We don't need to see catch-all clauses in the protocol
+%% attempt(_) -> ...
+attempt_clause({clause, _Line1, [{var, _Line2, '_'}], _, _}) ->
+    [];
 
-attempt_clause(Name, {clause, _Line, Head, GuardGroups, Body}) ->
-    io:format("Got event clause with name ~p~n", [Name]),
+%% We don't need to see catch-all clauses in the protocol
+%% attempt(_Var) -> ...
+attempt_clause({clause, _Line1, [{var, _Line2, Var}], _, _}) when Var == '_Attempt'; Var == '_Msg' ->
+    [];
 
-    [{tuple, _Line, [Parents, Props, Event]}] = Head,
-    Attempt = [<<"attempt|">>,
+%% We don't need to see catch-all clauses in the protocol
+%% attempt({_, _, _Msg}) -> ...
+attempt_clause({clause,
+                _Line1,
+                [{tuple, _Line2, [{var, _Line3, '_'}, {var, _Line4, '_'}, {var, _Line5, '_Msg'}]}],
+                _GuardGroups,
+                _Body}) ->
+    [];
+
+%% We don't need to see catch-all clauses in the protocol
+%% attempt(_Foo = {_, _, _Msg}) -> ...
+attempt_clause({clause,
+                _Line1,
+                [{match, _Line2, {var, _, _}, {tuple, _Line3, [{var, _Line4, '_'}, {var, _Line5, '_'}, {var, _Line6, '_Msg'}]}}],
+                _GuardGroups,
+                _Body}) ->
+    [];
+
+%% Strip off any Variable that the event is bound too: it screws up the sorting of events and we're just
+%% interested in the events themselves, not what they're bound to.
+%% attempt(Parents, Props, Message = {Bar, baz, Quux}) -> ...
+attempt_clause({clause,
+                Line1,
+                [{tuple, Line2, [Parents, Props, {match, _Line3, {var, _, _}, Event}]}],
+                GuardGroups,
+                Body}) ->
+    attempt_clause({clause, Line1, [{tuple, Line2, [Parents, Props, Event]}], GuardGroups, Body});
+
+attempt_clause({clause, _Line, Head, GuardGroups, Body}) ->
+    [{tuple, _Line2, [Parents, Props, Event]}] = Head,
+    Attempt = [module(),
+               <<"|">>,
+               <<"attempt|">>,
                attempt_head(Parents, Props, Event),
                <<"|">>,
                guard_groups(GuardGroups),
@@ -155,11 +173,24 @@ attempt_head(Parents, Props, Event) ->
 %succeed_clause({clause, _Line, Head, GuardGroups, Body}) ->
     %succeed_clause('', {clause, _Line, Head, GuardGroups, Body}).
 
-succeed_clause(Name, {clause, _Line, Head, GuardGroups, Body}) ->
-    io:format("Got event clause with name ~p~n", [Name]),
+%% We don't need to see catch-all clauses in the protocol
+%% succeed({AnyVAr, _}) -> ...
+succeed_clause({clause, _Line2, [{tuple, _Line2, [_Props, {var, _Line3, Ignored}]}], _, _})
+  when Ignored == '_';
+       Ignored == '_Msg';
+       Ignored == '_Other' ->
+    [];
+
+succeed_clause({clause, _Line2, [{tuple, _Line2, [Props, {match, _Line3, {var, _Line3, 'Msg'}, Event}]}], GuardGroups, Body}) ->
+    succeed_clause({clause, 0, [{tuple, 0, [Props, Event]}], GuardGroups, Body});
+
+succeed_clause({clause, _Line, Head, GuardGroups, Body}) ->
+    %io:format("Got event clause with name ~p~n", [Name]),
 
     [{tuple, _Line, [Props, Event]}] = Head,
-    Succeed = [<<"succeed|">>,
+    Succeed = [module(),
+               <<"|">>,
+               <<"succeed|">>,
                _NoParents = <<"|">>,
                succeed_head(Props, Event),
                <<"|">>,
@@ -173,14 +204,18 @@ succeed_head(Props, Event) ->
     %{Props, Event}.
     separate(<<"|">>, [bin(Props), bin(Event)]).
 
-case_clause({clause, _Line, [Head], GuardGroups, Body}) ->
+case_clause({clause, _Line, [Head], _GuardGroups, Body}) ->
      expr(Head) ++
-     case GuardGroups of
-         [] ->
-             [];
-         _ ->
-             guard_groups(GuardGroups)
-     end ++
+
+     % I don't think we can call gerlshmud_object:attempt/2 in a guard clause
+     % and the only reason to descend below function heads is to look for calls
+     % to gerlshmud_object:attempt/2.
+     %case GuardGroups of
+     %    [] ->
+     %        [];
+     %    _ ->
+     %        guard_groups(GuardGroups)
+     %end ++
      lists:map(fun expr/1, Body).
 
 %head(Expressions) ->
@@ -232,7 +267,7 @@ expr({call, _Line,
       [Arg1, Arg2]}) ->
     %NoParents = <<"|">>,
     NoProps = <<"|">>,
-    [<<"new|">>, bin(Arg1), NoProps, <<"|">>, bin(Arg2), <<"\n">>];
+    [module(), <<"|new|">>, bin(Arg1), NoProps, <<"|">>, bin(Arg2), <<"\n">>];
 
 expr({call,_Line,__Fun, _Args}) ->
     %io:format("Got call with fun ~p and args ~p~n", [_Fun, Args]),
@@ -313,17 +348,35 @@ lc_bc_qual(FilterExpression) ->
     expr(FilterExpression).
 
 bin({var, _Line, VarName}) ->
-    a2b(VarName);
+    move_leading_underscore(a2b(VarName));
+
 bin({atom, _Line, Atom}) ->
     a2b(Atom);
-bin({record, _Line, parents, Fields}) ->
-    [<<"#parents{">> | map_separate(fun bin/1, Fields)] ++ [<<"}">>];
-bin({record_field, _Line, {atom, _Line, FieldName}, {var, _VarLine, VarName}}) ->
+
+bin({integer, _Line, Int}) ->
+    integer_to_binary(Int);
+
+bin({match, _Line, Var, Tuple}) ->
+    [bin(Var), <<" = ">>, bin(Tuple)];
+
+bin({record, _Line, RecordName, Fields}) ->
+    [<<"#">>, a2b(RecordName), <<"{">> | map_separate(fun bin/1, Fields)] ++ [<<"}">>];
+
+bin({record_field, _Line, {atom, _Line2, FieldName}, {var, _VarLine, VarName}}) ->
     [a2b(FieldName), <<" = ">>, a2b(VarName)];
+
+bin({record_field, _Line, {atom, _Line2, FieldName}, {match, _Line3, Var, Record}}) ->
+    [a2b(FieldName), <<" = ">>, bin(Var), <<" = ">>, bin(Record)];
+
+bin({record_field, _Line, {atom, _Line2, FieldName}, Call}) ->
+    [a2b(FieldName), <<" = ">>, bin(Call)];
+
 bin({tuple, _Line, Expressions}) ->
     [<<"{">> | map_separate(fun bin/1, Expressions)] ++ [<<"}">>];
+
 bin({op, _Line, Operator, Expr1, Expr2}) ->
     [bin(Expr1), <<" ">>, a2b(Operator), <<" ">>, bin(Expr2)];
+
 bin({call, _Line, {atom, _Line2, FunctionName}, Params}) ->
     ParamBins = map_separate(<<", ">>, fun bin/1, Params),
     [a2b(FunctionName), <<"(">>, ParamBins, <<")">>].
@@ -343,3 +396,10 @@ map_separate(Separator, Fun, List) ->
 
 a2b(Atom) ->
     list_to_binary(atom_to_list(Atom)).
+
+move_leading_underscore(JustUnderscore = <<$_>>) ->
+    JustUnderscore;
+move_leading_underscore(<<$_, Rest/binary>>) ->
+    <<Rest/binary, "_">>;
+move_leading_underscore(Bin) ->
+    Bin.
