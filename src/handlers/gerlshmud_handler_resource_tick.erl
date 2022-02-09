@@ -13,6 +13,7 @@
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 -module(gerlshmud_handler_resource_tick).
 -behaviour(gerlshmud_handler).
+-compile({parse_transform, gerlshmud_protocol_parse_transform}).
 
 %% This is a tick handler for a resource process. Resource processes manage
 %% how often other processes can perform actions such as attacks. Resource

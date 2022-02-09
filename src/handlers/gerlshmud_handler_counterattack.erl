@@ -13,6 +13,7 @@
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 -module(gerlshmud_handler_counterattack).
 -behaviour(gerlshmud_handler).
+-compile({parse_transform, gerlshmud_protocol_parse_transform}).
 
 -export([attempt/1]).
 -export([succeed/1]).
@@ -32,7 +33,7 @@ attempt({#parents{}, Props, {Self, attack, Target}}) when Self == self() ->
            {?TARGET, Target}],
     {succeed, true, Props, Log};
 
-attempt({#parents{}, _, _}) ->
+attempt(_) ->
     undefined.
 
 succeed({Props, {Character, stop_attack}}) ->
