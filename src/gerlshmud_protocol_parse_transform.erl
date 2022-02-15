@@ -18,11 +18,9 @@
 parse_transform(Forms, _Options) ->
     io:format("~~", []),
 
-    start_module_proc(Forms),
-
     CsvFilename = csv_filename("protocol"),
 
-    Events = events(Forms),
+    Events = events(Forms, #{module => module(Forms)}),
 
     {ok, CsvFile} = file:open(CsvFilename, [write, append]),
     case file:write(CsvFile, [Events]) of
@@ -33,32 +31,7 @@ parse_transform(Forms, _Options) ->
             io:format(user, "Write failed: ~p~n", [Error])
     end,
     file:close(CsvFile),
-    stop_module_proc(),
     Forms.
-
-start_module_proc(Forms) ->
-    Module = module(Forms),
-    io:format("~p module process for ~p starting~n", [self(), Module]),
-    ModuleProcFun =
-        fun() ->
-            Fun = fun(Module_, Self) ->
-                      receive
-                          {Pid, module} ->
-                              %io:format("~p sending back module name ~p~n", [self(), Module_]),
-                              Pid ! {module, Module},
-                              Self(Module_, Self);
-                          die ->
-                              io:format("~p module process for ~p dying~n", [self(), Module_]),
-                              ok
-                      end
-                  end,
-            Fun(Module, Fun)
-        end,
-    ModuleProc = spawn(ModuleProcFun),
-    true = register(module, ModuleProc).
-
-stop_module_proc() ->
-    module ! die.
 
 module([{attribute, _Line, module, Module} | _]) ->
     remove_prefix(<<"gerlshmud_handler_">>, a2b(Module));
@@ -66,15 +39,6 @@ module([_ | Forms]) ->
     module(Forms);
 module(_) ->
     <<"unknown">>.
-
-module() ->
-    module ! {self(), module},
-    receive
-        {module, Module} ->
-            Module
-    after 10 ->
-        <<"no_module">>
-    end.
 
 remove_prefix(Prefix, Bin) ->
     case Bin of
@@ -87,39 +51,40 @@ remove_prefix(Prefix, Bin) ->
 csv_filename(Filename) ->
     filename:rootname(Filename) ++ ".csv".
 
-events(Forms) when is_list(Forms) ->
-    lists:flatten([events(Form) || Form <- Forms]);
-events({function,_Line, Name,_Arity,Clauses}) when Name == 'attempt' ->
-    lists:map(fun(Clause) -> attempt_clause(Clause) end, Clauses);
-events({function,_Line, Name,_Arity,Clauses}) when Name == 'succeed' ->
-    lists:map(fun(Clause) -> succeed_clause(Clause) end, Clauses);
-events(_) ->
+events(Forms, State) when is_list(Forms) ->
+    lists:flatten([events(Form, State) || Form <- Forms]);
+events({function,_Line, Name,_Arity,Clauses}, State) when Name == 'attempt' ->
+    lists:map(fun(Clause) -> attempt_clause(Clause, State) end, Clauses);
+events({function,_Line, Name,_Arity,Clauses}, State) when Name == 'succeed' ->
+    lists:map(fun(Clause) -> succeed_clause(Clause, State) end, Clauses);
+events(_Form, _State) ->
     [].
 
 
-catch_clause({clause, _Line, Exception, GuardGroups, Body}) ->
+catch_clause({clause, _Line, Exception, GuardGroups, Body}, State) ->
     [{tuple, _Line, [Class, ExceptionPattern, _Wild]}] = Exception,
-    expr(Class) ++
-    expr(ExceptionPattern) ++
-    guard_groups(GuardGroups) ++
-    lists:map(fun expr/1, Body).
+    {Exp1, State1} = search(Class, State),
+    {Exp2, State2} = search(ExceptionPattern, State1),
+    {Exp3, State3} = guard_groups(GuardGroups, State2),
+    {Exps, State4} = loop_with_state(Body, fun search/2, State3),
+    {[Exp1, Exp2, Exp3 | Exps], State4}.
 
-clause({clause, _Line, Head, GuardGroups, Body}) ->
-    clause('', {clause, _Line, Head, GuardGroups, Body}).
+clause({clause, _Line, Head, GuardGroups, Body}, State) ->
+    clause('', {clause, _Line, Head, GuardGroups, Body}, State).
 
-clause(_Name, {clause, _Line, _Head, _GuardGroups, Body}) ->
+clause(_Name, {clause, _Line, _Head, _GuardGroups, Body}, State) ->
     % Don't look at function arguments and guards that aren't attempt or succeed
     % but do look for any calls to gerlshmud_object:attempt/2 calls
-    lists:map(fun expr/1, Body).
+   loop_with_state(Body, fun search/2, State).
 
 %% We don't need to see catch-all clauses in the protocol
 %% attempt(_) -> ...
-attempt_clause({clause, _Line1, [{var, _Line2, '_'}], _, _}) ->
+attempt_clause({clause, _Line1, [{var, _Line2, '_'}], _, _}, _State) ->
     [];
 
 %% We don't need to see catch-all clauses in the protocol
 %% attempt(_Var) -> ...
-attempt_clause({clause, _Line1, [{var, _Line2, Var}], _, _}) when Var == '_Attempt'; Var == '_Msg' ->
+attempt_clause({clause, _Line1, [{var, _Line2, Var}], _, _}, _State) when Var == '_Attempt'; Var == '_Msg' ->
     [];
 
 %% We don't need to see catch-all clauses in the protocol
@@ -128,7 +93,7 @@ attempt_clause({clause,
                 _Line1,
                 [{tuple, _Line2, [{var, _Line3, '_'}, {var, _Line4, '_'}, {var, _Line5, '_Msg'}]}],
                 _GuardGroups,
-                _Body}) ->
+                _Body}, _State) ->
     [];
 
 %% We don't need to see catch-all clauses in the protocol
@@ -137,7 +102,7 @@ attempt_clause({clause,
                 _Line1,
                 [{match, _Line2, {var, _, _}, {tuple, _Line3, [{var, _Line4, '_'}, {var, _Line5, '_'}, {var, _Line6, '_Msg'}]}}],
                 _GuardGroups,
-                _Body}) ->
+                _Body}, _State) ->
     [];
 
 %% Strip off any Variable that the event is bound too: it screws up the sorting of events and we're just
@@ -147,27 +112,51 @@ attempt_clause({clause,
                 Line1,
                 [{tuple, Line2, [Parents, Props, {match, _Line3, {var, _, _}, Event}]}],
                 GuardGroups,
-                Body}) ->
-    attempt_clause({clause, Line1, [{tuple, Line2, [Parents, Props, Event]}], GuardGroups, Body});
+                Body},
+               State) ->
+    attempt_clause({clause, Line1, [{tuple, Line2, [Parents, Props, Event]}], GuardGroups, Body}, State);
 
-attempt_clause({clause, _Line, Head, GuardGroups, Body}) ->
+attempt_clause({clause, _Line, Head, GuardGroups, Body}, State) ->
     [{tuple, _Line2, [Parents, Props, Event]}] = Head,
-    Attempt = [module(),
+
+    {AttemptHeadExprs, State1} = attempt_head(Parents, Props, Event, State),
+    {GuardGroupExprs, State2} =  guard_groups(GuardGroups, State1),
+    {BodyExprs, State3} = loop_with_state(Body, fun search/2, State2),
+
+    ResentMessage =
+        case maps:get(resent_message, State3, undefined) of
+            undefined ->
+                <<"|">>;
+            Other ->
+                [<<"| resend = ">>, Other]
+        end,
+    BroadcastMessage =
+        case maps:get(broadcast_message, State3, undefined) of
+            undefined ->
+                <<>>;
+            Other_ ->
+                [<<"| broadcast = ">>, Other_]
+        end,
+
+    Attempt = [maps:get(module, State3),
                <<"|">>,
                <<"attempt|">>,
-               attempt_head(Parents, Props, Event),
+               AttemptHeadExprs,
                <<"|">>,
-               guard_groups(GuardGroups),
+               GuardGroupExprs,
+               ResentMessage,
+               BroadcastMessage,
                <<"\n">>],
-    %head(Head)
-    %lists:map(fun guard_group/1, GuardGroups) ++
 
-    [Attempt] ++
-    lists:map(fun expr/1, Body).
+    [Attempt | BodyExprs].
 
-attempt_head(Parents, Props, Event) ->
+attempt_head(Parents, Props, Event, State) ->
     %{Parents, Props, Event}.
-    separate(<<"|">>, [bin(Parents), bin(Props), bin(Event)]).
+    ParentsBin = print(Parents),
+    PropsBin = print(Props),
+    EventBin = print(Event),
+    Output = separate(<<"|">>, [ParentsBin, PropsBin, EventBin]),
+    {Output, State#{event => EventBin}}.
 
 %% I don't think you can get a function clause without a name
 %succeed_clause({clause, _Line, Head, GuardGroups, Body}) ->
@@ -175,37 +164,42 @@ attempt_head(Parents, Props, Event) ->
 
 %% We don't need to see catch-all clauses in the protocol
 %% succeed({AnyVAr, _}) -> ...
-succeed_clause({clause, _Line2, [{tuple, _Line2, [_Props, {var, _Line3, Ignored}]}], _, _})
+succeed_clause({clause, _Line2, [{tuple, _Line2, [_Props, {var, _Line3, Ignored}]}], _, _}, _State)
   when Ignored == '_';
        Ignored == '_Msg';
        Ignored == '_Other' ->
     [];
 
-succeed_clause({clause, _Line2, [{tuple, _Line2, [Props, {match, _Line3, {var, _Line3, 'Msg'}, Event}]}], GuardGroups, Body}) ->
-    succeed_clause({clause, 0, [{tuple, 0, [Props, Event]}], GuardGroups, Body});
+succeed_clause({clause, _Line2, [{tuple, _Line2, [Props, {match, _Line3, {var, _Line3, 'Msg'}, Event}]}], GuardGroups, Body}, State) ->
+    succeed_clause({clause, 0, [{tuple, 0, [Props, Event]}], GuardGroups, Body}, State);
 
-succeed_clause({clause, _Line, Head, GuardGroups, Body}) ->
-    %io:format("Got event clause with name ~p~n", [Name]),
-
+succeed_clause({clause, _Line, Head, GuardGroups, Body}, State) ->
     [{tuple, _Line, [Props, Event]}] = Head,
-    Succeed = [module(),
+
+    {SucceedHeadExprs, State1} = succeed_head(Props, Event, State),
+    {GuardGroupsExprs, State2} = guard_groups(GuardGroups, State1),
+
+    Succeed = [maps:get(module, State2),
                <<"|">>,
                <<"succeed|">>,
                _NoParents = <<"|">>,
-               succeed_head(Props, Event),
+               SucceedHeadExprs,
                <<"|">>,
-               guard_groups(GuardGroups),
+               GuardGroupsExprs,
                <<"\n">>],
 
-    [Succeed] ++
-    lists:map(fun expr/1, Body).
+    {BodyExprs, _State} = loop_with_state(Body, fun search/2, State2),
+    [Succeed | BodyExprs].
 
-succeed_head(Props, Event) ->
-    %{Props, Event}.
-    separate(<<"|">>, [bin(Props), bin(Event)]).
+succeed_head(Props, Event, State) ->
+    PropBin = print(Props),
+    EventBin = print(Event),
 
-case_clause({clause, _Line, [Head], _GuardGroups, Body}) ->
-     expr(Head) ++
+    CSVOutput = separate(<<"|">>, [PropBin, EventBin]),
+    {CSVOutput, State}.
+
+case_clause({clause, _Line, [Head], _GuardGroups, Body}, State) ->
+     {HeadExprs, State1} = search(Head, State),
 
      % I don't think we can call gerlshmud_object:attempt/2 in a guard clause
      % and the only reason to descend below function heads is to look for calls
@@ -216,169 +210,209 @@ case_clause({clause, _Line, [Head], _GuardGroups, Body}) ->
      %    _ ->
      %        guard_groups(GuardGroups)
      %end ++
-     lists:map(fun expr/1, Body).
 
-%head(Expressions) ->
-    %io:format("Got function head: ~p~n", [Expressions]),
-    %lists:map(fun expr/1, Expressions).
+    {BodyExprs, State2} = loop_with_state(Body, fun search/2, State1),
 
-%% -type pattern(Pattern) -> Pattern.
-%%  N.B. Only valid patterns are included here.
-expr({lc,_Line,Result,Quals}) ->
-    Events1 = expr(Result),
-    Events2 = lists:map(fun lc_bc_qual/1, Quals),
-    Events1 ++ Events2;
-expr({bc,_Line,E0,Quals}) ->
-    Events1 = expr(E0),
-    Events2 = lists:map(fun lc_bc_qual/1, Quals),
-    Events1 ++ Events2;
-expr({block,_Line,Expressions}) ->
-    lists:map(fun expr/1, Expressions);
-expr({'if',_Line,Clauses}) ->
-    lists:map(fun clause/1, Clauses);
-expr({'case',_Line,Expression,Clauses}) ->
-    Events1 = expr(Expression),
-    Events2 = lists:map(fun case_clause/1, Clauses),
-    Events1 ++ Events2;
-expr({'receive',_Line,Clauses}) ->
-    lists:map(fun clause/1, Clauses);
-expr({'receive',_Line,Clauses,AfterWait,AfterExpressions}) ->
-    Events1 = lists:map(fun clause/1, Clauses),
-    Events2 = expr(AfterWait),
-    Events3 = lists:map(fun expr/1, AfterExpressions),
-    Events1 ++ Events2 ++ Events3;
-expr({'try',_Line,Expressions,_WhatIsThis,CatchClauses,AfterExpressions}) ->
-    Events1 = lists:map(fun expr/1, Expressions),
-    Events2 = lists:map(fun catch_clause/1, CatchClauses),
-    Events3 = lists:map(fun expr/1, AfterExpressions),
-    Events1 ++ Events2 ++ Events3;
-expr({'fun',_Line,Body}) ->
+    {[HeadExprs | BodyExprs], State2}.
+
+search({lc,_Line,Result,Quals}, State) ->
+    {Events1, State1} = search(Result, State),
+    {Events2, State2} = loop_with_state(Quals, fun lc_bc_qual/2, State1),
+    {[Events1 | Events2], State2};
+search({bc,Line,E0,Quals}, State) ->
+    search({lc, Line, E0, Quals}, State); %% other than 'bc', this is the same as the clause above
+search({block,_Line,Expressions}, State) ->
+    loop_with_state(Expressions, fun search/2, State);
+search({'if',_Line,Clauses}, State) ->
+    loop_with_state(Clauses, fun clause/2, State);
+search({'case',_Line,Expression,Clauses}, State) ->
+
+    {Events1, State1} = search(Expression, State),
+    {Events2, State2} = loop_with_state(Clauses, fun case_clause/2, State1),
+    {[Events1 | Events2], State2};
+search({'receive',_Line,Clauses}, State) ->
+    loop_with_state(Clauses, fun clause/2, State);
+search({'receive',_Line,Clauses,AfterWait,AfterExpressions}, State) ->
+    {Events1, State1} = loop_with_state(Clauses, fun clause/2, State),
+    {Events2, State2} = search(AfterWait, State1),
+    {Events3, State3} = loop_with_state(AfterExpressions, fun search/2, State2),
+    {[Events1 | [Events2 | Events3]], State3};
+search({'try',_Line,Expressions,_WhatIsThis,CatchClauses,AfterExpressions}, State) ->
+    {Events1, State1} = loop_with_state(Expressions, fun search/2, State),
+    {Events2, State2} = loop_with_state(CatchClauses, fun catch_clause/2, State1),
+    {Events3, State3} = loop_with_state(AfterExpressions, fun search/2, State2),
+    {[Events1 | [Events2 | Events3]], State3};
+
+search({'fun',_Line,Body}, State) ->
     case Body of
         {clauses,Clauses} ->
-            lists:map(fun(Clause) -> clause('', Clause) end, Clauses);
+            Fun = fun(Clause) -> clause('', Clause) end,
+            loop_with_state(Clauses, Fun, State);
         _ ->
-            []
+            {[], State}
     end;
-%expr({call,_Line,Fun,Args}) ->
-expr({call, _Line,
+%search({call,_Line,Fun,Args}) ->
+search({call, _Line,
       {remote, _RemLine,
        {atom, _AtomLine, gerlshmud_object},
        {atom, _FunAtomLine, attempt}},
-      [Arg1, Arg2]}) ->
+      [Arg1, Arg2]},
+     State) ->
     %NoParents = <<"|">>,
     NoProps = <<"|">>,
-    [module(), <<"|new|">>, bin(Arg1), NoProps, <<"|">>, bin(Arg2), <<"\n">>];
+    Arg1Bin = print(Arg1),
+    Arg2Bin = print(Arg2),
+    {[maps:get(module, State), <<"|new|">>, Arg1Bin, NoProps, <<"|">>, Arg2Bin, <<"\n">>], State};
 
-expr({call,_Line,__Fun, _Args}) ->
-    %io:format("Got call with fun ~p and args ~p~n", [_Fun, Args]),
-    %% N.B. If F an atom then call to local function or BIF, if F a
-    %% remote structure (see below) then call to other module,
-    %% otherwise apply to "function".
-     %io:format(user, "calling expr(~p)~n", [Fun]),
-    %lists:map(fun expr/1, Args);
+search({call, _Line,
+      {remote, _RemLine,
+       {atom, _AtomLine, gerlshmud_object},
+       {atom, _FunAtomLine, attempt_after}},
+      [Arg1, _, Arg3]}, State) ->
+    NoProps = <<"|">>,
+    Arg1Bin = print(Arg1),
+    Arg3Bin = print(Arg3),
+    {[maps:get(module, State), <<"|new|">>, Arg1Bin, NoProps, <<"|">>, Arg3Bin, <<"\n">>], State};
 
+search({call,_Line,__Fun, _Args}, State) ->
     % Don't care about non-event calls
-    [];
-expr({'catch',_Line,Expression}) ->
+    {[], State};
+search({'catch',_Line,Expression}, State) ->
     %% No new variables added.
-    expr(Expression);
-expr({match,_Line,Expr1,Expr2}) ->
-    expr(Expr1) ++ expr(Expr2);
-expr({op,_Line,'==',L,R}) ->
-    expr(L) ++ expr(R);
-expr({op, _Line, _Op, L, R}) ->
-    expr(L) ++ expr(R);
-expr({tuple,_Line,Exprs}) ->
-    lists:map(fun expr/1, Exprs);
+    search(Expression, State);
+
+search({match, _Line, {var, _Line1, 'NewMessage'}, NewMessage}, State) ->
+    % we can ignore the var, since we know we won't need it in the CSV
+    NewMessageBin = print(NewMessage),
+    {[], State#{new_message => NewMessageBin}};
+
+search({match,_Line,Expr1,Expr2}, State) ->
+    {Expr1Expr, State1} = search(Expr1, State),
+    {Expr2Expr, State2} = search(Expr2, State1),
+    {[Expr1Expr | [Expr2Expr]], State2};
+
+search({op,_Line,'==',L,R}, State) ->
+    {LExpr, State1} = search(L, State),
+    {RExpr, State2} = search(R, State1),
+    {[LExpr | [RExpr]], State2};
+
+search({op, _Line, _Op, L, R}, State) ->
+    {LExpr, State1} = search(L, State),
+    {RExpr, State2} = search(R, State1),
+    {[LExpr | [RExpr]], State2};
+
+search({tuple, _Line, [{atom, _Line1, resend}, Source, {var, _Line1, 'NewMessage'}]}, State = #{new_message := NewMessage}) ->
+    {SourceExpr, State1} = search(Source, State),
+    {SourceExpr, State1#{resent_message => NewMessage}};
+
+search({tuple, _Line, [{atom, _Line1, broadcast}, {var, _Line1, 'NewMessage'}]}, State = #{new_message := NewMessage}) ->
+    {[], State#{broadcast_message => NewMessage}};
+
+search({tuple,_Line, TupleExpressions}, State) ->
+    loop_with_state(TupleExpressions, fun search/2, State);
 %% There's a special case for all cons's after the first: {tail, _}
 %% so this is a list of one item.
-expr({cons,_Line,Head,{nil, _}}) ->
-    expr(Head);
-expr({cons,_Line,Head,{var, _Line2, '_'}}) ->
-    expr(Head);
-expr(_Cons = {cons,_Line,Head,Tail}) ->
-    %io:format(user, "Cons -> Tail = ~p~n", [Cons]),
-    expr(Head) ++  expr({tail, Tail});
-expr(_Tail = {tail, {cons, _Line, Head, {nil, _}}}) ->
-    %io:format(user, "Tail 1 = ~p~n", [Tail]),
-    expr(Head);
-expr(_Tail_ = {tail, {cons, _Line, Head, Tail}}) ->
-    %io:format(user, "Tail 2 = ~p~n", [Tail_]),
-    expr(Head) ++ expr({tail, Tail});
-expr({tail, Call = {call, _Line, _Fun, _Args}}) ->
-     expr(Call);
-expr({tail, Tail}) ->
-    %io:format(user, "Unknown tail ~p~n", [Unknown]);
-    expr(Tail);
-%expr({tail, Unknown}) ->
-    %io:format(user, "Unknown tail ~p~n", [Unknown]);
-expr({record, _Line, _Name, ExprFields}) ->
-    lists:map(fun expr_field/1, ExprFields);
-expr({record_index,_Line, _Name, Field}) ->
-     expr(Field);
-expr({record_field,_Line,Expression, _RecName, Field}) ->
-    expr(Expression) ++ expr(Field);
+search({cons,_Line,Head,{nil, _}}, State) ->
+    search(Head, State);
+search({cons,_Line,Head,{var, _Line2, '_'}}, State) ->
+    search(Head, State);
+search(_Cons = {cons,_Line,Head,Tail}, State) ->
+    {HeadExpr, State1} = search(Head, State),
+    {TailExpr, State2} = search(Tail, State1),
+    {[HeadExpr | [TailExpr]], State2};
+search(_Tail = {tail, {cons, _Line, Head, {nil, _}}}, State) ->
+    search(Head, State);
+search(_Tail_ = {tail, {cons, _Line, Head, Tail}}, State) ->
+    {HeadExpr, State1} = search(Head, State),
+    {TailExpr, State2} = search(Tail, State1),
+    {[HeadExpr | [TailExpr]], State2};
+search({tail, Call = {call, _Line, _Fun, _Args}}, State) ->
+     search(Call, State);
+search({tail, Tail}, State) ->
+    search(Tail, State);
+search({record, _Line, _Name, ExprFields}, State) ->
+    loop_with_state(ExprFields, fun expr_field/2, State);
+
+search({record_index,_Line, _Name, Field}, State) ->
+     search(Field, State);
+search({record_field,_Line,Expression, _RecName, Field}, State) ->
+    {ExprExpr, State1} = search(Expression, State),
+    {FieldExpr, State2} = search(Field, State1),
+    {[ExprExpr | [FieldExpr]], State2};
+
 % How does this happen? (Foo).bar ?
-%expr({record_field,Line,Rec0,Field0}) ->
-    %Rec1 = expr(Rec0),
-    %Field1 = expr(Field0);
-expr(_IgnoredExpr) ->
-    %io:format(user, "Ignored expr:~n~p~n", [IgnoredExpr]),
-    [].
+%search({record_field,Line,Rec0,Field0}) ->
+    %Rec1 = search(Rec0),
+    %Field1 = search(Field0);
+search(_IgnoredExpr, State) ->
+    {[], State}.
 
-expr_field({record_field, _Lf, {atom, _La, _F}, Expr}) ->
-    expr(Expr);
-expr_field({record_field, _Lf, {var,_La,'_'}, Expr}) ->
-    expr(Expr).
+expr_field({record_field, _Lf, {atom, _La, _F}, Expr}, State) ->
+    search(Expr, State);
+expr_field({record_field, _Lf, {var,_La,'_'}, Expr}, State) ->
+    search(Expr, State).
 
-guard_groups(GuardGroups) ->
-    map_separate(<<"; ">>, fun guard_group_conjunction/1, GuardGroups).
+guard_groups(GuardGroups, State) ->
+    %map_separate(<<"; ">>, fun guard_group_conjunction/1, GuardGroups).
+    {Exprs, State1} = loop_with_state(GuardGroups, fun guard_group_conjunction/2, State),
+    {separate(<<"; ">>, Exprs), State1}.
 
-guard_group_conjunction(GuardGroupConjunctionExpressions) ->
-    map_separate(<<", ">>, fun bin/1, GuardGroupConjunctionExpressions).
+guard_group_conjunction(GuardGroupConjunctionExpressions, State) ->
+    Output = map_separate(<<", ">>, fun print/1, GuardGroupConjunctionExpressions),
+    {Output, State}.
 
 %% This is a list of generators _or_ filters
 %% which are simply expressions
 %% A generator is a target and a source
-lc_bc_qual({generate,_Line,Target,Source}) ->
-    expr(Target) ++ expr(Source);
-lc_bc_qual({b_generate,_Line,Target,Source}) ->
-    expr(Target) ++ expr(Source);
-lc_bc_qual(FilterExpression) ->
-    expr(FilterExpression).
+lc_bc_qual({generate,_Line,Target,Source}, State) ->
+    %search(Target) ++ search(Source);
 
-bin({var, _Line, VarName}) ->
+    %{TargetExpr, State1} = search(Target, State),
+    %{SourceExpr, State2} = search(Source, State1),
+    %{[TargetExpr | [SourceExpr]], State2};
+
+    loop_with_state([Target, Source], fun search/2, State);
+
+lc_bc_qual({b_generate,_Line,Target,Source}, State) ->
+    %search(Target) ++ search(Source);
+    loop_with_state([Target, Source], fun search/2, State);
+lc_bc_qual(FilterExpression, State) ->
+    search(FilterExpression, State).
+
+%% Once we've found AST elements that we want in the CSV we need to convert them to text
+
+print({var, _Line, VarName}) ->
     move_leading_underscore(a2b(VarName));
 
-bin({atom, _Line, Atom}) ->
+print({atom, _Line, Atom}) ->
     a2b(Atom);
 
-bin({integer, _Line, Int}) ->
+print({integer, _Line, Int}) ->
     integer_to_binary(Int);
 
-bin({match, _Line, Var, Tuple}) ->
-    [bin(Var), <<" = ">>, bin(Tuple)];
+print({match, _Line, Var, Tuple}) ->
+    [print(Var), <<" = ">>, print(Tuple)];
 
-bin({record, _Line, RecordName, Fields}) ->
-    [<<"#">>, a2b(RecordName), <<"{">> | map_separate(fun bin/1, Fields)] ++ [<<"}">>];
+print({record, _Line, RecordName, Fields}) ->
+    [<<"#">>, a2b(RecordName), <<"{">> | map_separate(fun print/1, Fields)] ++ [<<"}">>];
 
-bin({record_field, _Line, {atom, _Line2, FieldName}, {var, _VarLine, VarName}}) ->
+print({record_field, _Line, {atom, _Line2, FieldName}, {var, _VarLine, VarName}}) ->
     [a2b(FieldName), <<" = ">>, a2b(VarName)];
 
-bin({record_field, _Line, {atom, _Line2, FieldName}, {match, _Line3, Var, Record}}) ->
-    [a2b(FieldName), <<" = ">>, bin(Var), <<" = ">>, bin(Record)];
+print({record_field, _Line, {atom, _Line2, FieldName}, {match, _Line3, Var, Record}}) ->
+    [a2b(FieldName), <<" = ">>, print(Var), <<" = ">>, print(Record)];
 
-bin({record_field, _Line, {atom, _Line2, FieldName}, Call}) ->
-    [a2b(FieldName), <<" = ">>, bin(Call)];
+print({record_field, _Line, {atom, _Line2, FieldName}, Call}) ->
+    [a2b(FieldName), <<" = ">>, print(Call)];
 
-bin({tuple, _Line, Expressions}) ->
-    [<<"{">> | map_separate(fun bin/1, Expressions)] ++ [<<"}">>];
+print({tuple, _Line, Expressions}) ->
+    [<<"{">> | map_separate(fun print/1, Expressions)] ++ [<<"}">>];
 
-bin({op, _Line, Operator, Expr1, Expr2}) ->
-    [bin(Expr1), <<" ">>, a2b(Operator), <<" ">>, bin(Expr2)];
+print({op, _Line, Operator, Expr1, Expr2}) ->
+    [print(Expr1), <<" ">>, a2b(Operator), <<" ">>, print(Expr2)];
 
-bin({call, _Line, {atom, _Line2, FunctionName}, Params}) ->
-    ParamBins = map_separate(<<", ">>, fun bin/1, Params),
+print({call, _Line, {atom, _Line2, FunctionName}, Params}) ->
+    ParamBins = map_separate(<<", ">>, fun print/1, Params),
     [a2b(FunctionName), <<"(">>, ParamBins, <<")">>].
 
 
@@ -403,3 +437,11 @@ move_leading_underscore(<<$_, Rest/binary>>) ->
     <<Rest/binary, "_">>;
 move_leading_underscore(Bin) ->
     Bin.
+
+loop_with_state(Forms, Fun, State) ->
+    lists:foldl(fun(Form, {Exps, StateInner}) ->
+                    {Exp, StateAcc} = Fun(Form, StateInner),
+                    {Exps ++ [Exp], StateAcc}
+                end,
+                _Acc = {[], State},
+                Forms).
