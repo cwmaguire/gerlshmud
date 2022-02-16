@@ -28,7 +28,7 @@ parse_transform(Forms, _Options) ->
             %io:format(user, "Write successful~n", []);
             ok;
         Error ->
-            io:format(user, "Write failed: ~p~n", [Error])
+            io:format(user, "~p Write failed: ~p~n~p~n", [module(Forms), Error, Events])
     end,
     file:close(CsvFile),
     Forms.
@@ -123,32 +123,50 @@ attempt_clause({clause, _Line, Head, GuardGroups, Body}, State) ->
     {GuardGroupExprs, State2} =  guard_groups(GuardGroups, State1),
     {BodyExprs, State3} = loop_with_state(Body, fun search/2, State2),
 
+    Module = maps:get(module, State3),
+    MaybeResentMessage = maps:get(resent_message, State3, undefined),
+    MaybeBroadcastMessage = maps:get(broadcast_message, State3, undefined),
+
     ResentMessage =
-        case maps:get(resent_message, State3, undefined) of
+        case MaybeResentMessage of
             undefined ->
-                <<"|">>;
+                <<>>;
             Other ->
-                [<<"| resend = ">>, Other]
+                [<<"resend = ">>, Other]
         end,
     BroadcastMessage =
-        case maps:get(broadcast_message, State3, undefined) of
+        case MaybeBroadcastMessage of
             undefined ->
                 <<>>;
             Other_ ->
-                [<<"| broadcast = ">>, Other_]
+                [<<"broadcast = ">>, Other_]
         end,
 
-    Attempt = [maps:get(module, State3),
-               <<"|">>,
+    Attempt = [Module, <<"|">>,
                <<"attempt|">>,
-               AttemptHeadExprs,
-               <<"|">>,
-               GuardGroupExprs,
+               AttemptHeadExprs, <<"|">>,
+               GuardGroupExprs, <<"|">>,
                ResentMessage,
                BroadcastMessage,
                <<"\n">>],
 
-    [Attempt | BodyExprs].
+    AttemptEvent = hd(lists:reverse(AttemptHeadExprs)),
+
+    MaybeResentOrBroadcastEvent =
+        case {MaybeResentMessage, MaybeBroadcastMessage} of
+            {undefined, undefined} ->
+                <<>>;
+            {_, undefined} ->
+                %% Module, Type, Parents, Props, Event, Guards, resend | broadcast | attempt message
+                [Module, <<"|resend|||">>, MaybeResentMessage, <<"||attempt = ">>, AttemptEvent, <<"\n">>];
+            {undefined, _} ->
+                %% Module, Type, Parents, Props, Event, Guards, resend | broadcast | attempt message
+                [Module, <<"|broadcast|||">>, MaybeBroadcastMessage, <<"||attempt = ">>, AttemptEvent, <<"\n">>]
+        end,
+
+    % I'm not sure anything can be in BodyExprs because anything that doesn't come from a attempt
+    % or succeed clause is stored in the state.
+    [Attempt,  BodyExprs, MaybeResentOrBroadcastEvent].
 
 attempt_head(Parents, Props, Event, State) ->
     %{Parents, Props, Event}.
