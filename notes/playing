@@ -1,0 +1,57 @@
+Playing
+
+Feb 4, 2019
+
+I can:
+connect to the mud
+connect the log page to the mud
+move from room to room
+look at the room and at objects
+I can see exits now when I look
+
+----------------------------------------------------------------------------------------------------
+Jan 3, 2019
+  I need to create a new event that finds the players room when they login and then moves  them to that room. When the player logs in I have no idea what room they are in and I don’t  want the connection object asking the player object anything.
+
+----------------------------------------------------------------------------------------------------
+Jan 1, 2019
+  I’m getting back into this and I’m trying to play the mud.
+  I’ve got the server started (which starts the web server) and I’ve attached the browser to it.
+  - I changed the websocket to 8081 and added it to sys.config
+  - 8080 is being used by my budget application
+  - I don’t want to have to hard-code the port, however the web page is still      hard-coded
+  I added an export to the ./r script so that the erlmud_event_log will log there instead of the   current working directory, which for a release is _rel/erlmud/
+  I’m using erlmud_world.erl to initialize the world but when I do “look” I don’t seem to  get any response. So, I’m working through how to look at the room or a player.
+  I did “look Bob”, which is the player name in erlmud_test_worlds.hrl, but I get nothing.
+  What are the handlers listed in the event log?
+  Ah, that’s just part of the properties of the object calling into erlmud_event_log,
+  so it’s probably erlmud_conn because the handlers are:
+  erlmud_handler_conn_enter_world
+  erlmud_handler_conn_send
+  Where do those get added?
+  Ah, erlmud_conn adds them
+  I think erlmud_conn creates a new erlmud_object that is a proxy for the erlmud_conn
+  process and handles events
+  It only responds to:
+  {Owner, enter_world, in, _Room, with, Self}
+  … however, what erlmud_conn sends to the new connection erlmud object is:
+  Message = {PlayerPid, enter_world, with, ConnObjPid},
+  So I’m missing in, _Room
+  So, why are the tests passing?
+  Do we not count on entering the world?
+  Nope, we don’t seem to.
+  Ah, we only need that to send messages to the player:
+  When we do send the connection erlmud object with the Player as the owner
+  will subscribe to the message and send the message on success
+  Hmm, seems like it’s useless, because even the test socket creates that
+  object but the event is not sent properly
+
+----------------------------------------------------------------------------------------------------
+July 18, 2017
+  Ugh, my brain is fuzzy.
+  So I’m working on getting erlmud playable.
+  I can log in.
+  I can look.
+  When I “look” I see “an empty room” when I _should_ see people in the room.  (as the tests do)
+  Why don’t I see anything else?
+

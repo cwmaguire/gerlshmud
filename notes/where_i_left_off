@@ -14,6 +14,29 @@ What do I _need_ for a MUD?
 - loot
 - wield
 
+February 27, 2022
+
+The problem with a GC getting failed by a neighbour is if two neighbours are cut off.
+
+I can't very well die because of inactivity: much of the might *never* be active; e.g. hidden areas that are never found.
+
+I can periodically send out a "ping" from a central node and any process that doesn't get a ping for X time can die. A heartbeat. It doesn't have to be often, even once an hour.
+With my current design goals I assume infinite CPUs and memory; keeping an arbitrary amount of time's worth of stranded processes around is fine.
+
+This means that if any part of the MUD gets separated from the heartbeat process, it will be killed. If somehow a single-room connection between two areas is severed, the area
+not connected to the heartbeat will be killed.
+
+Maybe each "area" (however anyone chooses to define that) should have it's own heartbeat. Or perhaps each room. Yeah, I don't think I want rooms to drop. Each room should send out a heartbeat.
+Exits won't pass on heartbeats.
+
+I've updated [corpses].
+
+I created a macro in [fix_html_macro] so I can quickly convert HTML evernote notes to text files.
+
+I've added a new return value for attempt which is just 'stop'; see [corpses] for some details.
+
+----------------------------------------------------------------------------------------------------
+
 February 16, 2022
 
 Do I need a garbage collector? If I'm cleaning up a corpse and I disconnect all properties, how will I know which properties are abandonded?
