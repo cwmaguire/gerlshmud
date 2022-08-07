@@ -1,0 +1,32 @@
+corpses
+
+February 27, 2022
+
+I'm creating corpses and then cleaning them up after an interval.
+
+I've added a new return from attempts called 'stop' (no tuple). A 'stop' is the same as a broadcast but there's no message.
+
+Reminder:
+
+handle_cast(Msg, State) ->
+    handle_cast_(Attempt | Fail | Succeed) ->
+        (If Attempt)
+        maybe_attempt(Msg, Procs, IsExit, State) ->
+            attempt_(Msg, Procs, State) ->
+                run_handlers({Parents, Props, Msg})
+                merge(self(), is_room(Props), Results, Procs)
+                handle(Result, Msg2, MergedProcs, Props2)
+                    %% Maybe stop the gen_server with {stop, Why, State2}
+
+When we get to handle/4, if the message is 'stop' then we re-broadcast 'stop' to all children and then return {stop, Why, State2}; this will go all the way back up to handle_cast/2 and be returned to the gen_server internals.
+
+----------------------------------------------------------------------------------------------------
+August 30, 2021
+
+I think I don't need to create corpses. I can just leave the dead objects there. I can _probably_ clean up some attributes, but if anything is resurrected (e.g. robot, ghost, zombie, etc.) we'll probably want it to keep its attributes.
+
+Corpses could rot though, or rust.
+
+I'm thinking maybe a game tick that gets sent out once a second. Each corpse could grab the next game tick and then wait for a minimum number of game ticks before progressing to the next stage of decomposition. I don't necessarily want to make a simulator like Project Zomboid, but it would be neat to be _able_ to do that. Then again, each process could just send itself a message after some amount of time and do its own decomposition. The first crack at this could just be to have the corpse disappear, leaving all the items behind :move all items to roomdelete all processes
+
+Each item in the room could delete itself after a set amount of time.Then again, why not leave stuff laying around? Some kind of scavenger could come pick stuff up. If you kill all the scavengers, stuff just piles up. That'd be fun. (Rats eating corpses would be fun and provide low-level mobs to kill. Rats could even be sold for a bounty, lowering the number of rats and making them harder to find.) So, I need a test where I something dies and kicks off a timer where it deletes itself. All of its items stay behind.

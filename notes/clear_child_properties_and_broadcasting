@@ -1,0 +1,20 @@
+Clear Child Properties &amp; Broadcasting
+
+
+February 27, 2022
+
+Do I broadcast to a specify child object? If so I could set the property, re-broadcast *and* fail all at the same time. That way each message only travels one step. I'd have to make sure the attempt started on the target child object.
+
+----------------------------------------------------------------------------------------------------
+February 16, 2022
+
+I'm curious if this will create an event-storm: if parent A has children B an C, and B and C are connected to each other, does this mean B and C will both get two events?
+
+----------------------------------------------------------------------------------------------------
+February 9, 2022
+
+See [weapons_dont_know_their_character]
+
+gerlshmud_object has a {broadcast, Message} return from attempt/2. Currently, this causes an object to send an attempt to all of its non-parent (non-owner, etc.) properties. That means a bunch of events are generated. As soon as any of those events gets to an object that doesn't have the original top level thing (e.g. bodypart) then the message is failed.
+
+Now, normally failing a message would mean every process that subscribed to that event would see that message as a failure; however, with the child_property handler the clear_child_property and set_child_property events are handled and re-broadcast at the attempt stage: failing the event only stops it from propagating. By using a broadcast, each connected process gets it's _own_ copy of the message: non-child connected processes will just fail it.

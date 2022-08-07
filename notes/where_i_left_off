@@ -1,0 +1,325 @@
+Where I Left Off
+
+I need a place to track where I am for when I take long breaks.
+
+What do I _need_ for a MUD?
+- move
+- look
+- say
+- get
+- put
+- attack
+- heal
+- die
+- loot
+- wield
+
+February 27, 2022
+
+The problem with a GC getting failed by a neighbour is if two neighbours are cut off.
+
+I can't very well die because of inactivity: much of the might *never* be active; e.g. hidden areas that are never found.
+
+I can periodically send out a "ping" from a central node and any process that doesn't get a ping for X time can die. A heartbeat. It doesn't have to be often, even once an hour.
+With my current design goals I assume infinite CPUs and memory; keeping an arbitrary amount of time's worth of stranded processes around is fine.
+
+This means that if any part of the MUD gets separated from the heartbeat process, it will be killed. If somehow a single-room connection between two areas is severed, the area
+not connected to the heartbeat will be killed.
+
+Maybe each "area" (however anyone chooses to define that) should have it's own heartbeat. Or perhaps each room. Yeah, I don't think I want rooms to drop. Each room should send out a heartbeat.
+Exits won't pass on heartbeats.
+
+I've updated [corpses].
+
+I created a macro in [fix_html_macro] so I can quickly convert HTML evernote notes to text files.
+
+I've added a new return value for attempt which is just 'stop'; see [corpses] for some details.
+
+----------------------------------------------------------------------------------------------------
+
+February 16, 2022
+
+Do I need a garbage collector? If I'm cleaning up a corpse and I disconnect all properties, how will I know which properties are abandonded?
+Well, I could send out a message saying for an object to kill itself and if another process recognizes it, it can fail the kill. This is a form of garbage collection.
+Some process: "Kill yourself. No one cares about you."
+Attached process: "Don't do it! I still care about you."
+
+----------------------------------------------------------------------------------------------------
+February 15, 2022
+
+The protocol extractor is done. I've added resends and broadcasts by threading a State variable through the recursion. I renamed "exprs" to "search" and "bin" to "print" to hopefully make those clearer. I also made resends and broadcasts events in their own right.
+
+Now I'm back to getting corpses to decompose.
+
+
+----------------------------------------------------------------------------------------------------
+February 9, 2022
+
+The protocol extraction parse_transform is in good shape. I still need to make sure gerlshmud_object:attempt_after/3 works and I need to figure out why the body_part_inv clear_child_property event isn't showing up.
+
+I'm working on moving items from a corpse to the room when the corpse is cleaned up. To do this I'm trying to figure out how the child properties work.
+See Clear Child Properties & Broadcasting
+
+
+----------------------------------------------------------------------------------------------------
+January 28, 2022
+
+I've been thinking about the "protocol" some more and it would be nice to see all the messages neatly formatted and sorted. I could achieve this with a parse transform and maybe a macro to tag the messages. I'd like to see something like this:
+
+
+----------------------------------------------------------------------------------------------------
+January 27, 2022
+
+I copied the "What do I _need_ for a MUD?" into the top of this note.
+I don't know what I've done so I didn't check anything off.
+
+I want to create some way to catalog the different rules that I have, i.e. the event handler function signatures.
+I believe I had, and have, settled on using a parse transform to peel those out. I'll need to standardize, somehow, the function calls so that the parse_transform can pick them up.
+
+I have a "catalogue" script somewhere I think.
+Hmm, it works pretty well.
+What problem am I trying to solve?
+
+
+----------------------------------------------------------------------------------------------------
+September 23, 2021
+
+"bullet hits armor" ... the armor should degrade
+
+I need to differentiate _what_ gets hit, if anything.
+I could just say that no hit means no damage so armor blocking a hit means no hit, therefore no damage.
+
+In 7DTD armor damage isn't really much of a thing. I occasionally check to see how my armor is holding up. This comes down to how much of a simulator I want to create and how much of a game.
+
+
+----------------------------------------------------------------------------------------------------
+August 31, 2021
+
+I don't need to check if a thing is alive before doing any action, I just need to remove any actions that require a living thing. So, if a zombie "dies" I can just replace its handlers with 'dead_handlers'; when something is brought back to life I can replace the handlers with 'live_handlers'. I can do the same with 'functioning' / 'broken'
+
+
+----------------------------------------------------------------------------------------------------
+August 30, 2021
+
+I've got spell and melee attacks working with effects. Looking back through my commit comments I see I had an idea about parent and child effects: your flaming sword doesn't light your opponent on fire if it doesn't hit them. "Hit" is a bit nebulous: did I hit because I got through the enemies armor? Did I hit their armor? Did my sword get blocked by a spell? I guess I could get as complicated as I want. I think I should add multiple effects per attack (e.g. flaming sword, poisoned arrow, exploding bullet, etc.) but not worry about inter-effect logic.
+
+I don't really know what to do next.
+
+I think I'll do corpses
+
+What do I _need_ for a MUD?
+- move
+- look
+- say
+- get
+- put
+- attack
+- heal
+- die
+- loot
+- wield
+
+
+----------------------------------------------------------------------------------------------------
+August 6, 2021
+
+player_look test is busted because the enemy's race is coming back as 'value' and gerlshmud_test_socket is trying to append it to a binary. Fixed.
+
+
+
+----------------------------------------------------------------------------------------------------
+March 19, 2021
+
+Broadcasts create multiple events. This is why they are failed: to prevent the broadcast from going down branches that don't make sense.
+
+
+----------------------------------------------------------------------------------------------------
+March 7, 2021
+
+I fixed the player_wait_resource test. Because the hits are now random I needed to make sure that the target has less than max hit points instead of a preset amount after 1 attack.
+
+I'm working on the attack_with_modifiers test but the {&lt;player pid&gt;, attack, &lt;giant pid&gt;} message isn't going anywhere. I realized that I don't have any effect prototypes hooked up to the player or giant attacks (fist and club). I think there must also be something wrong with the fist and club that they aren't firing off attacks.
+
+
+----------------------------------------------------------------------------------------------------
+March 6, 2021
+
+Tests are failing, not sure why.
+
+Trying to figure out how IRIS uses all.test.spec (See also Testing: specifying CT suite)
+The IRIS Makefile sets CT_OPTS = -spec all.test.spec
+CT manual (Chapter 8 Running Tests and Analyzing Results) says
+"-spec <testspecs>;
+Uses test specification as input (described later)"
+
+8.8 says (paraphrasing):
+test spec is a sequence of Erlang terms normally declared in one or more text files, but can be passed to CT in the form of a list. There are two general types of terms: config terms and test spec terms.
+
+Config terms are basically command line options in a file
+
+You can:
+- label test run
+- eval expressions before running test
+- import config (like ct_run -config/-userconfig)
+- specify top-level HTML log dir
+- Enable code coverage analysis
+- Install CT hooks
+- Install event handler plugins
+- Specify include directories (like ct_run -include)
+- Disable auto-compilation feature (like ct_run -no_auto_compile)
+- Set verbosity levels (like ct_run -verbosity)
+
+Where am I doing ct_run? (i.e. where can I specify which tests to run?)
+I'm doin ct_run through erlang.mk by saying "make ct" in my "t" file.
+
+I added the ability to specify a number of test case names to the "t" file so I can run a particular set of test cases without modifying any files.
+I lost a couple hours because I put the "-case &lt;case 1&gt;" argument _after_ the "-erl_opts" argument. Everything from "-erl_opts" (or whatever) is ignored by Common Test.
+
+The "-case &lt;my_test_casse&gt;" does _not _ require a group even though the docs are a little bit ambiguous.
+
+
+----------------------------------------------------------------------------------------------------
+February 19, 2021
+
+Events need to be able to reach all processes: if I create effects then I need something (e.g. the attack, or the target) to point to them.
+
+Same goes with the effect creator: the attack needs to point at the effect creator so that _something_ makes sure that the effect creator gets sent events.
+
+
+----------------------------------------------------------------------------------------------------
+February 14, 2021
+
+Crap, some effects are depending on others: a flaming sword depends on hitting to do damage. Which effect calculates the hit? I think I can just add a "parent effect"
+
+Some effects might at first seem to be a foregone conclusion in a lot of cases (e.g. poison), but we still need to go through a "to hit" stage in case something else can block it. Anything that can be done can be undone.
+
+Maybe I _should_ have effects create themselves. That way, in the worlds file I can have effects reference other effects as parents. I would need an effect spawner for each effect, OR, I'd need each effect to track references to each effect instance.
+I'd really like to have each piece of logic running in its OWN process: I don't want one process trying to burn ten different targets, I want TEN processes all calculating if they burned their own target.
+
+
+----------------------------------------------------------------------------------------------------
+February 13, 2021
+
+Effects are the new attacks. The g_h_attack module now just kicks off effects; effects need to subscribe for resources.
+
+I need to take all of the resource handling out of g_h_attack and put it in g_h_effect_attack. g_h_effect_attack is the generic handler for all effects. Particulars will be based on properties.
+
+Manage attacks, Kick off effects, Calculating hit roll, effect (e.g. damage) roll
+gerlshmud_handler_attack:         listens for attack instigation and triggers g_h_effect_create
+gerlshmud_handler_effect_create:  attached to attack vector, creates effect processes
+gerlshmud_handler_defend:         event handler for anything that defends - can reduce hit or effect (e.g. damage) rolls
+gerlshmud_handler_effect_attack:  rolls for hit, rolls for damage, attaches to target, started by g_h_effect_create
+gerlshmud_handler_char_attack:    counter attack
+
+Should attack? and Should defend?
+gerlshmud_attack:                   behaviour for anything that handles "should attack?"
+gerlshmud_defence:                  behaviour for anything that handles "should defend?"
+gerlshmud_attack_melee:           determines "should attack?" for melee weapons (is wielded &amp; is attack)
+gerlshmud_defence_melee:          determines "should defend?" for melee weapons (is wielded &amp; is defence)
+gerlshmud_defence_armor:          determines "should defend?" for armor (is wielded on proper body part)
+gerlshmud_attack_spell:             determines "should attack?" for spell (is memorized and is attack)
+
+We send the character who misses a message, and the target who is missed a message, when g_h_effect_attack calculates that it has missed. This is because that attack ends there and no one else would be able to send the message.
+
+----------------------------------------------------------------------------------------------------
+January 20, 2021
+
+weapons should listen for an attack to succeed
+an attack shouldn't be a roll, just a pass/fail (other processes can block an attack, e.g. if attacking char is dead, target is dead, etc.)
+if an attack succeeds then all attack effects should spawn
+As resources allow (e.g. stamina, mana, etc.)
+Each spawned effect should calc its own hits and damage
+Each effect attaches itself to the target
+Each effect lives for however long it's programmed for
+once/count
+timer
+any other logic (e.g. number of charges, distance, etc.)
+
+I've moved the effect handler properties into the attack process so that the
+attack process (i.e. p_fist) can spawn the effect handler with those properties
+The effect process ...
+oooooooh, the prototype effect process could have generated child effect processes ... hmmmm
+I think that's confusing. It was more intuitive to have the attack process generate the effects
+This way the attack process has the "create" handler and the effect process just has the "attack" handler
+Having the parent effect process create copies of itself would be confusing
+The parent would have to track that it was a parent so that it would ignore child (i.e. working copy) effect attack handler events
+
+
+----------------------------------------------------------------------------------------------------
+January 2, 2021
+
+To recap:
+- attack objects (e.g. a fist) are processes that exist in perpetuity, they are not created to handle each individual attack.
+- I probably need to spawn processes for each target that an effect interacts with, since effects can outlive an attack
+  e.g. if I light something on fire and run away, that something will still be on fire.
+-Tests are failing because the Zombie is not dying
+- In the player_attack test the is_alive property of the z_life object is "true".
+- Somewhere we're not actually doing damage to the zombie
+- Damage should come from effects, so this is probably where I need to fire up an effect process to do damage
+
+
+----------------------------------------------------------------------------------------------------
+December 23, 2020
+
+I don't know if I need to track "self()" in "do damage" events created by the attack process. Do the effects need to know what the attack process is, or do they just need to modify _any_ event that comes by with their character?
+
+Attacks shouldn't do any damage: every attack should have at least one effect and it's the effects that do damage.
+
+Good question to ask: am I making a game or a simulator?
+False choice: I'm making a platform on which to build games. The game designer can decide what kind of game they're building.
+
+I'm building a game engine, not a game.
+
+In Effects I wrote down the idea to have a new process spawn for each effect-target: I already create a new attack process. This will involve creating a new effect process for each effect.
+
+I have to _calculate_ hits and damage, not just roll them. A calculation might involve an initial roll, but it will also include absolute modifications: e.g. +2 to hit.
+(I found that in gerlshmud_handler_effect_attack.erl I'm watching for "roll", not "calc")
+
+I _believe_ that I'm creating attack processes when something attacks something else. I don't know where that happens or if that's the case.
+I'm creating a new effect process in gerlshmud_handler_effect_create
+
+Okay, I've looked in a bunch of older branches and I don't think I was ever creating a new process for an attack.
+I really thought I was.
+Items are handling their own attack messages and asking for resources.
+Maybe I needed separate attack processes before I had resources?
+
+If I create effect processes as part of the world then I don't need to create new effects for those either ... oh, except that I need a new effect process
+for each effect-target.
+I don't think I can attack more than one target at a time, but I can have effects that continue on independently of an attack.
+
+I think an "Attack" was an "attack vector", which was something like a fist or a sword, which was a separate process.
+
+The attacked object needs to listen for effects and apply them.
+
+
+----------------------------------------------------------------------------------------------------
+December 22, 2020
+
+We need an attack type because it determines if something can be _hit_.
+We need effect types because that determines if something can be _damaged_.
+
+An attack is a process (2021-01-02 - no it's not). An effect is a handler.
+
+gerlshmud_handler_attack is still expecting an attack type on hit succeed. This seems like a simple fix.
+
+
+----------------------------------------------------------------------------------------------------
+December 21, 2020
+
+I'm testing player_attack, which uses world 3, which has p_fist
+
+p_fist has ?WEAPON_HANDLERS, which has gerlshmud_handler_attack
+
+gerlshmud_handler_attack responds to resource allocation and kicks off:
+
+{Character, calc, Hit, on, Target, with, self()}
+
+
+However, gerlshmud_handler_attack is listening for success on:
+{Character, calc, Types, hit, Hit, on, Target, with, Self}
+
+
+So, "..., Types, hit, ..." is either missing from the message sent out when the resources are allocated, or I'm not supposed to expect types on the hit success.
+
+I don't think I'm supposed to have "Types" (plural) at all.
+I _think_ I was working on having an attack kick off effects, and one of effects handled a melee hit.
