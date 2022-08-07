@@ -49,7 +49,7 @@ attempt({#parents{character = Character},
 
 attempt({#parents{character = Character},
          Props,
-         {die, Character}}) ->
+         {Character, die}}) ->
     Log = [{?EVENT, die}],
     {succeed, true, Props, Log};
 
@@ -71,7 +71,7 @@ succeed({Props, {Character, move, From, To, Exit}}) ->
            {exit, Exit}],
     {Props, Log};
 
-succeed({Props, {die, Character}}) ->
+succeed({Props, {Character, die}}) ->
     Owner = proplists:get_value(owner, Props),
     unreserve(Character, Owner, Props),
     Log = [{?EVENT, die}],

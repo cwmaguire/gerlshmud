@@ -2,7 +2,8 @@
 -define(GERLSHMUD_HANDLERS_HRL,already_included).
 
 -define(UNIVERSAL_HANDLERS, [gerlshmud_handler_set_child_property,
-                             gerlshmud_handler_delete_property]).
+                             gerlshmud_handler_delete_property,
+                             gerlshmud_handler_stop]).
 
 -define(ROOM_HANDLERS, {handlers, [gerlshmud_handler_room_inject_self,
                                    gerlshmud_handler_room_inv,
@@ -15,7 +16,8 @@
                                         gerlshmud_handler_char_inv,
                                         gerlshmud_handler_char_move,
                                         gerlshmud_handler_char_inject_self,
-                                        gerlshmud_handler_char_enter_world |
+                                        gerlshmud_handler_char_enter_world,
+                                        gerlshmud_handler_char_cleanup |
                                         ?UNIVERSAL_HANDLERS]}).
 
 -define(ITEM_HANDLERS, {handlers, [gerlshmud_handler_item_look,

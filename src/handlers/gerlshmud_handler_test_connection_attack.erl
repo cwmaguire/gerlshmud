@@ -40,7 +40,7 @@ attempt({#parents{owner = Owner},
     {succeed, _Subscribe = true, Props, Log};
 attempt({#parents{owner = Owner},
          Props,
-         _Msg = {die, Owner}}) ->
+         _Msg = {Owner, die}}) ->
     Log = [{?EVENT, die},
            {?SOURCE, Owner}],
     {succeed, _Subscribe = true, Props, Log};
@@ -161,14 +161,18 @@ attempt({#parents{owner = Owner},
 attempt(_) ->
     undefined.
 
+%% This no longer seems to match any generated messages
+%% See protocol.csv
 succeed({Props, {killed, Attack, Source, Owner}}) ->
     Log = [{?EVENT, killed},
            {vector, Attack},
            {?SOURCE, Source},
            {?TARGET, Owner}],
-    gerlshmud_object:attempt(self(), {die, Owner}),
+    gerlshmud_object:attempt(self(), {Owner, die}),
     {Props, Log};
-succeed({Props, {die, Target}}) ->
+%% Why is test_connection_attack kicking off the cleanup?
+%% _life_attack kicks it off too
+succeed({Props, {Target, die}}) ->
     Log = [{?EVENT, die},
            {?SOURCE, Target}],
     Owner = proplists:get_value(owner, Props),

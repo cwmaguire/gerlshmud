@@ -158,9 +158,13 @@ handle_cast_({set, Prop = {K, _}}, State = #state{props = Props}) ->
 handle_cast_({attempt, Msg, Procs}, State = #state{props = Props}) ->
     %ct:pal("~p:handle_cast_({attempt, ~p, ...~n", [?MODULE, Msg]),
     IsExit = proplists:get_value(is_exit, Props, false),
-    NewState = #state{props = Props2} = maybe_attempt(Msg, Procs, IsExit, State),
-    gerlshmud_index:put(Props2),
-    {noreply, NewState};
+    case maybe_attempt(Msg, Procs, IsExit, State) of
+        Stop = {stop, _, _} ->
+            Stop;
+        Continue = {noreply, #state{props = Props2}} ->
+            gerlshmud_index:put(Props2),
+            Continue
+    end;
 handle_cast_({fail, Reason, Msg}, State) ->
     ct:pal("~p:handle_cast_({fail ...~n", [?MODULE]),
     case fail(Reason, Msg, State) of
@@ -280,13 +284,6 @@ attempt_(Msg,
          Procs,
          State = #state{props = Props}) ->
     {Parents, ParentsList} = parents(Props),
-    %% So far it looks like nothing actually changes the object properties on attempt
-    %% but I'm leaving it in for now
-    %% I found a case: you attempt to shoot someone and you miss: the clip can lose a round ...
-    %% except the clip could just listen for the result and decrement the ammunition then.
-    %% I think I should stick with attempts never modifying the world ...
-    %% if that's still possible, other than reserved resources ... although
-    %% maybe even that should happen in succeed/fail
     {Handler,
      Results = {Result,
                 Msg2,
@@ -307,8 +304,14 @@ attempt_(Msg,
          LogProps ++
          result_tuples(Result)),
     MergedProcs = merge(self(), is_room(Props), Results, Procs),
-    _ = handle(Result, Msg2, MergedProcs, Props2),
-    State#state{props = Props2}.
+    State2 = State#state{props = Props2},
+    case handle(Result, Msg2, MergedProcs, Props2) of
+        stop ->
+            % TODO clean out backups and index
+            {stop, stop, State2};
+        _ ->
+            {noreply, State2}
+    end.
 
 parents(Props) ->
     Owner = proplists:get_value(owner, Props),
@@ -396,7 +399,15 @@ handle({broadcast, Msg}, _Msg, _Procs, Props) ->
                           Key /= character,
                           Key /= body_part,
                           Key /= top_item],
-    [broadcast(V, Msg) || V <- procs(NotParents)].
+    [broadcast(Proc, Msg) || Proc <- procs(NotParents)];
+handle(stop, _Msg, _Procs, Props) ->
+    NotParents = [Prop || Prop = {Key, _} <- Props,
+                          Key /= owner,
+                          Key /= character,
+                          Key /= body_part,
+                          Key /= top_item],
+    [broadcast(Proc, stop) || Proc <- procs(NotParents)],
+    stop.
 
 broadcast(Pid, Msg) ->
     attempt(Pid, Msg).

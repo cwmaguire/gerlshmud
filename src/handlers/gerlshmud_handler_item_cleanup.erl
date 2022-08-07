@@ -1,4 +1,4 @@
-%% Copyright (c) 2016, Chris Maguire <cwmaguire@gmail.com>
+%% Copyright (c) 2022, Chris Maguire <cwmaguire@gmail.com>
 %%
 %% Permission to use, copy, modify, and/or distribute this software for any
 %% purpose with or without fee is hereby granted, provided that the above
@@ -11,7 +11,7 @@
 %% WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 %% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
--module(gerlshmud_handler_cleanup).
+-module(gerlshmud_handler_item_cleanup).
 -behaviour(gerlshmud_handler).
 -compile({parse_transform, gerlshmud_protocol_parse_transform}).
 
@@ -21,16 +21,20 @@
 
 -include("include/gerlshmud.hrl").
 
-attempt(_) ->
-    undefined.
+attempt({#parents{character = Character},
+         Props,
+         {Character, cleanup, in, Room}) when Self == self() ->
+    Log = [{?TARGET, Character},
+           {?EVENT, cleanup}],
+    {succeed, true, Props, Log};
 
-succeed({Props, {Self, cleanup, self}}) when Self == self() ->
-    Log = [{?SOURCE, Self},
-           {?EVENT, cleanup},
-           {?TARGET, Self}],
-    %% TODO: kill/disconnect all connected processes
-    %% TODO: drop all objects
-    {stop, cleanup_succeeded, Props, Log};
+succeed({Props, {Character, cleanup, in, Room}}) when Self == self() ->
+    Log = [{?SOURCE, Character},
+           {?EVENT, cleanup}],
+    ShouldNotSubscribe = false,
+    gerlshmud_object:attempt(self(), {self(), move, from, Owner, to, Room}, ShouldNotSubscribe),
+    {Props, Log};
+
 succeed({Props, _}) ->
     Props.
 

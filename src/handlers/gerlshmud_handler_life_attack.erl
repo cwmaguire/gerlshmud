@@ -108,7 +108,7 @@ succeed({Props, {Owner, die}}) ->
          {props, Props},
          {?TARGET, Owner}]),
     CorpseCleanupMilis = application:get_env(gerlshmud, corpse_cleanup_milis, 10 * 60 * 1000),
-    gerlshmud_object:attempt_after(CorpseCleanupMilis, self(), {cleanup, Owner}),
+    gerlshmud_object:attempt_after(CorpseCleanupMilis, self(), {Owner, cleanup}),
     lists:keystore(is_alive, 1, Props, {is_alive, false});
 
 succeed({Props, _Msg}) ->

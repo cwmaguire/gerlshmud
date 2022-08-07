@@ -5,6 +5,7 @@
 -include("gerlshmud_test_worlds.hrl").
 
 -define(WAIT100, receive after 100 -> ok end).
+-define(WAIT1000, receive after 1000 -> ok end).
 
 % TODO test updating a skill when a target is killed with a weapon (or when damage is dealt, or both)
 
@@ -35,7 +36,8 @@ all() ->
      look_room,
      look_item,
      set_character,
-     cast_spell].
+     cast_spell,
+     decompose].
 
 init_per_testcase(_, Config) ->
     %gerlshmud_dbg:add(gerlshmud_object, handle_cast_),
@@ -60,14 +62,23 @@ end_per_testcase(_, _Config) ->
     gerlshmud_test_socket:stop(),
     application:stop(gerlshmud).
 
-val(Key, Obj) ->
+
+all_vals(Key, Obj) ->
     Props = case get_props(Obj) of
                 undefined ->
                     [];
                 Props_ ->
                     Props_
             end,
-    proplists:get_value(Key, Props).
+    proplists:get_all_values(Key, Props).
+
+val(Key, Obj) ->
+    case all_vals(Key, Obj) of
+        [First | _] ->
+            First;
+        _ ->
+            []
+    end.
 
 all(Key, Obj) ->
     proplists:get_all_values(Key, get_props(Obj)).
@@ -734,6 +745,31 @@ revive_process(_Config) ->
     PlayerV2 = val(character, p_fist_right),
     PlayerV2 = val(owner, dexterity0),
     PlayerV2 = val(owner, p_stamina).
+
+%% FIXME: test that a corpse:
+%% - decomposes
+%% - drops all items (i.e. move to room)
+%% - disappears (deletes all processes)
+decompose(Config) ->
+    start(?WORLD_3),
+    Player = get_pid(player),
+    Zombie = get_pid(zombie),
+    Room = get_pid(room),
+    Sword = get_pid(sword),
+    attempt(Config, Player, {Player, cause, 1000, 'of', fire, to, zombie, with, undefined}),
+    ?WAIT1000,
+    Conditions =
+        [{"Zombie is dead",
+          fun() -> val(is_alive, z_life) == false end},
+         {"Zombie hp < 1",
+          fun() -> val(hitpoints, z_hp) =< 0 end}
+         {"Sword on ground",
+          fun() -> all_vals(item, room) == [Sword] end},
+         {"Sword on ground",
+          fun() -> val(owner, sword) == Room end}],
+        ],
+    wait_for(Conditions, 20).
+
 
 log(_Config) ->
     {ok, Cwd} = file:get_cwd(),
