@@ -286,11 +286,11 @@ search({call, _Line,
       {remote, _RemLine,
        {atom, _AtomLine, gerlshmud_object},
        {atom, _FunAtomLine, attempt_after}},
-      [Arg1, _, Arg3]}, State) ->
+      [_, Arg2, Arg3]}, State) ->
     NoProps = <<"|">>,
-    Arg1Bin = print(Arg1),
+    Arg2Bin = print(Arg2),
     Arg3Bin = print(Arg3),
-    {[maps:get(module, State), <<"|new|">>, Arg1Bin, NoProps, <<"|">>, Arg3Bin, <<"\n">>], State};
+    {[maps:get(module, State), <<"|new|">>, Arg2Bin, NoProps, <<"|">>, Arg3Bin, <<"\n">>], State};
 
 search({call,_Line,__Fun, _Args}, State) ->
     % Don't care about non-event calls
