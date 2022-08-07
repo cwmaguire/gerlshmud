@@ -12,8 +12,8 @@
 %% ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 -module(gerlshmud_handler_hitpoints_attack).
-
 -behaviour(gerlshmud_handler).
+-compile({parse_transform, gerlshmud_protocol_parse_transform}).
 
 -export([attempt/1]).
 -export([succeed/1]).
@@ -23,7 +23,7 @@
 
 attempt({#parents{owner = Owner},
          Props,
-         {Attacker, cause, Amount, 'of', Effect, to, Owner, with, _Efffect}}) ->
+         {Attacker, cause, Amount, 'of', Effect, to, Owner, with, _Attack}}) ->
     Log = [{?EVENT, Effect},
            {?SOURCE, Attacker},
            {?TARGET, Owner},
@@ -38,7 +38,7 @@ attempt(_) ->
     undefined.
 
 succeed({Props,
-         {Attacker, cause, Amount, 'of', Effect, to, Owner, with, _Effect}}) ->
+         {Attacker, cause, Amount, 'of', Effect, to, Owner, with, _Attack}}) ->
     Log = [{?EVENT, Effect},
            {?TARGET, Owner},
            {from, Attacker},

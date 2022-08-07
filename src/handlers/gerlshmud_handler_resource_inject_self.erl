@@ -1,4 +1,4 @@
-%% Copyright (c) 2016, Chris Maguire <cwmaguire@gmail.com>
+%% Copyright (c) 2022, Chris Maguire <cwmaguire@gmail.com>
 %%
 %% Permission to use, copy, modify, and/or distribute this software for any
 %% purpose with or without fee is hereby granted, provided that the above
@@ -13,6 +13,7 @@
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 -module(gerlshmud_handler_resource_inject_self).
 -behaviour(gerlshmud_handler).
+-compile({parse_transform, gerlshmud_protocol_parse_transform}).
 
 %% @doc
 %% Captures reservation events reserving this process' character's resource
