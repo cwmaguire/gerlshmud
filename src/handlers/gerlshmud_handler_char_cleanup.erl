@@ -21,25 +21,18 @@
 
 -include("include/gerlshmud.hrl").
 
-attempt({#parents{}, Props, {Self, Cleanup}) when Self == self() ->
+attempt({#parents{}, Props, {Self, Cleanup}}) when Self == self() ->
     Log = [{?TARGET, Self},
            {?EVENT, cleanup}],
     {succeed, true, Props, Log}.
 
+attempt({_, _, _Msg}) ->
+    undefined.
+
 succeed({Props, {Self, cleanup}}) when Self == self() ->
     Log = [{?SOURCE, Self},
            {?EVENT, cleanup}],
-    Room = proplists:get_value(owner, Props),
-    ShouldSubscribe = true,
-    gerlshmud_object:attempt(self(), {self(), cleanup, in, Room}, ShouldSubscribe),
-    {Props, Log};
-
-succeed({Props, {Self, cleanup, in, _Room}}) ->
-    [unreserve(Character, Resource, Owner) || {resource, Resource} <- Props],
-    Log = [{?EVENT, move},
-           {from, From},
-           {to, To},
-           {exit, Exit}],
+    Log = [{?EVENT, cleanup}],
     gerlshmud_object:attempt(self(), stop),
     {Props, Log};
 
