@@ -57,7 +57,8 @@ attempt({_, _, _Msg}) ->
     undefined.
 
 succeed({Props, {Character, attack, Target, with, Owner}}) ->
-    [reserve(Character, Resource, Amount, Owner) || {resource, Resource, Amount} <- Props],
+    Resources = proplists:get_value(resources, Props, []),
+    [reserve(Character, Resource, Amount, Owner) || {Resource, Amount} <- Resources],
     Log = [{?EVENT, attack},
            {?TARGET, Target}],
     {Props, Log};
