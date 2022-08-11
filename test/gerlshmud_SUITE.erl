@@ -183,11 +183,11 @@ character_owner_add_remove(Config) ->
     attempt(Config, Player, {Player, drop, <<"rifle">>}),
     ?WAIT100,
     false = has(Rifle, player),
-    undefined = val(character, Rifle),
-    undefined = val(character, Suppressor),
-    undefined = val(character, Grip),
-    undefined = val(character, Clip),
-    undefined = val(character, Bullet).
+    [] = val(character, Rifle),
+    [] = val(character, Suppressor),
+    [] = val(character, Grip),
+    [] = val(character, Clip),
+    [] = val(character, Bullet).
 
 player_attack(Config) ->
     _SupPid = whereis(gerlshmud_object_sup),
@@ -439,8 +439,8 @@ player_wield(Config) ->
         fun() ->
             val(item, player)
         end,
-    true = wait_loop(WaitFun, undefined, 30),
-    %undefined = val(item, Player),
+    true = wait_loop(WaitFun, [], 30),
+    %[] = val(item, Player),
     {Helmet, _BodyPartRef} = val(item, head1),
     {body_part, Head, head, _BodyPartRef} = val(body_part, Helmet).
 
@@ -451,7 +451,7 @@ player_wield_first_available(Config) ->
     Helmet = get_pid(helmet),
     attempt(Config, Player, {<<"helmet">>, move, from, Player, to, first_available_body_part}),
     ?WAIT100,
-    undefined = val(item, Player),
+    [] = val(item, Player),
     {Helmet, _BodyPartRef} = val(item, head1),
     {body_part, Head, head, _BodyPartRef} = val(body_part, Helmet).
 
@@ -462,13 +462,13 @@ player_wield_missing_body_part(Config) ->
     Helmet = get_pid(helmet),
     attempt(Config, Player, {<<"helmet">>, move, from, Player, to, <<"finger">>}),
     ?WAIT100,
-    undefined = val(item, head1),
+    [] = val(item, head1),
     Helmet = val(item, player),
     attempt(Config, Player, {<<"helmet">>, move, from, Player, to, <<"head">>}),
     ?WAIT100,
     {Helmet, _BodyPartRef} = val(item, head1),
     {body_part, Head, head, _BodyPartRef} = val(body_part, Helmet),
-    undefined = val(item, player).
+    [] = val(item, player).
 
 player_wield_wrong_body_part(Config) ->
     start(?WORLD_5),
@@ -477,13 +477,13 @@ player_wield_wrong_body_part(Config) ->
     Helmet = get_pid(helmet),
     attempt(Config, Player, {<<"helmet">>, move, from, Player, to, <<"finger">>}),
     ?WAIT100,
-    undefined = val(item, head1),
+    [] = val(item, head1),
     Helmet = val(item, player),
     attempt(Config, Player, {<<"helmet">>, move, from, Player, to, <<"head">>}),
     ?WAIT100,
     {Helmet, _BodyPartRef1} = val(item, head1),
     {body_part, Head, head, _BodyPartRef2} = val(body_part, Helmet),
-    undefined = val(item, player).
+    [] = val(item, player).
 
 player_wield_body_part_is_full(Config) ->
     start(?WORLD_6),
@@ -523,28 +523,28 @@ player_remove(Config) ->
     DexBuff = get_pid(dex_buff),
     attempt(Config, Player, {<<"helmet">>, move, from, Player, to, <<"head">>}),
     ?WAIT100,
-    undefined = val(item, player),
+    [] = val(item, player),
     {Helmet, _Ref} = val(item, head1),
     {body_part, Head, head, _Ref0} = val(body_part, Helmet),
     {body_part, Head, head, _Ref1} = val(body_part, DexBuff),
     attempt(Config, Player, {<<"helmet">>, move, from, <<"head">>, to, Player}),
     ?WAIT100,
     Helmet = val(item, player),
-    undefined = val(body_part, Helmet),
-    undefined = val(body_part, DexBuff),
-    undefined = val(item, head1),
+    [] = val(body_part, Helmet),
+    [] = val(body_part, DexBuff),
+    [] = val(item, head1),
     attempt(Config, Player, {<<"helmet">>, move, from, Player, to, <<"head">>}),
     ?WAIT100,
-    undefined = val(item, player),
+    [] = val(item, player),
     {Helmet, _Ref2} = val(item, head1),
     {body_part, Head, head, _Ref3} = val(body_part, Helmet),
     {body_part, Head, head, _Ref4} = val(body_part, DexBuff),
     attempt(Config, Player, {<<"helmet">>, move, from, current_body_part, to, Player}),
     ?WAIT100,
     Helmet = val(item, player),
-    undefined = val(body_part, Helmet),
-    undefined = val(body_part, DexBuff),
-    undefined = val(item, head1).
+    [] = val(body_part, Helmet),
+    [] = val(body_part, DexBuff),
+    [] = val(item, head1).
 
 look_player(_Config) ->
     start(?WORLD_7),
