@@ -762,11 +762,11 @@ decompose(Config) ->
         [{"Zombie is dead",
           fun() -> val(is_alive, z_life) == false end},
          {"Zombie hp < 1",
-          fun() -> val(hitpoints, z_hp) =< 0 end}
+          fun() -> val(hitpoints, z_hp) =< 0 end},
          {"Sword on ground",
           fun() -> all_vals(item, room) == [Sword] end},
          {"Sword on ground",
-          fun() -> val(owner, sword) == Room end}],
+          fun() -> val(owner, sword) == Room end}
         ],
     wait_for(Conditions, 20).
 

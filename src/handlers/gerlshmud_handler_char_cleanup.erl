@@ -21,10 +21,10 @@
 
 -include("include/gerlshmud.hrl").
 
-attempt({#parents{}, Props, {Self, Cleanup}}) when Self == self() ->
+attempt({#parents{}, Props, {Self, cleanup}}) when Self == self() ->
     Log = [{?TARGET, Self},
            {?EVENT, cleanup}],
-    {succeed, true, Props, Log}.
+    {succeed, true, Props, Log};
 
 attempt({_, _, _Msg}) ->
     undefined.

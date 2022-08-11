@@ -23,14 +23,17 @@
 
 attempt({#parents{character = Character},
          Props,
-         {Character, cleanup, in, Room}) when Self == self() ->
+         {Character, cleanup, in, _Room}}) ->
     Log = [{?TARGET, Character},
            {?EVENT, cleanup}],
     {succeed, true, Props, Log};
+attempt({_, _, _Msg}) ->
+    undefined.
 
-succeed({Props, {Character, cleanup, in, Room}}) when Self == self() ->
+succeed({Props, {Character, cleanup, in, Room}}) ->
     Log = [{?SOURCE, Character},
            {?EVENT, cleanup}],
+    Owner = proplists:get_value(owner, Props),
     ShouldNotSubscribe = false,
     gerlshmud_object:attempt(self(), {self(), move, from, Owner, to, Room}, ShouldNotSubscribe),
     {Props, Log};
