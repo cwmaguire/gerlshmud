@@ -24,15 +24,15 @@
 -export([succeed/1]).
 -export([fail/1]).
 
-attempt({#parents{owner = Owner}, Props, stop}) ->
-    Log = [{?SOURCE, Owner},
+attempt({#parents{character = Character}, Props, {stop, Character}}) ->
+    Log = [{?SOURCE, Character},
            {?EVENT, stop}],
-    {stop, false, Props, Log};
+    {succeed, true, Props, Log};
 attempt(_) ->
     undefined.
 
 succeed({Props, _Msg}) ->
-    Props.
+    {stop, finished, Props, []}.
 
 fail({Props, _, _}) ->
     Props.

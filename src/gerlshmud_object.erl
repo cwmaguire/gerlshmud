@@ -127,8 +127,8 @@ init(Props) ->
                   process_flag(trap_exit, true),
                   receive
                       {'EXIT', From, Reason} ->
-                          io:format("~p died because ~p~n",
-                                    [From, Reason])
+                          io:format("Watcher process ~p: ~p died because ~p~n",
+                                    [self(), From, Reason])
                   end
           end,
     spawn_link(Fun),
@@ -178,6 +178,8 @@ handle_cast_({fail, Reason, Msg}, State) ->
                  {stop_reason, Reason} |
                  Props ++ ParentsList ++ LogProps]),
             gerlshmud_index:put(Props),
+            % FIXME I think this will just cause the supervisor to restart it
+            % Probably need to tell the supervisor to kill us
             {stop, {shutdown, Reason}, State#state{props = Props}};
         {Props, _, _, LogProps} ->
             {_, ParentsList} = parents(Props),
@@ -199,7 +201,14 @@ handle_cast_({succeed, Msg}, State) ->
                  {stop_reason, Reason} |
                  Props ++ ParentsList ++ LogProps]),
             gerlshmud_index:put(Props),
-            {stop, {shutdown, Reason}, State#state{props = Props}};
+            Self = self(),
+            spawn(fun() ->
+                      % TODO clean out backups and index
+                      % There's a terminate function that I don't seem to be using
+                      ct:pal("Spawning child terminator for ~p~n", [Self]),
+                      supervisor:terminate_child(gerlshmud_object_sup, Self)
+                  end),
+            {noreply, State#state{props = Props}};
         {Props, LogProps} ->
             {_, ParentsList} = parents(Props),
             log([{stage, succeed},
@@ -210,8 +219,12 @@ handle_cast_({succeed, Msg}, State) ->
             {noreply, State#state{props = Props}}
     end.
 
+% FIXME I don't think I should be catching this, or else this will never die
+% I think I have to kill it at the supervisor
+% I might be able to have the supervisor kill it, but then catch that and
+% cleanly exit here.
 handle_info({'EXIT', From, Reason}, State = #state{props = Props}) ->
-    ct:pal("~p:handle_info({'EXIT' ...~n", [?MODULE]),
+    ct:pal("~p:handle_info({'EXIT', From: ~p, Reason: ~p})~n", [?MODULE, From, Reason]),
     {_, ParentsList} = parents(Props),
     log([{?EVENT, exit},
          {object, self()},
@@ -222,7 +235,7 @@ handle_info({'EXIT', From, Reason}, State = #state{props = Props}) ->
     gerlshmud_index:subscribe_dead(self(), From),
     Props2 = mark_pid_dead(From, Props),
     gerlshmud_index:put(Props2),
-    {noreply, State#state{props = Props2}};
+    {stop, normal, State#state{props = Props2}};
 handle_info({replace_pid, OldPid, NewPid}, State = #state{props = Props})
   when is_pid(OldPid), is_pid(NewPid) ->
     ct:pal("~p:handle_info({replace_pid...~n", [?MODULE]),
@@ -308,7 +321,12 @@ attempt_(Msg,
     case handle(Result, Msg2, MergedProcs, Props2) of
         stop ->
             % TODO clean out backups and index
-            {stop, stop, State2};
+            % There's a terminate function that I don't seem to be using
+            Self = self(),
+            spawn(fun() ->
+                      supervisor:terminate_child(gerlshmud_object_sup, Self)
+                  end),
+            {noreply, State2};
         _ ->
             {noreply, State2}
     end.
@@ -344,7 +362,9 @@ result_tuples({resend, Target, Message}) ->
 result_tuples(succeed) ->
     [{result, succeed}];
 result_tuples({broadcast, Message}) ->
-    [{result, broadcast}, {new_message, Message}].
+    [{result, broadcast}, {new_message, Message}];
+result_tuples(stop) ->
+    [{result, stop}].
 
 run_handlers(Attempt = {_, Props, _}) ->
     Handlers = proplists:get_value(handlers, Props),
@@ -400,6 +420,7 @@ handle({broadcast, Msg}, _Msg, _Procs, Props) ->
                           Key /= body_part,
                           Key /= top_item],
     [broadcast(Proc, Msg) || Proc <- procs(NotParents)];
+% XXX what's this used by?
 handle(stop, _Msg, _Procs, Props) ->
     NotParents = [Prop || Prop = {Key, _} <- Props,
                           Key /= owner,

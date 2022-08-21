@@ -32,6 +32,7 @@ attempt({_, _, _Msg}) ->
 
 succeed({Props, {Character, cleanup, in, Room}}) ->
     Log = [{?SOURCE, Character},
+           {?TARGET, Room},
            {?EVENT, cleanup}],
     Owner = proplists:get_value(owner, Props),
     ShouldNotSubscribe = false,

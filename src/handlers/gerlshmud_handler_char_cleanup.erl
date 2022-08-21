@@ -21,19 +21,20 @@
 
 -include("include/gerlshmud.hrl").
 
-attempt({#parents{}, Props, {Self, cleanup}}) when Self == self() ->
+attempt({#parents{owner = Room}, Props, {Self, cleanup}}) when Self == self() ->
     Log = [{?TARGET, Self},
            {?EVENT, cleanup}],
-    {succeed, true, Props, Log};
-
+    {{resend, self(), {Self, cleanup, in, Room}}, false, Props, Log};
+attempt({#parents{}, Props, {Self, cleanup, in, Room}}) when Self == self() ->
+    {succeed, true, Props};
 attempt({_, _, _Msg}) ->
     undefined.
 
-succeed({Props, {Self, cleanup}}) when Self == self() ->
+succeed({Props, {Self, cleanup, in, Room}}) when Self == self() ->
     Log = [{?SOURCE, Self},
+           {?TARGET, Room},
            {?EVENT, cleanup}],
-    Log = [{?EVENT, cleanup}],
-    gerlshmud_object:attempt(self(), stop),
+    gerlshmud_object:attempt(self(), {stop, self()}),
     {Props, Log};
 
 succeed({Props, _}) ->

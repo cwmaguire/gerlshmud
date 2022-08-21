@@ -752,23 +752,56 @@ revive_process(_Config) ->
 %% - disappears (deletes all processes)
 decompose(Config) ->
     start(?WORLD_3),
+    application:set_env(gerlshmud, corpse_cleanup_milis, 1),
     Player = get_pid(player),
     Zombie = get_pid(zombie),
     Room = get_pid(room),
     Sword = get_pid(sword),
-    attempt(Config, Player, {Player, cause, 1000, 'of', fire, to, zombie, with, undefined}),
+    %gerlshmud_dbg:add(gerlshmud_object, run_handlers, 1),
+    %gerlshmud_dbg:add(gerlshmud_handler_hitpoints_attack, attempt, 1),
+    %gerlshmud_dbg:add(gerlshmud_handler_life_attack, attempt, 1),
+    %gerlshmud_dbg:add(gerlshmud_handler_life_attack),
+    %gerlshmud_dbg:add(gerlshmud_handler_hitpoints_attack),
+    %gerlshmud_dbg:add(gerlshmud_handler_attack),
+    %gerlshmud_dbg:add(gerlshmud_handler_item_cleanup, attempt, 1),
+    %gerlshmud_dbg:add(gerlshmud_handler_stop, attempt, 1),
+    %gerlshmud_dbg:add(gerlshmud_handler_char_cleanup, attempt, 1),
+    %gerlshmud_dbg:add(gerlshmud_handler_char_cleanup),
+    %gerlshmud_dbg:add(gerlshmud_handler_life_attack, succeed, 1),
+    %gerlshmud_dbg:add(gerlshmud_handler_item_cleanup, attempt, 1),
+    %gerlshmud_dbg:add(gerlshmud_event_log, handle_cast, 2),
+    %gerlshmud_dbg:add(gerlshmud_object),
+
+    %ZHP = get_pid(z_hp),
+    %ct:pal("Tracing z_hp ~p", [ZHP]),
+    %gerlshmud_dbg:add_with_pid(ZHP, gerlshmud_object),
+
+    ZLife = get_pid(z_life),
+    ct:pal("Tracing z_life ~p", [ZLife]),
+    gerlshmud_dbg:add_with_pid(ZLife, gerlshmud_handler_life_attack),
+
+    %ct:pal("Tracing zombie ~p", [Zombie]),
+    %gerlshmud_dbg:add_with_pid(Zombie, gerlshmud_object),
+    %gerlshmud_dbg:add_with_pid(Zombie, gerlshmud_handler_char_cleanup),
+
+    %ct:pal("Tracing player ~p", [Player]),
+
+    %gerlshmud_dbg:add_with_pid(Player, gerlshmud_object),
+    %gerlshmud_dbg:add(gerlshmud_handler_stop),
+    %gerlshmud_dbg:add(gerlshmud_handler_set_child_property),
+    %gerlshmud_dbg:add(gerlshmud_object, attempt, 3),
+    %gerlshmud_dbg:add(gerlshmud_object, attempt_after, 3),
+    attempt(Config, Player, {Player, cause, 1000, 'of', fire, to, Zombie, with, undefined}),
     ?WAIT1000,
     Conditions =
-        [{"Zombie is dead",
-          fun() -> val(is_alive, z_life) == false end},
-         {"Zombie hp < 1",
-          fun() -> val(hitpoints, z_hp) =< 0 end},
+        [{"Zombie process is dead",
+          fun() -> is_process_alive(Zombie) == false end},
          {"Sword on ground",
           fun() -> all_vals(item, room) == [Sword] end},
          {"Sword on ground",
           fun() -> val(owner, sword) == Room end}
         ],
-    wait_for(Conditions, 20).
+    wait_for(Conditions, 1).
 
 
 log(_Config) ->

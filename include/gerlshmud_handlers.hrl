@@ -22,7 +22,8 @@
 
 -define(ITEM_HANDLERS, {handlers, [gerlshmud_handler_item_look,
                                    gerlshmud_handler_item_inv,
-                                   gerlshmud_handler_item_inject_self |
+                                   gerlshmud_handler_item_inject_self,
+                                   gerlshmud_handler_item_cleanup |
                                    ?UNIVERSAL_HANDLERS]}).
 
 -define(CONN_HANDLERS, {handlers, [gerlshmud_handler_conn_enter_world,
