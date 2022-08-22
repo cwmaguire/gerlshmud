@@ -205,7 +205,7 @@ handle_cast_({succeed, Msg}, State) ->
             spawn(fun() ->
                       % TODO clean out backups and index
                       % There's a terminate function that I don't seem to be using
-                      ct:pal("Spawning child terminator for ~p~n", [Self]),
+                      ct:pal("~p Spawning child terminator for ~p~n", [self(), Self]),
                       supervisor:terminate_child(gerlshmud_object_sup, Self)
                   end),
             {noreply, State#state{props = Props}};
@@ -219,12 +219,8 @@ handle_cast_({succeed, Msg}, State) ->
             {noreply, State#state{props = Props}}
     end.
 
-% FIXME I don't think I should be catching this, or else this will never die
-% I think I have to kill it at the supervisor
-% I might be able to have the supervisor kill it, but then catch that and
-% cleanly exit here.
 handle_info({'EXIT', From, Reason}, State = #state{props = Props}) ->
-    ct:pal("~p:handle_info({'EXIT', From: ~p, Reason: ~p})~n", [?MODULE, From, Reason]),
+    ct:pal("~p:handle_info({'EXIT', From: ~p, Reason: ~p}) - ~p~n", [?MODULE, From, Reason, self()]),
     {_, ParentsList} = parents(Props),
     log([{?EVENT, exit},
          {object, self()},
@@ -320,6 +316,8 @@ attempt_(Msg,
     State2 = State#state{props = Props2},
     case handle(Result, Msg2, MergedProcs, Props2) of
         stop ->
+            % XXX I don't think I should be stopping processes on attempt
+
             % TODO clean out backups and index
             % There's a terminate function that I don't seem to be using
             Self = self(),

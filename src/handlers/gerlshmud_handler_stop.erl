@@ -26,13 +26,18 @@
 
 attempt({#parents{character = Character}, Props, {stop, Character}}) ->
     Log = [{?SOURCE, Character},
+           {?TARGET, Character},
            {?EVENT, stop}],
+    ct:pal("stop (~p) got attempt {stop, ~p}~n", [self(), Character]),
     {succeed, true, Props, Log};
 attempt(_) ->
     undefined.
 
-succeed({Props, _Msg}) ->
-    {stop, finished, Props, []}.
+succeed({Props, Msg = {stop, Character}}) ->
+    ct:pal("stop (~p) got succeed for ~p~n", [self(), Msg]),
+    {stop, finished, Props, []};
+succeed({Props, _}) ->
+    Props.
 
 fail({Props, _, _}) ->
     Props.

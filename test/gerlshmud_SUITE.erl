@@ -776,9 +776,9 @@ decompose(Config) ->
     %ct:pal("Tracing z_hp ~p", [ZHP]),
     %gerlshmud_dbg:add_with_pid(ZHP, gerlshmud_object),
 
-    ZLife = get_pid(z_life),
-    ct:pal("Tracing z_life ~p", [ZLife]),
-    gerlshmud_dbg:add_with_pid(ZLife, gerlshmud_handler_life_attack),
+    %ZLife = get_pid(z_life),
+    %ct:pal("Tracing z_life ~p", [ZLife]),
+    %gerlshmud_dbg:add_with_pid(ZLife, gerlshmud_handler_life_attack),
 
     %ct:pal("Tracing zombie ~p", [Zombie]),
     %gerlshmud_dbg:add_with_pid(Zombie, gerlshmud_object),
