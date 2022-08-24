@@ -70,8 +70,8 @@
                        ?ITEM_HANDLERS]}]).
 
 -define(WORLD_3, [{room,
-                      [{character, player},
-                       {character, zombie},
+                      [{visitor, player},
+                       {visitor, zombie},
                        {icon, room},
                        ?ROOM_HANDLERS]},
 
@@ -212,14 +212,16 @@
 
                   {sword,
                       [{attack_damage_modifier, 5},
-                       {owner, zombie},
-                       {character, zombie},
+                       {owner, z_hand},
+                       % I don't think an item is supposed to know what its character is
+                       %{character, zombie},
                        {is_attack, true},
                        {is_auto_attack, true},
                        {resources, [{stamina, 5}]},
                        {wielding_body_parts, [hand]},
                        {body_part, {?PID(z_hand), hand}},
                        {icon, weapon},
+                       {drop_on_death, true},
                        ?ITEM_HANDLERS]}]).
 
 -define(WORLD_4, [{room,
