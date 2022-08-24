@@ -26,7 +26,8 @@
 
 attempt({#parents{character = Character}, Props, {stop, Character}}) ->
     Log = [{?SOURCE, Character},
-           {?TARGET, Character},
+           {?TARGET, self()},
+           {room, self()},
            {?EVENT, stop}],
     ct:pal("stop (~p) got attempt {stop, ~p}~n", [self(), Character]),
     {succeed, true, Props, Log};
@@ -34,8 +35,19 @@ attempt(_) ->
     undefined.
 
 succeed({Props, Msg = {stop, Character}}) ->
+    Log = [{?SOURCE, Character},
+           {?TARGET, self()},
+           {room, self()},
+           {?EVENT, stop}],
     ct:pal("stop (~p) got succeed for ~p~n", [self(), Msg]),
-    {stop, finished, Props, []};
+    case proplists:get_value(drop_on_death, Props, false) of
+        true ->
+            ct:pal("Not stopping (~p) because drop_on_death is true~n", [self()]),
+            unlink(Character),
+            {Props, Log};
+        _ ->
+            {stop, finished, Props, Log}
+    end;
 succeed({Props, _}) ->
     Props.
 
