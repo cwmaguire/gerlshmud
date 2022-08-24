@@ -21,22 +21,28 @@
 
 -include("include/gerlshmud.hrl").
 
-attempt({#parents{character = Character},
+attempt({#parents{},
          Props,
-         {Character, cleanup, in, _Room}}) ->
+         {Character, cleanup,  body_parts, _BodyParts, in, Room}}) ->
     Log = [{?TARGET, Character},
-           {?EVENT, cleanup}],
+           {?EVENT, cleanup},
+           {room, Room}],
     {succeed, true, Props, Log};
 attempt({_, _, _Msg}) ->
     undefined.
 
-succeed({Props, {Character, cleanup, in, Room}}) ->
+succeed({Props, {Character, cleanup, body_parts, BodyParts, in, Room}}) ->
     Log = [{?SOURCE, Character},
            {?TARGET, Room},
            {?EVENT, cleanup}],
     Owner = proplists:get_value(owner, Props),
-    ShouldNotSubscribe = false,
-    gerlshmud_object:attempt(self(), {self(), move, from, Owner, to, Room}, ShouldNotSubscribe),
+    case lists:member(Owner, [Character | BodyParts]) of
+        true -> gerlshmud_object:attempt(self(),
+                                         {self(), move, from, Owner, to, Room},
+                                         _ShouldSubscribe = false);
+        _ ->
+            ok
+    end,
     {Props, Log};
 
 succeed({Props, _}) ->
