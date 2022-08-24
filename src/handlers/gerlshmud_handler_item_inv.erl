@@ -110,11 +110,11 @@ succeed({Props, {Item, move, from, Source, to, Self}}) when Self == self() ->
     set_child_properties(Item, Props),
     [{item, Item} | Props];
 
-%% Losing an item
+%% Losing a sub-item
 succeed({Props, {Item, move, from, Self, to, Target}}) when Self == self() ->
     clear_child_top_item(Props, Item, Target);
 
-%% Losing an item to a body part
+%% Losing a sub-item to a body part
 succeed({Props, {Item, move, from, Self, to, Target, on, body_part, type, _BodyPartType}}) when Self == self() ->
     clear_child_top_item(Props, Item, Target);
 
