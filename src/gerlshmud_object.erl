@@ -195,7 +195,8 @@ handle_cast_({succeed, Msg}, State) ->
     case succeed(Msg, State) of
         {stop, Reason, Props, LogProps} ->
             {_, ParentsList} = parents(Props),
-            log([{stage, succed_stop},
+            log([{stage, succeed},
+                 {event, stop},
                  {object, self()},
                  {message, Msg},
                  {stop_reason, Reason} |
@@ -235,7 +236,6 @@ handle_info({'EXIT', From, Reason}, State = #state{props = Props}) ->
 handle_info({replace_pid, OldPid, NewPid}, State = #state{props = Props})
   when is_pid(OldPid), is_pid(NewPid) ->
     ct:pal("~p:handle_info({replace_pid...~n", [?MODULE]),
-    link(NewPid),
     Props2 = replace_pid(Props, OldPid, NewPid),
     gerlshmud_index:unsubscribe_dead(self(), OldPid),
     gerlshmud_index:put(Props2),
@@ -451,21 +451,13 @@ populate_(Props, IdPids) ->
 set_pid(Prop = {id, _V}, {IdPids, Props}) ->
     {IdPids, [Prop | Props]};
 set_pid({K, {{pid, V1}, V2}}, {IdPids, Props}) ->
-    {IdPids, [{K, {proc(V1, IdPids), V2}} | Props]};
+    {IdPids, [{K, {maybe_proc(V1, IdPids), V2}} | Props]};
 set_pid({K, V}, {IdPids, Props}) ->
-    {IdPids, [{K, proc(V, IdPids)} | Props]}.
+    {IdPids, [{K, maybe_proc(V, IdPids)} | Props]}.
 
-proc(MaybeId, IdPids) when is_atom(MaybeId) ->
-    MaybePid = proplists:get_value(MaybeId, IdPids, MaybeId),
-    case is_pid(MaybePid) of
-        true ->
-            log([{?EVENT, link}, {source, self()}, {target, MaybePid}]),
-            link(MaybePid);
-        false ->
-            ok
-    end,
-    MaybePid;
-proc(Value, _) ->
+maybe_proc(MaybeId, IdPids) when is_atom(MaybeId) ->
+    proplists:get_value(MaybeId, IdPids, MaybeId);
+maybe_proc(Value, _) ->
     Value.
 
 % TODO Does this handle {K, {PID, bodypart}} properties?
