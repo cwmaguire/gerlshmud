@@ -43,7 +43,6 @@ succeed({Props, Msg = {stop, Character}}) ->
     case proplists:get_value(drop_on_death, Props, false) of
         true ->
             ct:pal("Not stopping (~p) because drop_on_death is true~n", [self()]),
-            unlink(Character),
             {Props, Log};
         _ ->
             {stop, finished, Props, Log}
