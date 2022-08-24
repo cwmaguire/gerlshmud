@@ -757,51 +757,17 @@ decompose(Config) ->
     Zombie = get_pid(zombie),
     Room = get_pid(room),
     Sword = get_pid(sword),
-    %gerlshmud_dbg:add(gerlshmud_object, run_handlers, 1),
-    %gerlshmud_dbg:add(gerlshmud_handler_hitpoints_attack, attempt, 1),
-    %gerlshmud_dbg:add(gerlshmud_handler_life_attack, attempt, 1),
-    %gerlshmud_dbg:add(gerlshmud_handler_life_attack),
-    %gerlshmud_dbg:add(gerlshmud_handler_hitpoints_attack),
-    %gerlshmud_dbg:add(gerlshmud_handler_attack),
-    %gerlshmud_dbg:add(gerlshmud_handler_item_cleanup, attempt, 1),
-    %gerlshmud_dbg:add(gerlshmud_handler_stop, attempt, 1),
-    %gerlshmud_dbg:add(gerlshmud_handler_char_cleanup, attempt, 1),
-    %gerlshmud_dbg:add(gerlshmud_handler_char_cleanup),
-    %gerlshmud_dbg:add(gerlshmud_handler_life_attack, succeed, 1),
-    %gerlshmud_dbg:add(gerlshmud_handler_item_cleanup, attempt, 1),
-    %gerlshmud_dbg:add(gerlshmud_event_log, handle_cast, 2),
-    %gerlshmud_dbg:add(gerlshmud_object),
-
-    %ZHP = get_pid(z_hp),
-    %ct:pal("Tracing z_hp ~p", [ZHP]),
-    %gerlshmud_dbg:add_with_pid(ZHP, gerlshmud_object),
-
-    %ZLife = get_pid(z_life),
-    %ct:pal("Tracing z_life ~p", [ZLife]),
-    %gerlshmud_dbg:add_with_pid(ZLife, gerlshmud_handler_life_attack),
-
-    %ct:pal("Tracing zombie ~p", [Zombie]),
-    %gerlshmud_dbg:add_with_pid(Zombie, gerlshmud_object),
-    %gerlshmud_dbg:add_with_pid(Zombie, gerlshmud_handler_char_cleanup),
-
-    %ct:pal("Tracing player ~p", [Player]),
-
-    %gerlshmud_dbg:add_with_pid(Player, gerlshmud_object),
-    %gerlshmud_dbg:add(gerlshmud_handler_stop),
-    %gerlshmud_dbg:add(gerlshmud_handler_set_child_property),
-    %gerlshmud_dbg:add(gerlshmud_object, attempt, 3),
-    %gerlshmud_dbg:add(gerlshmud_object, attempt_after, 3),
     attempt(Config, Player, {Player, cause, 1000, 'of', fire, to, Zombie, with, undefined}),
     ?WAIT1000,
     Conditions =
         [{"Zombie process is dead",
           fun() -> is_process_alive(Zombie) == false end},
-         {"Sword on ground",
+         {"Room has Sword",
           fun() -> all_vals(item, room) == [Sword] end},
-         {"Sword on ground",
+         {"Sword owner is Room",
           fun() -> val(owner, sword) == Room end}
         ],
-    wait_for(Conditions, 1).
+    wait_for(Conditions, 3).
 
 
 log(_Config) ->
