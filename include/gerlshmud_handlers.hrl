@@ -33,7 +33,8 @@
 
 -define(BODY_PART_HANDLERS, {handlers, [gerlshmud_handler_body_part_look,
                                         gerlshmud_handler_body_part_inv,
-                                        gerlshmud_handler_body_part_inject_self |
+                                        gerlshmud_handler_body_part_inject_self,
+                                        gerlshmud_handler_body_part_cleanup |
                                         ?UNIVERSAL_HANDLERS]}).
 
 -define(ATTRIBUTE_HANDLERS, {handlers, [gerlshmud_handler_attribute_look,
