@@ -6,7 +6,7 @@
 -define(WORLD_1, [{room_nw,
                       [{exit, exit_ns},
                        {exit, exit_ew},
-                       {character, player},
+                       {visitor, player},
                        {icon, room},
                        ?ROOM_HANDLERS]},
 
@@ -39,7 +39,7 @@
                        ?EXIT_HANDLERS]}]).
 
 -define(WORLD_2, [{room,
-                      [{player, player},
+                      [{visitor, player},
                        {item, sword},
                        {item, apple},
                        {icon, room},
@@ -225,7 +225,7 @@
                        ?ITEM_HANDLERS]}]).
 
 -define(WORLD_4, [{room,
-                      [{player, player},
+                      [{visitor, player},
                        ?ROOM_HANDLERS]},
 
                   {player,
@@ -324,7 +324,7 @@
                        ?ITEM_HANDLERS]}]).
 
 -define(WORLD_7, [{room,
-                      [{character, giant},
+                      [{visitor, giant},
                        {name, <<"room">>},
                        {desc, <<"an empty space">>},
                        {item, bread},
@@ -479,8 +479,8 @@
 
 -define(WORLD_8, [{room1,
                       [{is_room, true},
-                       {character, giant},
-                       {character, player},
+                       {visitor, giant},
+                       {visitor, player},
                        {item, shield},
                        {item, force_field},
                        {name, <<"room">>},
@@ -727,7 +727,7 @@
                  ]).
 
 -define(WORLD_9, [{room,
-                      [{character, dog},
+                      [{visitor, dog},
                        {item, collar},
                        {icon, room},
                        ?ROOM_HANDLERS]},
@@ -755,7 +755,7 @@
                        ?ATTRIBUTE_HANDLERS]} ]).
 
 -define(WORLD_10, [{room,
-                       [{character, player},
+                       [{visitor, player},
                         {item, rifle},
                         {exit, exit_1_2},
                         {icon, exit},
@@ -805,8 +805,8 @@
                         ?ITEM_HANDLERS]} ]).
 
 -define(WORLD_11, [{room,
-                       [{character, player},
-                        {character, giant},
+                       [{visitor, player},
+                        {visitor, giant},
                         {icon, room},
                         ?ROOM_HANDLERS]},
 
