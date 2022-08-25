@@ -431,7 +431,10 @@ print({op, _Line, Operator, Expr1, Expr2}) ->
 
 print({call, _Line, {atom, _Line2, FunctionName}, Params}) ->
     ParamBins = map_separate(<<", ">>, fun print/1, Params),
-    [a2b(FunctionName), <<"(">>, ParamBins, <<")">>].
+    [a2b(FunctionName), <<"(">>, ParamBins, <<")">>];
+
+print({cons, _Line, Var1, Var2}) ->
+    [<<"[">>, print(Var1), <<" | ">>, print(Var2), <<"]">>].
 
 
 %separate(List) when is_list(List) ->

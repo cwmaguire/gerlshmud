@@ -114,7 +114,7 @@ attempt({#parents{character = Character}, Props, {Character, stop_attack}}) ->
 
 attempt({#parents{character = Character},
          Props,
-         {die, Character}}) ->
+         {Character, die}}) ->
     Log = [{?SOURCE, Character},
            {?EVENT, die}],
     {succeed, true, Props, Log};

@@ -209,16 +209,19 @@ has_space(Props, _) ->
     end.
 
 clear_child_body_part(Props, Item, Target) ->
-    log([{?EVENT, give_item}, {to, Target}, {props, Props}]),
+    log([{?EVENT, give_item},
+         {to, Target},
+         {props, Props}]),
     BodyPartType = proplists:get_value(body_part, Props, undefined),
     ItemRef = item_ref(Item, Props),
-    gerlshmud_object:attempt(Item, {Target,
-                                 clear_child_property,
-                                 body_part,
-                                 'if',
-                                 #body_part{body_part = self(),
-                                            type = BodyPartType,
-                                            ref = ItemRef}}),
+    gerlshmud_object:attempt(Item,
+                             {Target,
+                              clear_child_property,
+                              body_part,
+                              'if',
+                              #body_part{body_part = self(),
+                                         type = BodyPartType,
+                                         ref = ItemRef}}),
     lists:keydelete({Item, ItemRef}, 2, Props).
 
 item_ref(Item, Props) ->

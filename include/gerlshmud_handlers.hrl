@@ -2,7 +2,8 @@
 -define(GERLSHMUD_HANDLERS_HRL,already_included).
 
 -define(UNIVERSAL_HANDLERS, [gerlshmud_handler_set_child_property,
-                             gerlshmud_handler_delete_property]).
+                             gerlshmud_handler_delete_property,
+                             gerlshmud_handler_stop]).
 
 -define(ROOM_HANDLERS, {handlers, [gerlshmud_handler_room_inject_self,
                                    gerlshmud_handler_room_inv,
@@ -15,12 +16,14 @@
                                         gerlshmud_handler_char_inv,
                                         gerlshmud_handler_char_move,
                                         gerlshmud_handler_char_inject_self,
-                                        gerlshmud_handler_char_enter_world |
+                                        gerlshmud_handler_char_enter_world,
+                                        gerlshmud_handler_char_cleanup |
                                         ?UNIVERSAL_HANDLERS]}).
 
 -define(ITEM_HANDLERS, {handlers, [gerlshmud_handler_item_look,
                                    gerlshmud_handler_item_inv,
-                                   gerlshmud_handler_item_inject_self |
+                                   gerlshmud_handler_item_inject_self,
+                                   gerlshmud_handler_item_cleanup |
                                    ?UNIVERSAL_HANDLERS]}).
 
 -define(CONN_HANDLERS, {handlers, [gerlshmud_handler_conn_enter_world,
@@ -30,7 +33,8 @@
 
 -define(BODY_PART_HANDLERS, {handlers, [gerlshmud_handler_body_part_look,
                                         gerlshmud_handler_body_part_inv,
-                                        gerlshmud_handler_body_part_inject_self |
+                                        gerlshmud_handler_body_part_inject_self,
+                                        gerlshmud_handler_body_part_cleanup |
                                         ?UNIVERSAL_HANDLERS]}).
 
 -define(ATTRIBUTE_HANDLERS, {handlers, [gerlshmud_handler_attribute_look,

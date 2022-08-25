@@ -127,8 +127,8 @@ init(Props) ->
                   process_flag(trap_exit, true),
                   receive
                       {'EXIT', From, Reason} ->
-                          io:format("~p died because ~p~n",
-                                    [From, Reason])
+                          io:format("Watcher process ~p: ~p died because ~p~n",
+                                    [self(), From, Reason])
                   end
           end,
     spawn_link(Fun),
@@ -158,9 +158,13 @@ handle_cast_({set, Prop = {K, _}}, State = #state{props = Props}) ->
 handle_cast_({attempt, Msg, Procs}, State = #state{props = Props}) ->
     %ct:pal("~p:handle_cast_({attempt, ~p, ...~n", [?MODULE, Msg]),
     IsExit = proplists:get_value(is_exit, Props, false),
-    NewState = #state{props = Props2} = maybe_attempt(Msg, Procs, IsExit, State),
-    gerlshmud_index:put(Props2),
-    {noreply, NewState};
+    case maybe_attempt(Msg, Procs, IsExit, State) of
+        Stop = {stop, _, _} ->
+            Stop;
+        Continue = {noreply, #state{props = Props2}} ->
+            gerlshmud_index:put(Props2),
+            Continue
+    end;
 handle_cast_({fail, Reason, Msg}, State) ->
     ct:pal("~p:handle_cast_({fail ...~n", [?MODULE]),
     case fail(Reason, Msg, State) of
@@ -174,6 +178,8 @@ handle_cast_({fail, Reason, Msg}, State) ->
                  {stop_reason, Reason} |
                  Props ++ ParentsList ++ LogProps]),
             gerlshmud_index:put(Props),
+            % FIXME I think this will just cause the supervisor to restart it
+            % Probably need to tell the supervisor to kill us
             {stop, {shutdown, Reason}, State#state{props = Props}};
         {Props, _, _, LogProps} ->
             {_, ParentsList} = parents(Props),
@@ -189,13 +195,21 @@ handle_cast_({succeed, Msg}, State) ->
     case succeed(Msg, State) of
         {stop, Reason, Props, LogProps} ->
             {_, ParentsList} = parents(Props),
-            log([{stage, succed_stop},
+            log([{stage, succeed},
+                 {event, stop},
                  {object, self()},
                  {message, Msg},
                  {stop_reason, Reason} |
                  Props ++ ParentsList ++ LogProps]),
             gerlshmud_index:put(Props),
-            {stop, {shutdown, Reason}, State#state{props = Props}};
+            Self = self(),
+            spawn(fun() ->
+                      % TODO clean out backups and index
+                      % There's a terminate function that I don't seem to be using
+                      ct:pal("~p Spawning child terminator for ~p~n", [self(), Self]),
+                      supervisor:terminate_child(gerlshmud_object_sup, Self)
+                  end),
+            {noreply, State#state{props = Props}};
         {Props, LogProps} ->
             {_, ParentsList} = parents(Props),
             log([{stage, succeed},
@@ -207,7 +221,7 @@ handle_cast_({succeed, Msg}, State) ->
     end.
 
 handle_info({'EXIT', From, Reason}, State = #state{props = Props}) ->
-    ct:pal("~p:handle_info({'EXIT' ...~n", [?MODULE]),
+    ct:pal("~p:handle_info({'EXIT', From: ~p, Reason: ~p}) - ~p~n", [?MODULE, From, Reason, self()]),
     {_, ParentsList} = parents(Props),
     log([{?EVENT, exit},
          {object, self()},
@@ -218,11 +232,10 @@ handle_info({'EXIT', From, Reason}, State = #state{props = Props}) ->
     gerlshmud_index:subscribe_dead(self(), From),
     Props2 = mark_pid_dead(From, Props),
     gerlshmud_index:put(Props2),
-    {noreply, State#state{props = Props2}};
+    {stop, normal, State#state{props = Props2}};
 handle_info({replace_pid, OldPid, NewPid}, State = #state{props = Props})
   when is_pid(OldPid), is_pid(NewPid) ->
     ct:pal("~p:handle_info({replace_pid...~n", [?MODULE]),
-    link(NewPid),
     Props2 = replace_pid(Props, OldPid, NewPid),
     gerlshmud_index:unsubscribe_dead(self(), OldPid),
     gerlshmud_index:put(Props2),
@@ -280,13 +293,6 @@ attempt_(Msg,
          Procs,
          State = #state{props = Props}) ->
     {Parents, ParentsList} = parents(Props),
-    %% So far it looks like nothing actually changes the object properties on attempt
-    %% but I'm leaving it in for now
-    %% I found a case: you attempt to shoot someone and you miss: the clip can lose a round ...
-    %% except the clip could just listen for the result and decrement the ammunition then.
-    %% I think I should stick with attempts never modifying the world ...
-    %% if that's still possible, other than reserved resources ... although
-    %% maybe even that should happen in succeed/fail
     {Handler,
      Results = {Result,
                 Msg2,
@@ -307,8 +313,21 @@ attempt_(Msg,
          LogProps ++
          result_tuples(Result)),
     MergedProcs = merge(self(), is_room(Props), Results, Procs),
-    _ = handle(Result, Msg2, MergedProcs, Props2),
-    State#state{props = Props2}.
+    State2 = State#state{props = Props2},
+    case handle(Result, Msg2, MergedProcs, Props2) of
+        stop ->
+            % XXX I don't think I should be stopping processes on attempt
+
+            % TODO clean out backups and index
+            % There's a terminate function that I don't seem to be using
+            Self = self(),
+            spawn(fun() ->
+                      supervisor:terminate_child(gerlshmud_object_sup, Self)
+                  end),
+            {noreply, State2};
+        _ ->
+            {noreply, State2}
+    end.
 
 parents(Props) ->
     Owner = proplists:get_value(owner, Props),
@@ -341,7 +360,9 @@ result_tuples({resend, Target, Message}) ->
 result_tuples(succeed) ->
     [{result, succeed}];
 result_tuples({broadcast, Message}) ->
-    [{result, broadcast}, {new_message, Message}].
+    [{result, broadcast}, {new_message, Message}];
+result_tuples(stop) ->
+    [{result, stop}].
 
 run_handlers(Attempt = {_, Props, _}) ->
     Handlers = proplists:get_value(handlers, Props),
@@ -396,7 +417,16 @@ handle({broadcast, Msg}, _Msg, _Procs, Props) ->
                           Key /= character,
                           Key /= body_part,
                           Key /= top_item],
-    [broadcast(V, Msg) || V <- procs(NotParents)].
+    [broadcast(Proc, Msg) || Proc <- procs(NotParents)];
+% XXX what's this used by?
+handle(stop, _Msg, _Procs, Props) ->
+    NotParents = [Prop || Prop = {Key, _} <- Props,
+                          Key /= owner,
+                          Key /= character,
+                          Key /= body_part,
+                          Key /= top_item],
+    [broadcast(Proc, stop) || Proc <- procs(NotParents)],
+    stop.
 
 broadcast(Pid, Msg) ->
     attempt(Pid, Msg).
@@ -421,21 +451,13 @@ populate_(Props, IdPids) ->
 set_pid(Prop = {id, _V}, {IdPids, Props}) ->
     {IdPids, [Prop | Props]};
 set_pid({K, {{pid, V1}, V2}}, {IdPids, Props}) ->
-    {IdPids, [{K, {proc(V1, IdPids), V2}} | Props]};
+    {IdPids, [{K, {maybe_proc(V1, IdPids), V2}} | Props]};
 set_pid({K, V}, {IdPids, Props}) ->
-    {IdPids, [{K, proc(V, IdPids)} | Props]}.
+    {IdPids, [{K, maybe_proc(V, IdPids)} | Props]}.
 
-proc(MaybeId, IdPids) when is_atom(MaybeId) ->
-    MaybePid = proplists:get_value(MaybeId, IdPids, MaybeId),
-    case is_pid(MaybePid) of
-        true ->
-            log([{?EVENT, link}, {source, self()}, {target, MaybePid}]),
-            link(MaybePid);
-        false ->
-            ok
-    end,
-    MaybePid;
-proc(Value, _) ->
+maybe_proc(MaybeId, IdPids) when is_atom(MaybeId) ->
+    proplists:get_value(MaybeId, IdPids, MaybeId);
+maybe_proc(Value, _) ->
     Value.
 
 % TODO Does this handle {K, {PID, bodypart}} properties?

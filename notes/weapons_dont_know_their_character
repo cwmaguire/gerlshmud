@@ -1,77 +1,62 @@
 Weapons don’t know their character
 
-----------------------------------------------------------------------------------------------------
 August 7, 2017
 
-I realized that body_parts also need to track the reference of when something was put under the body part hierarchy.
-This way when we go to remove the object we can only remove it if the object hasn’t been moved since we created that
-ref.
-
-If it has a new ref, and is on this body part, then it must have been moved away and moved back again. It would require
-things to get out of order for an old reference to show up in a message after a new reference had been created, but it
-could happen.
+I realized that body_parts also need to track the reference of when something was put under the body part hierarchy. This way when we go to remove the object we can only remove it if the object hasn’t been moved since we created that ref. If it has a new ref, and is on this body part, then it must have been moved away and moved back again. It would require things to get out of order for an old reference to show up in a message after a new reference had been created, but it could happen.
 
 ----------------------------------------------------------------------------------------------------
+
 August 6, 2017
 
-I need to modify this so that I can remove the body_part, character, and top_item properties from an item in a
-concurrent way: i.e. handle out-of-order calls.
-I think I can do this by adding a ref to the properties: if we go to remove a property but the ref no longer matches,
-then the value has been reset since the remove event was kicked off. The item has to track the ref it used to create
-the top item (or the top item itself) in order to clear it with that same ref. Every time we get put on a new body
-part we need create a new top item ref.
+I need to modify this so that I can remove the body_part, character, and top_item properties from an item in a concurrent way: i.e. handle out-of-order calls.
+I think I can do this by adding a ref to the properties: if we go to remove a property but the ref no longer matches, then the value has been reset since the remove event was kicked off. The item has to track the ref it used to create the top item (or the top item itself) in order to clear it with that same ref. Every time we get put on a new body part we need create a new top item ref.
 
-Body parts should set and remove themselves on items. Characters should set and remove themselves on items. Top items
-should set and remove themselves on items.
+Body parts should set and remove themselves on items. Characters should set and remove themselves on items. Top items should set and remove themselves on items.
+(Also, if I want to go multiple levels deep on items then I should have multiple “top” item properites: e.g. obj A has obj B has obj C has obj D; D might need to know about A (top item), C (parent) _and_ B (grand-parent) to a unlimited depth)
 
-(Also, if I want to go multiple levels deep on items then I should have multiple “top” item properites: e.g. obj A has
-obj B has obj C has obj D; D might need to know about A (top item), C (parent) _and_ B (grand-parent) to a unlimited depth)
-Ah, one problem is “wielded with”. This needs to be set by the top item (and can go in the #top_item{} record … oh, and
-it already is). The item being moved to a body part knows if that body part type is a wielding body part type
-(e.g. a hand wields a sword, but a foot doesn’t wield brass knuckles, … usually)
+Ah, one problem is “wielded with”. This needs to be set by the top item (and can go in the #top_item{} record … oh, and it already is). The item being moved to a body part knows if that body part type is a wielding body part type (e.g. a hand wields a sword, but a foot doesn’t wield brass knuckles, … usually)
 
 ----------------------------------------------------------------------------------------------------
+
 Feb 24, 2017
 
-I implemented setting the character property using a new ‘broadcast’ response (like succeed, fail, resend) which only
-goes down to children of the parent and it’s and attempt -> fail/succeed but rather like a fail/succeed message.
+I implemented setting the character property using a new ‘broadcast’ response (like succeed, fail, resend) which only goes down to children of the parent and it’s and attempt -&gt; fail/succeed but rather like a fail/succeed message.
 
 ----------------------------------------------------------------------------------------------------
+
 July 9, 2016
 
 I implemented this by setting the 'character' property of every process in an item's hierarchy when the item is picked up.
 
 ----------------------------------------------------------------------------------------------------
+
 July 1, 2016
 
 Character -> Body Part -> Weapon / Clothing / Armor / Jewellery
 
 Body Part children don’t know who an attacker or target is so they can’t participate in attacks. e.g. +1/+2 hit/dmg
-Solutions - send more messages to gather up the entire character process tree at attack time
- - add the character to items that are added to body parts (maybe just swap Owner to Character when moving the item to
-   the body part) This only works for items though, not for spells or attributes of items.
- - kick off an ‘add Character’ message on ‘add Item to BodyPart’ success
- - I can’t guarantee a breadth first tree traversal since the process graph
-   isn’t strictly a tree. (i.e. processes aren’t _only_ connected to their parents.) This means I can’t guarantee that by
-   the time a child gets the message that their parent will have seen it, so the child couldn't tell if their parent was in
-   the Character process tree. I think this is the way to go: when adding something to a character kick off a message …
-   “storm” (?) that will set the character on all processes.
 
-This fits the theme of the MUD which is to have independent processes sending and receiving messages.
-- Regularly broadcast to processes who their Character is ... but how to remove the Character property.
+Solutions
+
+- send more messages to gather up the entire character process tree at attack time
+
+- add the character to items that are added to body parts (maybe just swap Owner to Character when moving the item to the body part) This only works for items though, not for spells or attributes of items. - kick off an ‘add Character’ message on ‘add Item to BodyPart’ success - I can’t guarantee a breadth first tree traversal since the process graph isn’t strictly a tree. (i.e. processes aren’t _only_ connected to their parents.) This means I can’t guarantee that by the time a child gets the message that their parent will have seen it, so the child couldn't tell if their parent was in the Character process tree. I think this is the way to go: when adding something to a character kick off a message … “storm” (?) that will set the character on all processes.
+This fits the theme of the MUD which is to have independent processes sending and receiving messages. - Regularly broadcast to processes who their Character is ... but how to remove the Character property.
+
 - Use the registry?
-- Set character when character becomes the owner of a process: Send out a message to every process and have each child
-  process re-broadcast the message with itself as the source. This will still be inefficient because every non-child
-  message at each re-broadcast will see the message. However, the re-broadcasting will stop at one process instead of
-  going to until the TTL. So basically this effectively sets a logical TTL of “only one non-child process away from the source”.
 
- Nope. If we keep sending out failed messages then they don’t stop until the regular TTL.
+- Set character when character becomes the owner of a process: Send out a message to every process and have each child process re-broadcast the message with itself as the source. This will still be inefficient because every non-child message at each re-broadcast will see the message. However, the re-broadcasting will stop at one process instead of going to until the TTL. So basically this effectively sets a logical TTL of “only one non-child process away from the source”.
+Nope. If we keep sending out failed messages then they don’t stop until the regular TTL.
+Keep Passing on Failed Messages (thought of this while working on the ‘set_character’ stuff)
 
- Keep Passing on Failed Messages (thought of this while working on the ‘set_character’ stuff)
- - Fail each attempt and create a new attempt.
- Nope. If I have two children and a sibling then if I send to any one of those they’ll fail it and send it back. If I’m a parent I won’t send it on but then again if I’m anything other than a parent I won’t know _not_ to send it on.
- - Kick off a new message at each child process with the child as the new source so that its children recognize it. These will go on for quite a while.
- I wonder if I could pass back something that says ‘dead end’. That way erlmud_object would know not to grab the rest of the procs from the current process. Instead it would just use what it already had.
- Couple things I missed: I have to send a _new_ message each time so that the child can send the message with itself as the parent. Also, the Character is going to keep getting the message when the children at it as a new property.
- Okay, I think that’s it.
+- Fail each attempt and create a new attempt.
+Nope. If I have two children and a sibling then if I send to any one of those they’ll fail it and send it back. If I’m a parent I won’t send it on but then again if I’m anything other than a parent I won’t know _not_ to send it on.
+
+- Kick off a new message at each child process with the child as the new source so that its children recognize it. These will go on for quite a while.
+I wonder if I could pass back something that says ‘dead end’. That way erlmud_object would know not to grab the rest of the procs from the current process. Instead it would just use what it already had.
+
+Couple things I missed: I have to send a _new_ message each time so that the child can send the message with itself as the parent. Also, the Character is going to keep getting the message when the children at it as a new property.
+
+Okay, I think that’s it.
 Attacks are expensive. Get over it. If this mud only works with 1 room and 2 characters that’s fine. Heck, we could do one room per server.
+
