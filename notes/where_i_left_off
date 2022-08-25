@@ -26,6 +26,16 @@ I'd have to add all body parts and parent items to every attack message.
 a room has multiple {character, Pid} properties. I'm using that to figure out what processes _belong_ to a character.
 Change to {characters, [A, B]} ?
 
+How am I getting away without returning Props on line 75 of _handler_subitem_attack?
+
+gerlshmud_object:ensure_message/2 expects one of:
+- result, sub, props
+- result, sub, props, log
+- result, new message, sub, props, log
+
+I don't need to resend the {Char, cleanup, body_parts, BodyParts, in, Room} message: I can constructively add to it by returning the modified message from attempt.
+Not true: if an item sees the event before it's body_part owner then the body_part won't have added itself to the list.
+
 ----------------------------------------------------------------------------------------------------
 
 2022-08-22
