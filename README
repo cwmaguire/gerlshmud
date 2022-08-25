@@ -1,5 +1,7 @@
 G.Erl.S.H.M.U.D - Graph of ERLang Stream Handlers Multi-User Dungeon
 
+(Actually, it's more like a distruted rules engine than stream handlers)
+
 How it Works (short version):
 All MUD elements (rooms, characters, attributes, weapons, spells) are
 processes.
@@ -148,6 +150,10 @@ Jul  9, 2016 - attributes and items can modify attack hits and damage
 Jun 15, 2017 - uses resources to handle simultaneous attacks
 Feb  1, 2019 - logs are now JSON, added new logging web page
 Feb 11, 2019 - implemented spells and effects
+Oct 20, 2020 - protocol cataloguing, v1
+Aug 29, 2021 - implement attack effects
+Aug  7, 2022 - protocol cataloguing, v2, now with parse transform
+Aug 24, 2022 - corpse cleanup
 
 How to run the tests: (Which is all I've been doing lately)
 
