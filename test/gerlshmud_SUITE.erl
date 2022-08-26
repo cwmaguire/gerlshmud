@@ -746,10 +746,6 @@ revive_process(_Config) ->
     PlayerV2 = val(owner, dexterity0),
     PlayerV2 = val(owner, p_stamina).
 
-%% FIXME: test that a corpse:
-%% - decomposes
-%% - drops all items (i.e. move to room)
-%% - disappears (deletes all processes)
 decompose(Config) ->
     start(?WORLD_3),
     application:set_env(gerlshmud, corpse_cleanup_milis, 1),
