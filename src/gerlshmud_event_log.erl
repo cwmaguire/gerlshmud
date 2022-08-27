@@ -1,3 +1,4 @@
+%% Copyright 2022, Chris Maguire <cwmaguire@protonmail.com>
 -module(gerlshmud_event_log).
 
 -behaviour(gen_server).

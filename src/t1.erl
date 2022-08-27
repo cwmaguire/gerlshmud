@@ -1,3 +1,4 @@
+%% Copyright 2022, Chris Maguire <cwmaguire@protonmail.com>
 -module(t1).
 
 -export([go/0]).

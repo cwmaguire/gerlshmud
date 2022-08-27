@@ -1,3 +1,4 @@
+%% Copyright 2022, Chris Maguire <cwmaguire@protonmail.com>
 -module(gerlshmud_SUITE).
 -compile(export_all).
 

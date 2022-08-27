@@ -1,3 +1,4 @@
+%% Copyright 2022, Chris Maguire <cwmaguire@protonmail.com>
 -module(test_compilation_of_hrl_files).
 
 -include("gerlshmud.hrl").
