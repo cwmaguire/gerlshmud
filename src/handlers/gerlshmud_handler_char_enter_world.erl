@@ -1,4 +1,5 @@
 %% Copyright 2022, Chris Maguire <cwmaguire@protonmail.com>
+-module(gerlshmud_handler_char_enter_world).
 -behaviour(gerlshmud_handler).
 -compile({parse_transform, gerlshmud_protocol_parse_transform}).
 
