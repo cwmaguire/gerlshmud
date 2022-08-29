@@ -19,10 +19,8 @@ attempt({#parents{owner = Character},
            {?EVENT, cleanup_bodyparts}],
     case lists:member(Self, BodyParts) of
         false ->
-            %NewBodyParts = [Self, BodyParts],
-            %NewMessage = {Character, cleanup, body_parts, NewBodyParts, in, Room},
             NewMessage = {Character, cleanup, body_parts, [Self | BodyParts], in, Room},
-            {{resend, Character, NewMessage}, false, Props, Log};
+            {succeed, NewMessage, false, Props, Log};
         true ->
             {succeed, false, Props, Log}
     end;
