@@ -71,8 +71,36 @@ attempt({#parents{owner = Owner},
         _ ->
             {succeed, false, Props}
     end;
+attempt({#parents{owner = Owner},
+         Props,
+         Msg = {Self, attack, Attacker}})
+  when Self == self() ->
+    log([{stage, attempt},
+         {?EVENT, attack},
+         {?SOURCE, Attacker},
+         {?TARGET, Owner}]),
+    case proplists:get_value(is_alive, Props, false) of
+        false ->
+            {{fail, target_is_dead}, _Subscribe = false, Props};
+        _ ->
+            {succeed, false, Props}
+    end;
+attempt({#parents{owner = Owner},
+         Props,
+         Msg = {Searcher, search, Self}})
+  when Self == self() ->
+    log([{?EVENT, search},
+         {?SOURCE, Searcher},
+         {?TARGET, Self}]),
+    case proplists:get_value(is_alive, Props, false) of
+        true ->
+            {{fail, target_is_alive}, _Subscribe = false, Props};
+        _ ->
+            {succeed, true, Props}
+    end;
 
 %% TODO fail everything when dead, e.g. move, wield, attack, etc.
+%% Might be easier to list everything that _doesn't_ fail.
 
 attempt(_) ->
     undefined.

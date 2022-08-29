@@ -38,7 +38,8 @@ all() ->
      look_item,
      set_character,
      cast_spell,
-     decompose].
+     decompose,
+     search_character].
 
 init_per_testcase(_, Config) ->
     %gerlshmud_dbg:add(gerlshmud_object, handle_cast_),
@@ -766,6 +767,30 @@ decompose(Config) ->
         ],
     wait_for(Conditions, 3).
 
+search_character(_Config) ->
+    start(?WORLD_12),
+    gerlshmud_test_socket:send(<<"AnyLoginWillDo">>),
+    gerlshmud_test_socket:send(<<"AnyPasswordWillDo">>),
+    ?WAIT100,
+    _LoginMessages = gerlshmud_test_socket:messages(),
+    gerlshmud_test_socket:send(<<"search Arlene">>),
+    ?WAIT100,
+    ?WAIT100,
+    ?WAIT100,
+    NakedDescriptions = gerlshmud_test_socket:messages(),
+
+    ExpectedDescriptions =
+        [<<"Arlene has: book name: book desc">>,
+         <<"Arlene has: coin name: coin desc">>,
+         <<"Arlene has: shield name: shield desc">>,
+         <<"Arlene has: sword name: sword desc">>],
+
+    case lists:sort(NakedDescriptions) of
+        ExpectedDescriptions ->
+            ok;
+        _ ->
+            ct:fail("Got descriptions:~p~nbut expected~p~n", [lists:sort(NakedDescriptions), ExpectedDescriptions])
+    end.
 
 log(_Config) ->
     {ok, Cwd} = file:get_cwd(),

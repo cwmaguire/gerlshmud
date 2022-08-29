@@ -17,6 +17,7 @@
                                         gerlshmud_handler_char_move,
                                         gerlshmud_handler_char_inject_self,
                                         gerlshmud_handler_char_enter_world,
+                                        gerlshmud_handler_char_search,
                                         gerlshmud_handler_char_cleanup |
                                         ?UNIVERSAL_HANDLERS]}).
 

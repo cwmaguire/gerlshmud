@@ -347,6 +347,7 @@
                       [{owner, player},
                        {type, height},
                        {value, <<"2.2">>},
+                       %% XXX I don't think this is used anymore: I have desc templates in gerlshmud.app.src
                        {desc, [value, <<"m tall">>]},
                        {icon, stat},
                        ?ATTRIBUTE_HANDLERS]},
@@ -917,3 +918,75 @@
                         {max, 10},
                         {icon, resource},
                         ?RESOURCE_HANDLERS]}]).
+
+-define(WORLD_12, [{room,
+                      [{visitor, player},
+                       {visitor, zombie},
+                       {icon, room},
+                       ?ROOM_HANDLERS]},
+
+                  {player,
+                      [{owner, room},
+                       {icon, person},
+                       ?CHARACTER_HANDLERS]},
+
+                  {zombie,
+                      [{owner, room},
+                       {name, <<"Arlene">>},
+                       {life, z_life},
+                       {body_part, z_hand_left},
+                       {body_part, z_hand_right},
+                       {icon, person},
+                       ?CHARACTER_HANDLERS]},
+
+                  {z_hand_left,
+                      [{owner, zombie},
+                       {item, sword},
+                       {icon, person},
+                       ?BODY_PART_HANDLERS]},
+
+                  {z_hand_right,
+                      [{owner, zombie},
+                       {item, shield},
+                       {icon, person},
+                       ?BODY_PART_HANDLERS]},
+
+                  {coin,
+                      [{owner, zombie},
+                       {icon, item},
+                       {name, <<"coin name">>},
+                       {desc, <<"coin desc">>},
+                       {drop_on_death, true},
+                       ?ITEM_HANDLERS]},
+
+                  {book,
+                      [{owner, zombie},
+                       {icon, book},
+                       {name, <<"book1 name">>},
+                       {desc, <<"book1 desc">>},
+                       {drop_on_death, true},
+                       ?ITEM_HANDLERS]},
+
+                  {skin,
+                      [{owner, zombie},
+                       {icon, book},
+                       {name, <<"skin name">>},
+                       {desc, <<"skin desc">>},
+                       %% No drop on death, defaults to false
+                       ?ITEM_HANDLERS]},
+
+                  {sword,
+                      [{owner, z_hand_left},
+                       {icon, weapon},
+                       {name, <<"sword name">>},
+                       {desc, <<"sword desc">>},
+                       {drop_on_death, true},
+                       ?ITEM_HANDLERS]},
+
+                  {shield,
+                      [{owner, z_hand_right},
+                       {icon, weapon},
+                       {name, <<"shield name">>},
+                       {desc, <<"shield desc">>},
+                       {drop_on_death, true},
+                       ?ITEM_HANDLERS]}]).
