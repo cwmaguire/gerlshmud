@@ -9,34 +9,6 @@
 -export([succeed/1]).
 -export([fail/1]).
 
-% TODO move to item_inject_self?
-attempt({#parents{}, Props, Msg = {Source, look, TargetName}})
-  when Source =/= self(),
-       is_binary(TargetName) ->
-    SelfName = proplists:get_value(name, Props, <<>>),
-    case re:run(SelfName, TargetName, [{capture, none}, caseless]) of
-        match ->
-            NewMessage = {Source, look, self()},
-            log([{stage, attempt},
-                 {?EVENT, inject_self},
-                 {sub_type, look},
-                 {object, self()},
-                 {props, Props},
-                 {?SOURCE, Source},
-                 {name, TargetName},
-                 {sub, ignored},
-                 {message, Msg},
-                 {resend, NewMessage}]),
-            {{resend, Source, NewMessage}, _ShouldSubscribe = ignored, Props};
-        _ ->
-            io:format(user, "Name ~p did not match this item's name ~p~n", [TargetName, SelfName]),
-            log([<<"Name ">>,
-                 TargetName,
-                 <<" did not match this item's name: ">>,
-                 SelfName,
-                 <<".\n">>]),
-            {succeed, false, Props}
-    end;
 attempt({#parents{}, Props, {Source, look, Self}}) when Self == self() ->
     log([{?EVENT, look},
          {?SOURCE, Source} ]),
@@ -46,48 +18,34 @@ attempt({#parents{},
          {Source, describe, Self, with, Context}}) when Self == self() ->
     log([{stage, attempt},
          {?EVENT, describe},
-         {object, Self},
-         {props, Props},
          {?SOURCE, Source},
          {?TARGET, Self},
-         {context, Context},
-         {sub, true}]),
+         {context, Context}]),
     {succeed, true, Props};
 attempt({#parents{owner = Owner},
          Props,
          {Source, describe, Owner, with, Context}}) ->
-    log([{stage, attempt},
-         {?EVENT, describe},
-         {object, self()},
-         {props, Props},
+    log([{?EVENT, describe},
          {?SOURCE, Source},
          {?TARGET, Owner},
-         {context, Context},
-         {sub, true}]),
+         {context, Context}]),
     {succeed, true, Props};
 attempt(_) ->
     undefined.
 
-succeed({Props, Msg = {Source, look, Self}}) when Self == self() ->
-    log([{stage, succeed},
-         {?EVENT, look},
+succeed({Props, {Source, look, Self}}) when Self == self() ->
+    log([{?EVENT, look},
          {object, Self},
-         {props, Props},
          {?SOURCE, Source},
-         {?TARGET, Self},
-         {message, Msg}]),
+         {?TARGET, Self}]),
     describe(Source, Props, <<>>, deep),
     Props;
-succeed({Props, Msg = {Source, describe, Target, with, Context}}) ->
+succeed({Props, {Source, describe, Target, with, Context}}) ->
     _ = case is_owner(Target, Props) of
             true ->
-                log([{stage, succeed},
-                     {?EVENT, describe},
-                     {object, Target},
-                     {props, Props},
+                log([{?EVENT, describe},
                      {?SOURCE, Source},
                      {?TARGET, self()},
-                     {message, Msg},
                      {context, Context}]),
                 describe(Source, Props, Context, shallow);
             _ ->
