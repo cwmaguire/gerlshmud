@@ -422,7 +422,10 @@ print({call, _Line, {atom, _Line2, FunctionName}, Params}) ->
     [a2b(FunctionName), <<"(">>, ParamBins, <<")">>];
 
 print({cons, _Line, Var1, Var2}) ->
-    [<<"[">>, print(Var1), <<" | ">>, print(Var2), <<"]">>].
+    [<<"[">>, print(Var1), <<" | ">>, print(Var2), <<"]">>];
+
+print({nil, _Line}) ->
+    <<"[]">>.
 
 
 %separate(List) when is_list(List) ->
