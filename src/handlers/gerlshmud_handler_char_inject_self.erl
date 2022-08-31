@@ -11,7 +11,9 @@
 
 attempt({#parents{}, Props, {Source, Action, TargetName}})
   when is_binary(TargetName) andalso
-      (Action == look orelse Action == attack) ->
+      (Action == look orelse
+       Action == attack orelse
+       Action == search) ->
     ct:pal("Running char inject self handler: ~p ~p ~p", [Source, Action, TargetName]),
     Log = [{?SOURCE, Source},
            {?EVENT, Action}],
