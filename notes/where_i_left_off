@@ -13,6 +13,22 @@ What do I _need_ for a MUD?
 - loot
 - wield
 
+2022-08-30
+
+D'oh! I didn't have a {room, Room} property in my player character and the connection gear was depending on it. I've fixed the connection gear to use {owner, Room} instead.
+
+--------------------------------------------------
+
+2022-08-29
+
+The connection doesn't seem to be getting my {send, Player, <Msg>} events.
+
+The 'conn' property of the player seems to get erased.
+
+I don't see anything in gerlshmud_event_log.erl that would filter a {conn, <pid>} property out of an objects properties.
+
+--------------------------------------------------
+
 2022-08-28
 
 I think I'll only need the character's name for listing items on a corpse:
