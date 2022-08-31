@@ -19,7 +19,7 @@ attempt({#parents{owner = Owner},
     case lists:member(Self, BodyParts) of
         false ->
             NewMessage = {Searcher, search, Owner, named, Name, with, body_parts, [Self| BodyParts]},
-            {succeed, NewMessage, false, props, Log};
+            {succeed, NewMessage, false, Props, Log};
         true ->
             {succeed, false, Props, Log}
     end;
