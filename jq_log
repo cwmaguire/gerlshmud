@@ -4,4 +4,6 @@
 
 #cat <(echo "[") <(sed -e 's/.*/&,/' logs/gerlshmud.log) <(echo "{}]") | jq --compact-output -a '.[] | {pid, id, owner, message, event_type}'
 #cat <(echo "[") <(sed -e 's/.*/&,/' logs/gerlshmud.log) <(echo "{}]") | jq --compact-output -a '.[] | select(.id == "room") | {pid, id, owner, character, stage, event_type, message}'
-cat <(echo "[") <(sed -e 's/.*/&,/' logs/gerlshmud.log) <(echo "{}]") | jq --compact-output -a '.[] | {pid, id, owner, character, stage, event_type, message}'
+#cat <(echo "[") <(sed -e 's/.*/&,/' logs/gerlshmud.log) <(echo "{}]") | jq --compact-output -a '.[] | {pid, id, owner, character, stage, event_type, message}'
+#cat <(echo "[") <(sed -e 's/.*/&,/' logs/gerlshmud.log) <(echo "{}]") | jq --compact-output -a '.[] | select(.event_type != "populate") | {pid, id, name, owner, character, stage, event_type, conn, message}'
+cat <(echo "[") <(sed -e 's/.*/&,/' logs/gerlshmud.log) <(echo "{}]") | jq --compact-output -a '.[] | select(.event_type != "populate") | {pid, id, conn, event_type, stage, message}'
