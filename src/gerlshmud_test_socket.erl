@@ -46,7 +46,6 @@ handle_cast(_Req = Text, State = #state{conn = Conn}) ->
     {noreply, State}.
 
 handle_info({send, Msg}, State = #state{messages = Messages}) ->
-    ct:pal("Test socket received: ~p~n", [Msg]),
     ct:pal("Test socket received: ~p~n", [flatten(Msg)]),
     {noreply, State#state{messages = [flatten(Msg) | Messages]}};
 handle_info(_Req, State) ->
