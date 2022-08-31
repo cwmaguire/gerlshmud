@@ -9,20 +9,29 @@
 
 -include("include/gerlshmud.hrl").
 
-attempt({#parents{owner = Owner},
+attempt({#parents{owner = Char},
          Props,
-         {Player, search, Owner, named, _Name, with, body_parts, _BodyParts}}) ->
+         {Player, search, Char, named, _Name, with, body_parts, _BodyParts}}) ->
     Log = [{?EVENT, search},
            {?SOURCE, Player},
-           {?TARGET, Owner}],
+           {?TARGET, Char}],
     {succeed, true, Props, Log};
+attempt({#parents{owner = Owner},
+         Props,
+         {Player, search, Char, named, _Name, with, body_parts, BodyParts}}) ->
+    Log = [{?EVENT, search},
+           {?SOURCE, Player},
+           {?TARGET, Char}],
+    ShouldSubscribe = lists:member(Owner, BodyParts),
+    {succeed, ShouldSubscribe, Props, Log};
 attempt(_) ->
     undefined.
 
 succeed({Props,
-         {Player, search, _Owner, named, Name, with, body_parts, _BodyParts}}) ->
-    Context = <<Name/binary, " has: ">>,
-    send_description(Player, Props, Context);
+         {Player, search, _Char, named, Name, with, body_parts, _BodyParts}}) ->
+    Context = <<Name/binary, " has ">>,
+    send_description(Player, Props, Context),
+    Props;
 succeed({Props, _Msg}) ->
     Props.
 

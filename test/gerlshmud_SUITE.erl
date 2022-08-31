@@ -768,6 +768,10 @@ decompose(Config) ->
     wait_for(Conditions, 3).
 
 search_character(_Config) ->
+    %gerlshmud_dbg:add(gerlshmud_event_log, log),
+    %gerlshmud_dbg:add(gerlshmud_event_log, handle_cast),
+    %gerlshmud_dbg:add(gerlshmud_object, log),
+    %gerlshmud_dbg:add(gerlshmud_event_log, flatten, 1),
     start(?WORLD_12),
     gerlshmud_test_socket:send(<<"AnyLoginWillDo">>),
     gerlshmud_test_socket:send(<<"AnyPasswordWillDo">>),
@@ -780,16 +784,17 @@ search_character(_Config) ->
     NakedDescriptions = gerlshmud_test_socket:messages(),
 
     ExpectedDescriptions =
-        [<<"Arlene has: book name: book desc">>,
-         <<"Arlene has: coin name: coin desc">>,
-         <<"Arlene has: shield name: shield desc">>,
-         <<"Arlene has: sword name: sword desc">>],
+        [<<"Arlene has book name: book desc">>,
+         <<"Arlene has coin name: coin desc">>,
+         <<"Arlene has shield name: shield desc">>,
+         <<"Arlene has sword name: sword desc">>],
 
     case lists:sort(NakedDescriptions) of
         ExpectedDescriptions ->
             ok;
         _ ->
-            ct:fail("Got descriptions:~p~nbut expected~p~n", [lists:sort(NakedDescriptions), ExpectedDescriptions])
+            ct:fail("Got item descriptions:~p~nbut expected~p~n",
+                    [lists:sort(NakedDescriptions), ExpectedDescriptions])
     end.
 
 log(_Config) ->
