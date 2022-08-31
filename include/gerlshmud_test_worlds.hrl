@@ -922,6 +922,7 @@
 -define(WORLD_12, [{room,
                       [{visitor, player},
                        {visitor, zombie},
+                       {item, bucket},
                        {icon, room},
                        ?ROOM_HANDLERS]},
 
@@ -936,6 +937,8 @@
                        {life, z_life},
                        {body_part, z_hand_left},
                        {body_part, z_hand_right},
+                       {item, coin},
+                       {item, book},
                        {icon, person},
                        ?CHARACTER_HANDLERS]},
 
@@ -959,20 +962,20 @@
                        {drop_on_death, true},
                        ?ITEM_HANDLERS]},
 
-                  {book,
-                      [{owner, zombie},
-                       {icon, book},
-                       {name, <<"book1 name">>},
-                       {desc, <<"book1 desc">>},
+                  {bucket,
+                      [{owner, room},
+                       {icon, item},
+                       {name, <<"bucket name">>},
+                       {desc, <<"bucket desc">>},
                        {drop_on_death, true},
                        ?ITEM_HANDLERS]},
 
-                  {skin,
+                  {book,
                       [{owner, zombie},
                        {icon, book},
-                       {name, <<"skin name">>},
-                       {desc, <<"skin desc">>},
-                       %% No drop on death, defaults to false
+                       {name, <<"book name">>},
+                       {desc, <<"book desc">>},
+                       {drop_on_death, true},
                        ?ITEM_HANDLERS]},
 
                   {sword,
