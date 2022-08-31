@@ -1,6 +1,6 @@
 G.Erl.S.H.M.U.D - Graph of ERLang Stream Handlers Multi-User Dungeon
 
-(Actually, it's more like a distruted rules engine than stream handlers)
+(Actually, it's more like a distributed rules engine than stream handlers)
 
 How it Works (short version):
 All MUD elements (rooms, characters, attributes, weapons, spells) are
