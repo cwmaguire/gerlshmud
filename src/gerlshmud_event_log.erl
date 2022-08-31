@@ -86,7 +86,8 @@ handle_cast({log, Pid, Level, Props}, State) when is_list(Props) ->
         JSON
     catch
         Error ->
-            io:format(user, "~p caught error:~n\t~p~n", [?MODULE, Error])
+            io:format(user, "~p caught error:~n\t~p~n", [?MODULE, Error]),
+            {error, Error}
     end,
     [call_logger(Logger, Level, JSON2) || Logger <- State#state.loggers],
     {noreply, State};
