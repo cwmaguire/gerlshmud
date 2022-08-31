@@ -15,7 +15,7 @@ attempt({_Parents,
     Log = [{?SOURCE, Self},
            {?EVENT, enter_world},
            {conn, Conn}],
-    case proplists:get_value(room, Props) of
+    case proplists:get_value(owner, Props) of
         undefined ->
             Log2 = [{?TARGET, undefined} | Log],
             {succeed, false, Props, Log2};
@@ -39,7 +39,7 @@ succeed({Props, {Player, enter_world, in, Room, with, Conn}}) ->
            {?SOURCE, Player},
            {?TARGET, Room},
            {conn, Conn}],
-    Props2 = lists:foldl(fun keyreplace/2, Props, [{conn_object, Conn}]),
+    Props2 = lists:foldl(fun keyreplace/2, Props, [{conn, Conn}]),
     {Props2, Log};
 succeed({Props, _Other}) ->
     Props.
