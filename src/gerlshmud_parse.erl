@@ -30,6 +30,10 @@ parse(Player, <<"look ", Object/binary>>) ->
     log([<<"Looking ">>, Object]),
     {Player, look, Object};
 
+parse(Player, <<"search ", Object/binary>>) ->
+    log([<<"Searching ">>, Object]),
+    {Player, search, Object};
+
 parse(_, _) ->
     {error, <<"Huh?">>}.
 

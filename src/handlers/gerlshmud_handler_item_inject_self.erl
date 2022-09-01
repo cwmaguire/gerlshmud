@@ -9,9 +9,13 @@
 
 -include("include/gerlshmud.hrl").
 
-attempt({_Owner, Props, {Object, Action, ItemName}})
+attempt({#parents{},
+         Props,
+         {Object, Action, ItemName}})
   when is_binary(ItemName) andalso
-       Action == get; Action == drop ->
+       (Action == get orelse
+        Action == drop orelse
+        Action == look) ->
     case is_name(Props, ItemName) of
         true ->
             NewMessage = {Object, Action, self()},

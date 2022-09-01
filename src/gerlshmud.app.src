@@ -19,7 +19,7 @@
          {desc_templates, [
              {character, [<<"character ">>, name]},
              {body_part, [<<"body part ">>, name]},
-             {item, [<<"item ">>, name, <<": ">>, desc]},
+             {item, [name, <<": ">>, desc]},
              {room, [name, <<": ">>, desc]},
              {height, [value, <<"m tall">>]},
              {weight, [value, <<"kg">>]},

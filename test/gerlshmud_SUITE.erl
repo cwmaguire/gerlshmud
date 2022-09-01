@@ -38,7 +38,8 @@ all() ->
      look_item,
      set_character,
      cast_spell,
-     decompose].
+     decompose,
+     search_character].
 
 init_per_testcase(_, Config) ->
     %gerlshmud_dbg:add(gerlshmud_object, handle_cast_),
@@ -565,10 +566,10 @@ look_player(_Config) ->
          <<"Pete -> body part hands">>,
          <<"Pete -> body part legs">>,
          <<"Pete -> gender: male">>,
-         <<"Pete -> item pants_: pants">>,
-         <<"Pete -> item scroll_: scroll">>,
-         <<"Pete -> item sword_: sword">>,
+         <<"Pete -> pants_: pants">>,
          <<"Pete -> race: giant">>,
+         <<"Pete -> scroll_: scroll">>,
+         <<"Pete -> sword_: sword">>,
          <<"character Pete">>],
 
     case lists:sort(NakedDescriptions) of
@@ -613,7 +614,7 @@ look_room(_Config) ->
     ct:pal("Descriptions: ~p~n", [Descriptions]),
     Expected = lists:sort([<<"room -> character Bob">>,
                            <<"room -> character Pete">>,
-                           <<"room -> item bread_: a loaf of bread">>,
+                           <<"room -> bread_: a loaf of bread">>,
                            <<"room: an empty space">>]),
     Expected = Descriptions.
 
@@ -623,11 +624,11 @@ look_item(_Config) ->
     gerlshmud_test_socket:send(<<"AnyPasswordWillDo">>),
     ?WAIT100,
     _LoginMessages = gerlshmud_test_socket:messages(),
-    gerlshmud_test_socket:send(<<"look bread">>),
+    gerlshmud_test_socket:send(<<"look bread_">>),
     ?WAIT100,
     Descriptions = lists:sort(gerlshmud_test_socket:messages()),
     ct:pal("Descriptions: ~p~n", [Descriptions]),
-    Expected = lists:sort([<<"item bread_: a loaf of bread">>]),
+    Expected = lists:sort([<<"bread_: a loaf of bread">>]),
     Expected = Descriptions.
 
 set_character(Config) ->
@@ -766,6 +767,35 @@ decompose(Config) ->
         ],
     wait_for(Conditions, 3).
 
+search_character(_Config) ->
+    %gerlshmud_dbg:add(gerlshmud_event_log, log),
+    %gerlshmud_dbg:add(gerlshmud_event_log, handle_cast),
+    %gerlshmud_dbg:add(gerlshmud_object, log),
+    %gerlshmud_dbg:add(gerlshmud_event_log, flatten, 1),
+    start(?WORLD_12),
+    gerlshmud_test_socket:send(<<"AnyLoginWillDo">>),
+    gerlshmud_test_socket:send(<<"AnyPasswordWillDo">>),
+    ?WAIT100,
+    _LoginMessages = gerlshmud_test_socket:messages(),
+    gerlshmud_test_socket:send(<<"search Arlene">>),
+    ?WAIT100,
+    ?WAIT100,
+    ?WAIT100,
+    NakedDescriptions = gerlshmud_test_socket:messages(),
+
+    ExpectedDescriptions =
+        [<<"Arlene has book name: book desc">>,
+         <<"Arlene has coin name: coin desc">>,
+         <<"Arlene has shield name: shield desc">>,
+         <<"Arlene has sword name: sword desc">>],
+
+    case lists:sort(NakedDescriptions) of
+        ExpectedDescriptions ->
+            ok;
+        _ ->
+            ct:fail("Got item descriptions:~p~nbut expected~p~n",
+                    [lists:sort(NakedDescriptions), ExpectedDescriptions])
+    end.
 
 log(_Config) ->
     {ok, Cwd} = file:get_cwd(),

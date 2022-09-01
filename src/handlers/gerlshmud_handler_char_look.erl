@@ -85,24 +85,10 @@ describe(Source, Props, Context, deep) ->
     gerlshmud_object:attempt(Source, {Source, describe, self(), with, NewContext}).
 
 send_description(Source, Props, Context) ->
-    Description = description(Props),
+    Description = gerlshmud_util:describe(character, Props),
     gerlshmud_object:attempt(Source, {send, Source, [<<Context/binary>>, Description]}).
 
 is_owner(MaybeOwner, Props) when is_pid(MaybeOwner) ->
     MaybeOwner == proplists:get_value(owner, Props);
 is_owner(_, _) ->
     false.
-
-description(Props) when is_list(Props) ->
-    DescTemplate = gerlshmud_config:desc_template(character),
-    [[description_part(Props, Part)] || Part <- DescTemplate].
-
-description_part(_, RawText) when is_binary(RawText) ->
-    RawText;
-description_part(Props, DescProp) ->
-    prop_description(proplists:get_value(DescProp, Props, <<"??">>)).
-
-prop_description(undefined) ->
-    [];
-prop_description(Value) when not is_pid(Value) ->
-    Value.

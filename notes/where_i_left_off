@@ -2,22 +2,152 @@ Where I Left Off
 I need a place to track where I am for when I take long breaks.
 
 What do I _need_ for a MUD?
-- move
-- look
+x move
+x look
 - say
-- get
-- put
-- attack
+x get
+x put
+x attack
 - heal
-- die
-- loot
-- wield
+x die
+x loot / search
+x wield
+x cast spell
+- buy / sell
+- activate quest
+- complete quest
+- resurrect
+
+2022-08-31
+
+Trying to figure out quest handlers.
+
+I'm leaning towards have a separate network where I send a duplicate of each success. A list of quest trackers process the messages; each quest tracker is attached to a player, or a group of players, in the case of a co-op quest.
+
+The network could be serial or parallel: i.e. every quest handler could be broadcast each message, or they could all be passed through all the quest handlers in a line. I don't see any reason why I'd make some wait and not send them all together.
+
+(Remember: infinite CPU, infinite RAM, zero latency).
+
+Okay, so all gerlshmud_object processes will forward all successes to the quest tracker proxy, which will then send them to all quest trackers.
+
+What do quest triggers do when they're complete?
+
+Maybe I set them up with the appropriate process to tell when the quest is complete?
+(Should I have a "quest complete" attempt?)
+
+--------------------------------------------------
+
+2022-08-30
+
+D'oh! I didn't have a {room, Room} property in my player character and the connection gear was depending on it. I've fixed the connection gear to use {owner, Room} instead.
+
+--------------------------------------------------
+
+2022-08-29
+
+The connection doesn't seem to be getting my {send, Player, <Msg>} events.
+
+The 'conn' property of the player seems to get erased.
+
+I don't see anything in gerlshmud_event_log.erl that would filter a {conn, <pid>} property out of an objects properties.
+
+--------------------------------------------------
+
+2022-08-28
+
+I think I'll only need the character's name for listing items on a corpse:
+Bob the Zombie has: sword
+Bob the Zombie has: 10 copper
+
+I don't plan to list where each item was found, like I do with describing a character, but I could.
+
+Only players can search, so the "Searcher" variable can be named "Player": this makes it obvious when we send a message to the "Searcher", that we're sending a message to the player. We can only send messages to the person playing a character through their player character.
+
+Instead of a "Context", like I use for describing something, I'm just using "Name" for the name of a character I'm searching.
+
+I've got a two stage search ... crap. Did I decide to only use one stage and specific failure messages?
+
+How do I know whether to counterattack: filter out failures that preclude attacks, or look for specific failures:
+- spotted / noticed / pickpocket_failed
+
+Yeah, I'm going with the specific-failure method.
+If the search failes with 'character_detected_search' then the Character will attack the player.
+
+Since I'm only implementing searches on corpses right now I can leave this for later.
+
+How would I gather all search output into one message? I could listen for send messages, but who would send the first one? The Character? Hmm, the Character could immediately send out a result message and then inventory search handlers could add to that message; once the message succeeded the Character could send the message to the player. How long should an inventory search handler wait to add results to a "send search results message"? What if the results message comes before the item process even knows that the character is being searched? I think I'll just stick with the items sending responses asynchronously. The UI can always handle displaying results either by type (e.g. have a separate window / area) or by time (e.g. once you get a search result, wait N seconds for more results)
+
+Parsing could use some work: I should tokenize the input so I can do pattern matches to get the action: e.g.
+"s" -> "south"
+"so" -> "south"
+...
+"south" -> "south"
+
+"se" -> "souteast"
+
+"sea" -> "souteast"
+...
+"search" -> "search"
+
+I could also allow short cuts, player-made aliases, etc.
+
+e.g. "sr" -> "search"
+
+I'm confused: how can the look test always get the messages back in the same order? Hmm, because the order is deterministic: if you create the world the same way, then processes will be sent messages the same way.
+
+----------------------------------------------------------------------------------------------------
 
 2022-08-26
 
 I don't need to play the MUD to see that a particular mechanic is working.
 
 I want to be able to search a corpse.
+So far if you search a character it will respond by attacking you, unless it's dead: in that case g_h_life_attack will fail the attack because it's dead.
+Eventually I'd like to add some nuance to that: maybe have the source and target do skill checks for pickpocketing.
+I don't want to get too far into the weeds because I just want to loot corpses at this point.
+
+I might need two stages for search:
+- you succeed to try to search
+- you succeed to complete the search
+I have no idea what things might prevent me from even attempting to search:
+- you can't see
+- your hands are full
+- something warns you that the police are watching
+- you have a spell that prevents you from searching a target that's too aware
+- the target is looking directly at you and you can't search them until they're distracted
+- the target leaves before the event can finish
+- etc.
+In each of the cases I don't manage to lay hands on the target, so the target shouldn't attack me.
+However, once I know I'm successfully attempting the search, then I can check to see if the target noticed, and if not then list all the items we find.
+On the other hand: everything could be like this: you try and unlock the door but you can't see it, or you're attacked, or the door disappears, etc. Should have have two stages for that?
+... maybe. Maybe I need to switch the entire mud to have a three stage event:
+- attempt
+- start
+- complete
+
+But, I could also look at the fail _reason_ to determine how to react. If the failure message is "The target notices that you are trying to search them", then the target can attack. If the failure message is "Can't find target" (i.e. because they left) then I can skip the attack.
+
+Items are going send back something "On <Target Name> you find: <item description>"; I could keep adding to the message so that all items build up a description of what items are carried, or I can just put them out one at a time. One day I envision several web pages for the same character that will all listen for different information and display it however they please. I might even send back JSON instead of text.
+
+Hmm, certain characters could spawn items when they die: bones, hide, motors, scrap, etc. Although, you could probably just ... process a corpse to get body parts. Maybe only some body parts are randomly left over when a body "decays"; maybe robots just decay slower.
+(Reminder: this isn't a simulator.)
+
+I had an idea today for a simple mud:
+Consider the numbers as rooms:
+
+  3   7
+  |   |
+1-2-4-6-8
+    |   |
+    5   9
+
+Rooms 4, 6 and 8 are boss rooms; rooms 3, 5 and 7 are sub quests, required to finish the bosses; room 9 is the treasure.
+
+I should probably allow players to "get ____ <type of corpse>" before they've searched the corpse.
+
+I might want to put numbers on the front of duplicate character and item names for the sake of pattern matching ... except ... characters won't know what number they are.
+
+I used sed and grep to get rid of all the source file copyright paragraphs.
 
 ----------------------------------------------------------------------------------------------------
 
