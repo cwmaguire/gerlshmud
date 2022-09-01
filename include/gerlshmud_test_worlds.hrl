@@ -324,7 +324,8 @@
                        ?ITEM_HANDLERS]}]).
 
 -define(WORLD_7, [{room,
-                      [{visitor, giant},
+                      [{visitor, player},
+                       {visitor, giant},
                        {name, <<"room">>},
                        {desc, <<"an empty space">>},
                        {item, bread},
@@ -333,13 +334,13 @@
 
                   {player,
                       [{name, <<"Bob">>},
+                       {owner, room},
                        {attribute, height0},
                        {attribute, weight0},
                        {attribute, gender0},
                        {attribute, race0},
                        {owner, room},
                        %% TODO is the room property used anywhere?
-                       {room, room},
                        {icon, person},
                        ?CHARACTER_HANDLERS]},
 
