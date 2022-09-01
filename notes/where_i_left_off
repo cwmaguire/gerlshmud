@@ -2,16 +2,40 @@ Where I Left Off
 I need a place to track where I am for when I take long breaks.
 
 What do I _need_ for a MUD?
-- move
-- look
+x move
+x look
 - say
-- get
-- put
-- attack
+x get
+x put
+x attack
 - heal
-- die
-- loot
-- wield
+x die
+x loot / search
+x wield
+x cast spell
+- buy / sell
+- activate quest
+- complete quest
+- resurrect
+
+2022-08-31
+
+Trying to figure out quest handlers.
+
+I'm leaning towards have a separate network where I send a duplicate of each success. A list of quest trackers process the messages; each quest tracker is attached to a player, or a group of players, in the case of a co-op quest.
+
+The network could be serial or parallel: i.e. every quest handler could be broadcast each message, or they could all be passed through all the quest handlers in a line. I don't see any reason why I'd make some wait and not send them all together.
+
+(Remember: infinite CPU, infinite RAM, zero latency).
+
+Okay, so all gerlshmud_object processes will forward all successes to the quest tracker proxy, which will then send them to all quest trackers.
+
+What do quest triggers do when they're complete?
+
+Maybe I set them up with the appropriate process to tell when the quest is complete?
+(Should I have a "quest complete" attempt?)
+
+--------------------------------------------------
 
 2022-08-30
 
