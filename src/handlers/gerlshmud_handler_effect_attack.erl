@@ -160,14 +160,14 @@ succeed({Props, {Attacker, do, EffectAmount, 'of', EffectType, to, Target, with,
           AmountBin/binary,
           " damage to <target> with ",
           (gerlshmud_util:atob(EffectType))/binary>>,
-    gerlshmud_object:attempt(Attacker, {send, Attacker, AttackerMsg, AttackerSubstitutions}, _Sub = false),
+    gerlshmud_object:attempt(Attacker, {send, Attacker, AttackerMsg, AttackerSubstitutions}, _Sub0 = false),
 
     TargetSubstitutions = [{<<"<attacker>">>, Attacker}],
     TargetMsg = <<"<attacker> does ",
                   AmountBin/binary,
                   " damage to you with ",
                   (gerlshmud_util:atob(EffectType))/binary>>,
-    gerlshmud_object:attempt(Target, {send, Target, TargetMsg, TargetSubstitutions}, _Sub = false),
+    gerlshmud_object:attempt(Target, {send, Target, TargetMsg, TargetSubstitutions}, _Sub1 = false),
 
 
     {Props, Log};

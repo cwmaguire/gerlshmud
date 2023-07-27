@@ -24,7 +24,9 @@ start(_Type, _Args) ->
              {"/[...]", cowboy_static, {priv_dir, gerlshmud, "static"}}],
     Routes = [{?ANY_HOST, Paths}],
     Dispatch = cowboy_router:compile(Routes),
-    _ = cowboy:start_http(gerlshmud_http_listener, 100, [{port, Port}], [{env, [{dispatch, Dispatch}]}]),
+    _ = cowboy:start_clear(gerlshmud_http_listener,
+                           [{port, Port}],
+                           #{env => #{dispatch => Dispatch}}),
     gerlshmud_sup:start_link().
 
 stop(_State) ->

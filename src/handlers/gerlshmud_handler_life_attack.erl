@@ -73,7 +73,7 @@ attempt({#parents{owner = Owner},
     end;
 attempt({#parents{owner = Owner},
          Props,
-         Msg = {Self, attack, Attacker}})
+         _Msg = {Self, attack, Attacker}})
   when Self == self() ->
     log([{stage, attempt},
          {?EVENT, attack},
@@ -85,9 +85,9 @@ attempt({#parents{owner = Owner},
         _ ->
             {succeed, false, Props}
     end;
-attempt({#parents{owner = Owner},
+attempt({#parents{},
          Props,
-         Msg = {Searcher, search, Self}})
+         _Msg = {Searcher, search, Self}})
   when Self == self() ->
     log([{?EVENT, search},
          {?SOURCE, Searcher},

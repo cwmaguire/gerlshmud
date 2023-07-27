@@ -3,6 +3,7 @@
 -behaviour(gen_server).
 
 -include("include/gerlshmud.hrl").
+-include_lib("kernel/include/logger.hrl").
 
 %% API.
 -export([start_link/2]).
@@ -216,7 +217,7 @@ handle_info({'EXIT', From, Reason}, State = #state{props = Props}) ->
          {source, From},
          {reason, Reason} |
          Props ++ ParentsList]),
-    lager:info("Process ~p died~n", [From]),
+    ?LOG_INFO("Process ~p died~n", [From]),
     gerlshmud_index:subscribe_dead(self(), From),
     Props2 = mark_pid_dead(From, Props),
     gerlshmud_index:put(Props2),
