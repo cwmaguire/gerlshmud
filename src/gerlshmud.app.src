@@ -11,8 +11,7 @@
     %sasl,
     %mnesia,
     cowboy,
-    jsx,
-    lager
+    jsx
   ]},
   {mod, {gerlshmud_app, []}},
   {env, [{corpse_cleanup_millis, 120000}, %% 2 minutes
