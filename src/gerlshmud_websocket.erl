@@ -1,11 +1,11 @@
 %% Route drawing commands to and from a web page to an Erlang process
 %% Copyright 2022, Chris Maguire <cwmaguire@protonmail.com>
 -module(gerlshmud_websocket).
--behaviour(cowboy_http_handler).
+-behaviour(cowboy_handler).
 
 -include_lib("kernel/include/logger.hrl").
 
--export([init/3]).
+-export([init/2]).
 -export([websocket_init/3]).
 -export([websocket_handle/3]).
 -export([websocket_info/3]).
@@ -15,9 +15,9 @@
 
 -record(state, {conn :: pid()}).
 
-init(_, _Req, _Opts) ->
+init(Req, State) ->
     io:format("Websocket handler init (~p)~n", [self()]),
-    {upgrade, protocol, cowboy_websocket}.
+    {cowboy_websocket, Req, State}.
 
 websocket_init(_Type, Req, _Opts) ->
     ?LOG_INFO("Websocket handler websocket_init (~p) start~n", [self()]),
