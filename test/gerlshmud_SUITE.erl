@@ -4,6 +4,7 @@
 
 -include("gerlshmud.hrl").
 -include("gerlshmud_test_worlds.hrl").
+-include_lib("eunit/include/eunit.hrl").
 
 -define(WAIT100, receive after 100 -> ok end).
 -define(WAIT1000, receive after 1000 -> ok end).
@@ -111,19 +112,19 @@ player_move(Config) ->
     RoomNorth =  get_pid(room_nw),
     RoomSouth =  get_pid(room_s),
 
-    RoomNorth = val(owner, Player),
+    ?assertMatch(RoomNorth, val(owner, Player)),
     attempt(Config, Player, {Player, move, s}),
     ?WAIT100,
-    RoomSouth = val(owner, Player).
+    ?assertMatch(RoomSouth, val(owner, Player)).
 
 player_move_fail(Config) ->
     start(?WORLD_1),
     Player = get_pid(player),
     RoomNorth =  get_pid(room_nw),
-    RoomNorth = val(owner, Player),
+    ?assertMatch(RoomNorth, val(owner, Player)),
     attempt(Config, Player, {Player, move, non_existent_exit}),
     ?WAIT100,
-    RoomNorth = val(owner, Player).
+    ?assertMatch(RoomNorth, val(owner, Player)).
 
 player_move_exit_locked(Config) ->
     start(?WORLD_1),
@@ -131,14 +132,14 @@ player_move_exit_locked(Config) ->
     RoomNorth =  get_pid(room_nw),
     RoomEast =  get_pid(room_e),
     ExitEastWest =  get_pid(exit_ew),
-    RoomNorth = val(owner, Player),
+    ?assertMatch(RoomNorth, val(owner, Player)),
     attempt(Config, Player, {Player, move, e}),
     ?WAIT100,
-    RoomNorth = val(owner, Player),
+    ?assertMatch(RoomNorth, val(owner, Player)),
     gerlshmud_object:set(ExitEastWest, {is_locked, false}),
     attempt(Config, Player, {Player, move, e}),
     ?WAIT100,
-    RoomEast = val(owner, Player).
+    ?assertMatch(RoomEast, val(owner, Player)).
 
 player_get_item(Config) ->
     start(?WORLD_2),
@@ -178,10 +179,10 @@ character_owner_add_remove(Config) ->
     %true = wait_loop(WaitFun, Player, 30),
     wait_value(Rifle, character, Player, 30),
     %Player = val(character, Rifle),
-    Player = val(character, Suppressor),
-    Player = val(character, Grip),
-    Player = val(character, Clip),
-    Player = val(character, Bullet),
+    ?assertMatch(Player, val(character, Suppressor)),
+    ?assertMatch(Player, val(character, Grip)),
+    ?assertMatch(Player, val(character, Clip)),
+    ?assertMatch(Player, val(character, Bullet)),
     attempt(Config, Player, {Player, drop, <<"rifle">>}),
     ?WAIT100,
     false = has(Rifle, player),
@@ -240,7 +241,7 @@ player_resource_wait(Config) ->
     true = val(hitpoints, z_hp) < 10,
     true = val(is_alive, z_life),
     true = val(is_attacking, p_fist_right),
-    Zombie = val(target, Fist).
+    ?assertMatch(Zombie, val(target, Fist)).
 
 one_sided_fight(Config) ->
     start(?WORLD_3),
@@ -433,7 +434,7 @@ player_wield(Config) ->
     Player = get_pid(player),
     Helmet = get_pid(helmet),
     Head = get_pid(head1),
-    Helmet = val(item, Player),
+    ?assertMatch(Helmet, val(item, Player)),
     attempt(Config, Player, {<<"helmet">>, move, from, Player, to, <<"head">>}),
     ?WAIT100,
     ?WAIT100,
@@ -443,8 +444,8 @@ player_wield(Config) ->
         end,
     true = wait_loop(WaitFun, [], 30),
     %[] = val(item, Player),
-    {Helmet, _BodyPartRef} = val(item, head1),
-    {body_part, Head, head, _BodyPartRef} = val(body_part, Helmet).
+    ?assertMatch({Helmet, _BodyPartRef0}, val(item, head1)),
+    ?assertMatch({body_part, Head, head, _BodyPartRef1}, val(body_part, Helmet)).
 
 player_wield_first_available(Config) ->
     start(?WORLD_4),
@@ -454,8 +455,8 @@ player_wield_first_available(Config) ->
     attempt(Config, Player, {<<"helmet">>, move, from, Player, to, first_available_body_part}),
     ?WAIT100,
     [] = val(item, Player),
-    {Helmet, _BodyPartRef} = val(item, head1),
-    {body_part, Head, head, _BodyPartRef} = val(body_part, Helmet).
+    ?assertMatch({Helmet, _BodyPartRef0}, val(item, head1)),
+    ?assertMatch({body_part, Head, head, _BodyPartRef1}, val(body_part, Helmet)).
 
 player_wield_missing_body_part(Config) ->
     start(?WORLD_4),
@@ -465,11 +466,11 @@ player_wield_missing_body_part(Config) ->
     attempt(Config, Player, {<<"helmet">>, move, from, Player, to, <<"finger">>}),
     ?WAIT100,
     [] = val(item, head1),
-    Helmet = val(item, player),
+    ?assertMatch(Helmet, val(item, player)),
     attempt(Config, Player, {<<"helmet">>, move, from, Player, to, <<"head">>}),
     ?WAIT100,
-    {Helmet, _BodyPartRef} = val(item, head1),
-    {body_part, Head, head, _BodyPartRef} = val(body_part, Helmet),
+    ?assertMatch({Helmet, _BodyPartRef0}, val(item, head1)),
+    ?assertMatch({body_part, Head, head, _BodyPartRef1}, val(body_part, Helmet)),
     [] = val(item, player).
 
 player_wield_wrong_body_part(Config) ->
@@ -480,11 +481,11 @@ player_wield_wrong_body_part(Config) ->
     attempt(Config, Player, {<<"helmet">>, move, from, Player, to, <<"finger">>}),
     ?WAIT100,
     [] = val(item, head1),
-    Helmet = val(item, player),
+    ?assertEqual(Helmet, val(item, player)),
     attempt(Config, Player, {<<"helmet">>, move, from, Player, to, <<"head">>}),
     ?WAIT100,
-    {Helmet, _BodyPartRef1} = val(item, head1),
-    {body_part, Head, head, _BodyPartRef2} = val(body_part, Helmet),
+    ?assertMatch({Helmet, _BodyPartRef1}, val(item, head1)),
+    ?assertMatch({body_part, Head, head, _BodyPartRef2}, val(body_part, Helmet)),
     [] = val(item, player).
 
 player_wield_body_part_is_full(Config) ->
@@ -501,21 +502,21 @@ player_wield_body_part_is_full(Config) ->
     [] = all(item, finger2),
     attempt(Config, Player, {<<"ring1">>, move, from, Player, to, <<"finger1">>}),
     ?WAIT100,
-    [Ring2] = all(item, player),
-    [{Ring1, _BodyPartRef1}] = all(item, finger1),
-    {body_part, Finger1, finger, _BodyPartRef2} = val(body_part, Ring1),
+    ?assertMatch([Ring2], all(item, player)),
+    ?assertMatch([{Ring1, _BodyPartRef1}], all(item, finger1)),
+    ?assertMatch({body_part, Finger1, finger, _BodyPartRef2}, val(body_part, Ring1)),
     [] = all(item, finger2),
     attempt(Config, Player, {<<"ring2">>, move, from, Player, to, <<"finger1">>}),
     ?WAIT100,
-    [Ring2] = all(item, player),
-    [{Ring1, _BodyPartRef3}] = all(item, finger1),
+    ?assertMatch([Ring2], all(item, player)),
+    ?assertMatch([{Ring1, _BodyPartRef3}], all(item, finger1)),
     [] = all(item, finger2),
     attempt(Config, Player, {<<"ring2">>, move, from, Player, to, first_available_body_part}),
     ?WAIT100,
     [] = all(item, player),
-    [{Ring1, _BodyPartRef4}] = all(item, finger1),
-    [{Ring2, _BodyPartRef5}] = all(item, finger2),
-    {body_part, Finger2, finger, _BodyPartRef6} = val(body_part, Ring2).
+    ?assertMatch([{Ring1, _BodyPartRef4}], all(item, finger1)),
+    ?assertMatch([{Ring2, _BodyPartRef5}], all(item, finger2)),
+    ?assertMatch({body_part, Finger2, finger, _BodyPartRef6}, val(body_part, Ring2)).
 
 player_remove(Config) ->
     start(?WORLD_4),
@@ -526,24 +527,24 @@ player_remove(Config) ->
     attempt(Config, Player, {<<"helmet">>, move, from, Player, to, <<"head">>}),
     ?WAIT100,
     [] = val(item, player),
-    {Helmet, _Ref} = val(item, head1),
-    {body_part, Head, head, _Ref0} = val(body_part, Helmet),
-    {body_part, Head, head, _Ref1} = val(body_part, DexBuff),
+    ?assertMatch({Helmet, _Ref}, val(item, head1)),
+    ?assertMatch({body_part, Head, head, _Ref0}, val(body_part, Helmet)),
+    ?assertMatch({body_part, Head, head, _Ref1}, val(body_part, DexBuff)),
     attempt(Config, Player, {<<"helmet">>, move, from, <<"head">>, to, Player}),
     ?WAIT100,
-    Helmet = val(item, player),
+    ?assertMatch(Helmet, val(item, player)),
     [] = val(body_part, Helmet),
     [] = val(body_part, DexBuff),
     [] = val(item, head1),
     attempt(Config, Player, {<<"helmet">>, move, from, Player, to, <<"head">>}),
     ?WAIT100,
     [] = val(item, player),
-    {Helmet, _Ref2} = val(item, head1),
-    {body_part, Head, head, _Ref3} = val(body_part, Helmet),
-    {body_part, Head, head, _Ref4} = val(body_part, DexBuff),
+    ?assertMatch({Helmet, _Ref2}, val(item, head1)),
+    ?assertMatch({body_part, Head, head, _Ref3}, val(body_part, Helmet)),
+    ?assertMatch({body_part, Head, head, _Ref4}, val(body_part, DexBuff)),
     attempt(Config, Player, {<<"helmet">>, move, from, current_body_part, to, Player}),
     ?WAIT100,
-    Helmet = val(item, player),
+    ?assertMatch(Helmet, val(item, player)),
     [] = val(body_part, Helmet),
     [] = val(body_part, DexBuff),
     [] = val(item, head1).
@@ -573,7 +574,7 @@ look_player(_Config) ->
          <<"character Pete">>],
 
     case lists:sort(NakedDescriptions) of
-        ExpectedDescriptions ->
+        ExpectedDescriptions2 when ExpectedDescriptions == ExpectedDescriptions2 ->
             ok;
         _ ->
             ct:fail("Got descriptions:~p~nbut expected~p~n", [lists:sort(NakedDescriptions), ExpectedDescriptions])
@@ -600,7 +601,7 @@ look_player_clothed(Config) ->
                     <<"Pete -> weighs 400.0kg">>,
                     <<"Pete -> 4.0m tall">>,
                     <<"Pete -> male">>]),
-    ExpectedDescriptions = lists:sort(ClothedDescriptions).
+    ?assertMatch(ExpectedDescriptions, lists:sort(ClothedDescriptions)).
 
 look_room(_Config) ->
     start(?WORLD_7),
@@ -616,7 +617,7 @@ look_room(_Config) ->
                            <<"room -> character Pete">>,
                            <<"room -> bread_: a loaf of bread">>,
                            <<"room: an empty space">>]),
-    Expected = Descriptions.
+    ?assertMatch(Expected, Descriptions).
 
 look_item(_Config) ->
     start(?WORLD_7),
@@ -629,7 +630,7 @@ look_item(_Config) ->
     Descriptions = lists:sort(gerlshmud_test_socket:messages()),
     ct:pal("Descriptions: ~p~n", [Descriptions]),
     Expected = lists:sort([<<"bread_: a loaf of bread">>]),
-    Expected = Descriptions.
+    ?assertMatch(Expected, Descriptions).
 
 set_character(Config) ->
     start(?WORLD_9),
@@ -638,9 +639,9 @@ set_character(Config) ->
     Collar = get_pid(collar),
     attempt(Config, Dog, {Collar, move, from, Room, to, Dog}),
     ?WAIT100,
-    Dog = val(character, collar),
-    Dog = val(character, transmitter),
-    Dog = val(character, stealth).
+    ?assertMatch(Dog, val(character, collar)),
+    ?assertMatch(Dog, val(character, transmitter)),
+    ?assertMatch(Dog, val(character, stealth)).
 
 counterattack_with_spell(Config) ->
     start(?WORLD_11),
@@ -715,12 +716,12 @@ revive_process(_Config) ->
     Hand = val(body_part, player),
     true = is_pid(Hand),
 
-    PlayerV1 = val(owner, p_hp),
-    PlayerV1 = val(owner, p_life),
-    PlayerV1 = val(owner, p_hand_right),
-    PlayerV1 = val(character, p_fist_right),
-    PlayerV1 = val(owner, dexterity0),
-    PlayerV1 = val(owner, p_stamina),
+    ?assertMatch(PlayerV1, val(owner, p_hp)),
+    ?assertMatch(PlayerV1, val(owner, p_life)),
+    ?assertMatch(PlayerV1, val(owner, p_hand_right)),
+    ?assertMatch(PlayerV1, val(character, p_fist_right)),
+    ?assertMatch(PlayerV1, val(owner, dexterity0)),
+    ?assertMatch(PlayerV1, val(owner, p_stamina)),
 
     exit(PlayerV1, kill),
     ?WAIT100,
@@ -728,25 +729,25 @@ revive_process(_Config) ->
     PlayerV2 = get_pid(player),
     false = PlayerV1 == PlayerV2,
 
-    Room = val(owner, player),
-    true = is_pid(Room),
-    HP = val(hitpoints, player),
-    true = is_pid(HP),
-    Life = val(life, player),
-    true = is_pid(Life),
-    Dex = val(attribute, player),
-    true = is_pid(Dex),
-    Stamina = val(resource, player),
-    true = is_pid(Stamina),
-    Hand = val(body_part, player),
-    true = is_pid(Hand),
+    ?assertMatch(Room, val(owner, player)),
+    ?assert(is_pid(Room)),
+    ?assertMatch(HP, val(hitpoints, player)),
+    ?assert(is_pid(HP)),
+    ?assertMatch(Life, val(life, player)),
+    ?assert(is_pid(Life)),
+    ?assertMatch(Dex, val(attribute, player)),
+    ?assert(is_pid(Dex)),
+    ?assertMatch(Stamina, val(resource, player)),
+    ?assert(is_pid(Stamina)),
+    ?assertMatch(Hand, val(body_part, player)),
+    ?assert(is_pid(Hand)),
 
-    PlayerV2 = val(owner, p_hp),
-    PlayerV2 = val(owner, p_life),
-    PlayerV2 = val(owner, p_hand_right),
-    PlayerV2 = val(character, p_fist_right),
-    PlayerV2 = val(owner, dexterity0),
-    PlayerV2 = val(owner, p_stamina).
+    ?assertMatch(PlayerV2, val(owner, p_hp)),
+    ?assertMatch(PlayerV2, val(owner, p_life)),
+    ?assertMatch(PlayerV2, val(owner, p_hand_right)),
+    ?assertMatch(PlayerV2, val(character, p_fist_right)),
+    ?assertMatch(PlayerV2, val(owner, dexterity0)),
+    ?assertMatch(PlayerV2, val(owner, p_stamina)).
 
 decompose(Config) ->
     start(?WORLD_3),

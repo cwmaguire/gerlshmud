@@ -49,8 +49,8 @@ events(_Form, _State) ->
     [].
 
 
-catch_clause({clause, _Line, Exception, GuardGroups, Body}, State) ->
-    [{tuple, _Line, [Class, ExceptionPattern, _Wild]}] = Exception,
+catch_clause({clause, _Line0, Exception, GuardGroups, Body}, State) ->
+    [{tuple, _Line1, [Class, ExceptionPattern, _Wild]}] = Exception,
     {Exp1, State1} = search(Class, State),
     {Exp2, State2} = search(ExceptionPattern, State1),
     {Exp3, State3} = guard_groups(GuardGroups, State2),
@@ -170,17 +170,17 @@ attempt_head(Parents, Props, Event, State) ->
 
 %% We don't need to see catch-all clauses in the protocol
 %% succeed({AnyVAr, _}) -> ...
-succeed_clause({clause, _Line2, [{tuple, _Line2, [_Props, {var, _Line3, Ignored}]}], _, _}, _State)
+succeed_clause({clause, _Line1, [{tuple, _Line2, [_Props, {var, _Line3, Ignored}]}], _, _}, _State)
   when Ignored == '_';
        Ignored == '_Msg';
        Ignored == '_Other' ->
     [];
 
-succeed_clause({clause, _Line2, [{tuple, _Line2, [Props, {match, _Line3, {var, _Line3, 'Msg'}, Event}]}], GuardGroups, Body}, State) ->
+succeed_clause({clause, _Line1, [{tuple, _Line2, [Props, {match, _Line3, {var, _Line4, 'Msg'}, Event}]}], GuardGroups, Body}, State) ->
     succeed_clause({clause, 0, [{tuple, 0, [Props, Event]}], GuardGroups, Body}, State);
 
-succeed_clause({clause, _Line, Head, GuardGroups, Body}, State) ->
-    [{tuple, _Line, [Props, Event]}] = Head,
+succeed_clause({clause, _Line0, Head, GuardGroups, Body}, State) ->
+    [{tuple, _Line1, [Props, Event]}] = Head,
 
     {SucceedHeadExprs, State1} = succeed_head(Props, Event, State),
     {GuardGroupsExprs, State2} = guard_groups(GuardGroups, State1),
@@ -307,11 +307,11 @@ search({op, _Line, _Op, L, R}, State) ->
     {RExpr, State2} = search(R, State1),
     {[LExpr | [RExpr]], State2};
 
-search({tuple, _Line, [{atom, _Line1, resend}, Source, {var, _Line1, 'NewMessage'}]}, State = #{new_message := NewMessage}) ->
+search({tuple, _Line0, [{atom, _Line1, resend}, Source, {var, _Line2, 'NewMessage'}]}, State = #{new_message := NewMessage}) ->
     {SourceExpr, State1} = search(Source, State),
     {SourceExpr, State1#{resent_message => NewMessage}};
 
-search({tuple, _Line, [{atom, _Line1, broadcast}, {var, _Line1, 'NewMessage'}]}, State = #{new_message := NewMessage}) ->
+search({tuple, _Line0, [{atom, _Line1, broadcast}, {var, _Line2, 'NewMessage'}]}, State = #{new_message := NewMessage}) ->
     {[], State#{broadcast_message => NewMessage}};
 
 search({tuple,_Line, TupleExpressions}, State) ->
