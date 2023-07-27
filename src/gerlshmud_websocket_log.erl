@@ -3,6 +3,8 @@
 -module(gerlshmud_websocket_log).
 -behaviour(cowboy_http_handler).
 
+-include_lib("kernel/include/logger.hrl").
+
 -export([init/3]).
 -export([websocket_init/3]).
 -export([websocket_handle/3]).
@@ -16,12 +18,12 @@ init(_, _Req, _Opts) ->
     {upgrade, protocol, cowboy_websocket}.
 
 websocket_init(_Type, Req, _Opts) ->
-    lager:info("Websocket log handler websocket_init (~p) start~n", [self()]),
+    ?LOG_INFO("Websocket log handler websocket_init (~p) start~n", [self()]),
     Req3 = case cowboy_req:parse_header(<<"sec-websocket-protocol">>, Req) of
         {ok, undefined, Req2} ->
             Req2;
         {ok, Subprotocols, Req2} ->
-            lager:info("Subprotocols found: ~p~n", [Subprotocols]),
+            ?LOG_INFO("Subprotocols found: ~p~n", [Subprotocols]),
             Req2
     end,
 
@@ -32,18 +34,18 @@ websocket_init(_Type, Req, _Opts) ->
     end,
     gerlshmud_event_log:register(Fun),
 
-    lager:info("Websocket handler websocket_init end (~p)~n", [self()]),
+    ?LOG_INFO("Websocket handler websocket_init end (~p)~n", [self()]),
     {ok, Req3, undefined}.
 
 websocket_handle(X, Req, State) ->
-    lager:info("Received ~p~n", X),
+    ?LOG_INFO("Received ~p~n", X),
     {ok, Req, State}.
 
 websocket_info({send, Log}, Req, State) ->
-    lager:info("Sending log message: ~p~n", [Log]),
+    ?LOG_INFO("Sending log message: ~p~n", [Log]),
     {reply, {text, [Log]}, Req, State};
 websocket_info(ErlangMessage, Req, State) ->
-    lager:info("websocket_info(~p, ~p, ~p)~n", [ErlangMessage, Req, State]),
+    ?LOG_INFO("websocket_info(~p, ~p, ~p)~n", [ErlangMessage, Req, State]),
     {reply, {text, [ErlangMessage]}, Req, State}.
 
 websocket_terminate(_Reason, _Req, _State) ->
