@@ -791,7 +791,7 @@ search_character(_Config) ->
          <<"Arlene has sword name: sword desc">>],
 
     case lists:sort(NakedDescriptions) of
-        ExpectedDescriptions ->
+        ExpectedDescriptions2 when ExpectedDescriptions == ExpectedDescriptions2 ->
             ok;
         _ ->
             ct:fail("Got item descriptions:~p~nbut expected~p~n",
