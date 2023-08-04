@@ -1,6 +1,18 @@
 G.Erl.S.H.M.U.D - Graph of ERLang Stream Handlers Multi-User Dungeon
 
+GERLSHMUD is being mothballed.
+I'm splitting it into three parts:
+EGRE - a graph rules engine
+EGRE_MUD - a MUD engine using EGRE
+EGRE_MUD_1 - a reference implementation of MUD rules for EGRE_MUD
+
+--------------------------------------------------------------------------
+
 (Actually, it's more like a distributed rules engine than stream handlers)
+
+(2023-08-03 ^ this is what kicked off the change: the graph rules engine
+ is its own thing: the fact that it's being used for a MUD is incidental.
+ A graph rules engine is not usable on its own if it's married to a MUD.)
 
 How it Works (short version):
 All MUD elements (rooms, characters, attributes, weapons, spells) are
